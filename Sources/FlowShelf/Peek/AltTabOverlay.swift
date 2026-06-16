@@ -17,8 +17,8 @@ struct AltTabOverlayView: View {
         Group {
             if model.layout == .list { listLayout } else { thumbnailLayout }
         }
-        .padding(16)
-        .frame(maxWidth: model.layout == .list ? 460 : 980)
+        .padding(18)
+        .frame(maxWidth: model.layout == .list ? 500 : 1220)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
             .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1))
@@ -35,9 +35,9 @@ struct AltTabOverlayView: View {
     }
 
     private var thumbnailLayout: some View {
-        let columns = Array(repeating: GridItem(.fixed(178), spacing: 14), count: columnCount)
-        return VStack(spacing: 12) {
-            LazyVGrid(columns: columns, spacing: 14) {
+        let columns = Array(repeating: GridItem(.fixed(228), spacing: 16), count: columnCount)
+        return VStack(spacing: 14) {
+            LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(Array(model.windows.enumerated()), id: \.element.id) { i, w in
                     thumbCard(w, selected: i == model.selectedIndex)
                 }
@@ -59,20 +59,20 @@ struct AltTabOverlayView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 } else if let icon = appIcon(w.pid) {
                     Image(nsImage: icon).resizable().aspectRatio(contentMode: .fit)
-                        .frame(width: 48, height: 48).opacity(0.7)
+                        .frame(width: 60, height: 60).opacity(0.7)
                 }
             }
-            .frame(width: 176, height: 116)
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .frame(width: 228, height: 146)
+            .overlay(RoundedRectangle(cornerRadius: 11, style: .continuous)
                 .strokeBorder(selected ? Color.accentColor : Color.primary.opacity(0.08),
                               lineWidth: selected ? 3 : 1))
-            HStack(spacing: 4) {
+            HStack(spacing: 5) {
                 if let icon = appIcon(w.pid) {
-                    Image(nsImage: icon).resizable().frame(width: 14, height: 14)
+                    Image(nsImage: icon).resizable().frame(width: 16, height: 16)
                 }
-                Text(w.title).font(.system(size: 10)).lineLimit(1)
+                Text(w.title).font(.system(size: 11)).lineLimit(1)
             }
-            .frame(width: 176)
+            .frame(width: 228)
         }
         .scaleEffect(selected ? 1.0 : 0.97)
     }

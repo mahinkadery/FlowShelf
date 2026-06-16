@@ -155,7 +155,7 @@ final class AltTabController {
         Task {
             for (i, id) in ids.enumerated() {
                 guard active else { break }
-                if let img = WindowService.shared.captureWindow(windowID: id, maxDimension: 380),
+                if let img = WindowService.shared.captureWindow(windowID: id, maxDimension: 480),
                    model.windows.indices.contains(i), model.windows[i].id == id {
                     model.windows[i].thumbnail = img
                 }
