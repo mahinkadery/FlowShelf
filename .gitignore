@@ -1,0 +1,7 @@
+.DS_Store
+.build/
+FlowShelf.app/
+*.dmg
+Resources/AppIcon.icns
+dist/
+*.xcuserstate

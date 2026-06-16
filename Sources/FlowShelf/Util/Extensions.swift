@@ -1,0 +1,54 @@
+import AppKit
+
+extension NSImage {
+    /// PNG data for the image at its current representation.
+    func pngData() -> Data? {
+        guard let tiff = tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff) else { return nil }
+        return rep.representation(using: .png, properties: [:])
+    }
+
+    /// Downscale so the longest edge is at most `maxDimension`. Never upscales.
+    func resized(maxDimension: CGFloat) -> NSImage {
+        let w = size.width, h = size.height
+        guard w > 0, h > 0 else { return self }
+        let longest = max(w, h)
+        guard longest > maxDimension else { return self }
+        let scale = maxDimension / longest
+        let newSize = NSSize(width: floor(w * scale), height: floor(h * scale))
+        let out = NSImage(size: newSize)
+        out.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        draw(in: NSRect(origin: .zero, size: newSize),
+             from: NSRect(origin: .zero, size: size),
+             operation: .copy, fraction: 1.0)
+        out.unlockFocus()
+        return out
+    }
+}
+
+extension String {
+    /// Heuristic: does this text look like a single URL?
+    var looksLikeURL: Bool {
+        let t = trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.contains(" "), t.count < 2048 else { return false }
+        return t.hasPrefix("http://") || t.hasPrefix("https://")
+    }
+
+    /// First non-empty line, trimmed and clipped — used for row titles.
+    func firstLine(max: Int = 80) -> String {
+        let line = split(whereSeparator: \.isNewline).first.map(String.init) ?? self
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        return trimmed.count > max ? String(trimmed.prefix(max)) + "…" : trimmed
+    }
+}
+
+extension Date {
+    /// "2:42 PM" style short time, used in row subtitles.
+    var shortTime: String {
+        let f = DateFormatter()
+        f.timeStyle = .short
+        f.dateStyle = .none
+        return f.string(from: self)
+    }
+}
