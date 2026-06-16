@@ -37,16 +37,16 @@ tell application "Finder"
     set current view of container window to icon view
     set toolbar visible of container window to false
     set statusbar visible of container window to false
-    set the bounds of container window to {200, 120, 924, 663}
+    set the bounds of container window to {220, 140, 880, 560}
     set opts to the icon view options of container window
     set arrangement of opts to not arranged
-    set icon size of opts to 112
-    set text size of opts to 13
+    set icon size of opts to 96
+    set text size of opts to 12
     try
       set background picture of opts to file ".background:bg.jpg"
     end try
-    set position of item "FlowShelf.app" of container window to {246, 271}
-    set position of item "Applications" of container window to {478, 271}
+    set position of item "FlowShelf.app" of container window to {190, 200}
+    set position of item "Applications" of container window to {470, 200}
     update without registering applications
     delay 1
     close

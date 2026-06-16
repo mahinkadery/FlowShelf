@@ -1,21 +1,30 @@
 import AppKit
 
-// Compose the DMG background: the supplied gradient (Resources/dmg-bg-base.png)
-// + the FlowShelf wordmark, tagline, an arrow, and a "drag to install" pill.
+// DMG background at the EXACT window point size (1x, 72 DPI) so Finder shows it
+// without scaling/distortion and the icons line up. Standard 660x420 window.
 // The two draggable icons (FlowShelf.app + Applications) are placed by Finder, so
-// we leave the center band empty for them.
+// we leave their spots empty and only draw chrome around them.
 
-let W: CGFloat = 1448, H: CGFloat = 1086          // 2x of a 724x543 pt window
+let W: CGFloat = 660, H: CGFloat = 420
 let amber = NSColor(srgbRed: 0.97, green: 0.66, blue: 0.15, alpha: 1)
-func fromTop(_ t: CGFloat) -> CGFloat { H - t }   // convert top-origin → bottom-left
+func fromTop(_ t: CGFloat) -> CGFloat { H - t }
 
-let out = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "dmg-background.png"
+// Icon spots (must match build-dmg.sh icon positions).
+let appX: CGFloat = 190, dirX: CGFloat = 470, iconY: CGFloat = 200
 
-let canvas = NSImage(size: NSSize(width: W, height: H))
-canvas.lockFocus()
+let out = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "dmg-background.jpg"
+
+// Draw into an EXPLICIT 660x420 px bitmap at 72 DPI (NSImage.lockFocus would
+// render at 2x/144 DPI on a retina Mac, which Finder then distorts).
+let rep = NSBitmapImageRep(
+    bitmapDataPlanes: nil, pixelsWide: Int(W), pixelsHigh: Int(H),
+    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+rep.size = NSSize(width: W, height: H)   // 72 DPI (points == pixels)
+NSGraphicsContext.saveGraphicsState()
+NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
 NSGraphicsContext.current?.imageInterpolation = .high
 
-// 1. Base gradient (or a dark fallback).
 if let base = NSImage(contentsOfFile: "Resources/dmg-bg-base.png") {
     base.draw(in: NSRect(x: 0, y: 0, width: W, height: H))
 } else {
@@ -23,71 +32,56 @@ if let base = NSImage(contentsOfFile: "Resources/dmg-bg-base.png") {
     NSRect(x: 0, y: 0, width: W, height: H).fill()
 }
 
-// Helpers ----------------------------------------------------------------
-func drawText(_ s: String, font: NSFont, color: NSColor, centerX: CGFloat, top: CGFloat) {
-    let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
-    let size = s.size(withAttributes: attrs)
-    s.draw(at: NSPoint(x: centerX - size.width / 2, y: fromTop(top) - size.height),
-           withAttributes: attrs)
-}
-func tinted(_ symbol: String, _ color: NSColor, pt: CGFloat) -> NSImage? {
-    let cfg = NSImage.SymbolConfiguration(pointSize: pt, weight: .regular)
-        .applying(.init(paletteColors: [color]))
-    return NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-        .withSymbolConfiguration(cfg)
+func centeredText(_ s: String, font: NSFont, color: NSColor, top: CGFloat) {
+    let a: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+    let sz = s.size(withAttributes: a)
+    s.draw(at: NSPoint(x: (W - sz.width) / 2, y: fromTop(top) - sz.height), withAttributes: a)
 }
 
-// 2. Title: logo + "Flow" (white) + "Shelf" (amber), centered near the top.
-let titleFont = NSFont.systemFont(ofSize: 70, weight: .bold)
-let flow = "Flow", shelf = "Shelf"
-let flowW = flow.size(withAttributes: [.font: titleFont]).width
-let shelfW = shelf.size(withAttributes: [.font: titleFont]).width
-let logoSize: CGFloat = 92, logoGap: CGFloat = 18
-let groupW = logoSize + logoGap + flowW + shelfW
-var x = (W - groupW) / 2
-let titleTop: CGFloat = 92
+// Title: logo + "Flow"(white)+"Shelf"(amber), centered near the top.
+let titleFont = NSFont.systemFont(ofSize: 34, weight: .bold)
+let flowW = "Flow".size(withAttributes: [.font: titleFont]).width
+let shelfW = "Shelf".size(withAttributes: [.font: titleFont]).width
+let titleH = "Flow".size(withAttributes: [.font: titleFont]).height
+let logoS: CGFloat = 46, gap: CGFloat = 12
+var x = (W - (logoS + gap + flowW + shelfW)) / 2
+let titleTop: CGFloat = 40
 if let logo = NSImage(contentsOfFile: "Resources/AppIcon.png") {
-    logo.draw(in: NSRect(x: x, y: fromTop(titleTop) - logoSize + 8, width: logoSize, height: logoSize))
+    logo.draw(in: NSRect(x: x, y: fromTop(titleTop) - logoS + 4, width: logoS, height: logoS))
 }
-x += logoSize + logoGap
-let titleH = flow.size(withAttributes: [.font: titleFont]).height
-flow.draw(at: NSPoint(x: x, y: fromTop(titleTop) - titleH), withAttributes: [.font: titleFont, .foregroundColor: NSColor.white])
-x += flowW
-shelf.draw(at: NSPoint(x: x, y: fromTop(titleTop) - titleH), withAttributes: [.font: titleFont, .foregroundColor: amber])
+x += logoS + gap
+"Flow".draw(at: NSPoint(x: x, y: fromTop(titleTop) - titleH), withAttributes: [.font: titleFont, .foregroundColor: NSColor.white])
+"Shelf".draw(at: NSPoint(x: x + flowW, y: fromTop(titleTop) - titleH), withAttributes: [.font: titleFont, .foregroundColor: amber])
 
-// 3. Tagline.
-drawText("Organize everything. Find anything.",
-         font: .systemFont(ofSize: 34, weight: .regular),
-         color: NSColor(calibratedWhite: 0.72, alpha: 1), centerX: W / 2, top: 196)
+// Tagline.
+centeredText("Organize everything. Find anything.",
+             font: .systemFont(ofSize: 16, weight: .regular),
+             color: NSColor(calibratedWhite: 0.72, alpha: 1), top: 96)
 
-// 4. Arrow between the (Finder-placed) icons, at the vertical centre.
-let ay = fromTop(543)
-NSColor(calibratedWhite: 0.78, alpha: 0.85).setStroke()
-let shaft = NSBezierPath(); shaft.lineWidth = 9; shaft.lineCapStyle = .round
-shaft.move(to: NSPoint(x: 672, y: ay)); shaft.line(to: NSPoint(x: 786, y: ay)); shaft.stroke()
-let head = NSBezierPath(); head.lineWidth = 9; head.lineCapStyle = .round; head.lineJoinStyle = .round
-head.move(to: NSPoint(x: 752, y: ay + 30)); head.line(to: NSPoint(x: 788, y: ay)); head.line(to: NSPoint(x: 752, y: ay - 30)); head.stroke()
+// Arrow centered between the two icon spots, at the icon row.
+let ay = fromTop(iconY)
+let ax = (appX + dirX) / 2
+NSColor(calibratedWhite: 0.82, alpha: 0.9).setStroke()
+let shaft = NSBezierPath(); shaft.lineWidth = 5; shaft.lineCapStyle = .round
+shaft.move(to: NSPoint(x: ax - 26, y: ay)); shaft.line(to: NSPoint(x: ax + 26, y: ay)); shaft.stroke()
+let head = NSBezierPath(); head.lineWidth = 5; head.lineCapStyle = .round; head.lineJoinStyle = .round
+head.move(to: NSPoint(x: ax + 12, y: ay + 14)); head.line(to: NSPoint(x: ax + 28, y: ay)); head.line(to: NSPoint(x: ax + 12, y: ay - 14)); head.stroke()
 
-// 5. "Drag to install" pill near the bottom.
-let pillW: CGFloat = 660, pillH: CGFloat = 120
-let pillRect = NSRect(x: (W - pillW) / 2, y: fromTop(900) - pillH, width: pillW, height: pillH)
-let pill = NSBezierPath(roundedRect: pillRect, xRadius: 24, yRadius: 24)
-NSColor(calibratedWhite: 0.0, alpha: 0.28).setFill(); pill.fill()
-NSColor(calibratedWhite: 1, alpha: 0.14).setStroke(); pill.lineWidth = 2; pill.stroke()
-if let mouse = tinted("computermouse.fill", amber, pt: 48) {
-    mouse.draw(in: NSRect(x: pillRect.minX + 46, y: pillRect.midY - 30, width: 44, height: 60))
-}
-let pillText: [NSAttributedString.Key: Any] = [
-    .font: NSFont.systemFont(ofSize: 30, weight: .regular),
-    .foregroundColor: NSColor(calibratedWhite: 0.86, alpha: 1)]
-let l1 = "Drag FlowShelf to your Applications folder", l2 = "to install"
-l1.draw(at: NSPoint(x: pillRect.minX + 130, y: pillRect.midY + 4), withAttributes: pillText)
-l2.draw(at: NSPoint(x: pillRect.minX + 130, y: pillRect.midY - 40), withAttributes: pillText)
+// Install line.
+centeredText("Drag FlowShelf onto the Applications folder to install",
+             font: .systemFont(ofSize: 15, weight: .medium),
+             color: NSColor(calibratedWhite: 0.9, alpha: 1), top: 320)
 
-canvas.unlockFocus()
-// JPEG keeps a smooth gradient background tiny (a PNG re-encode balloons to ~20MB).
-if let tiff = canvas.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
-   let jpg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.86]) {
+// First-launch instructions (Gatekeeper).
+centeredText("First time opening? Apple shows a security prompt — it’s safe.",
+             font: .systemFont(ofSize: 12.5, weight: .regular),
+             color: NSColor(calibratedWhite: 0.62, alpha: 1), top: 352)
+centeredText("System Settings ▸ Privacy & Security ▸ scroll down ▸ “Open Anyway”",
+             font: .systemFont(ofSize: 12.5, weight: .semibold),
+             color: amber.withAlphaComponent(0.92), top: 374)
+
+NSGraphicsContext.restoreGraphicsState()
+if let jpg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.9]) {
     try? jpg.write(to: URL(fileURLWithPath: out))
-    print("make-dmg-bg: wrote \(out)")
+    print("make-dmg-bg: wrote \(out) (\(rep.pixelsWide)x\(rep.pixelsHigh))")
 }
