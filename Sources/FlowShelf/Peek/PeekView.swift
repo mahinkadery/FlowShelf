@@ -17,6 +17,9 @@ final class PeekViewModel: ObservableObject {
             self.loading = false
         }
     }
+
+    /// Release captured thumbnails from memory when the tab isn't visible.
+    func clear() { apps = [] }
 }
 
 /// The "Peek" dashboard tab: every app with open windows, live thumbnails,
@@ -50,6 +53,7 @@ struct PeekView: View {
             content
         }
         .onAppear { model.refresh() }
+        .onDisappear { model.clear() }
     }
 
     private var header: some View {

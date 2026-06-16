@@ -4,6 +4,23 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.1.0] — 2026-06-16 (build 2)
+
+### Added
+- **Buy Me a Coffee** support button in Settings (buymeacoffee.com/mahinkadery).
+- **Launch at login** toggle (General settings).
+
+### Changed
+- **Privacy hardening:** the clipboard store is now owner-only (0700/0600) and
+  excluded from iCloud / Time Machine backups, so copied text never syncs off-device.
+- **Lighter on memory:** window thumbnails are released when the Peek tab closes
+  and when a Dock preview hides (idle RAM stays low).
+
+### Fixed
+- Cleaner now quits a running app before trashing it (no more half-failed uninstalls).
+- Shelf "time left" labels count down live instead of only updating on open.
+- Hardened Accessibility value casts against unexpected system responses.
+
 ## [1.0.0] — 2026-06-16 (build 1)
 
 First release.

@@ -100,6 +100,28 @@ struct SettingsView: View {
                         }
                     }
 
+                    section("Support") {
+                        Text("FlowShelf is free. If it saves you time, you can buy me a coffee ☕️")
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                        Button {
+                            if let url = URL(string: "https://buymeacoffee.com/mahinkadery") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        } label: {
+                            if let img = Bundle.main.loadImage("buymeacoffee") {
+                                Image(nsImage: img).resizable().scaledToFit().frame(height: 46)
+                            } else {
+                                Label("Buy Me a Coffee", systemImage: "cup.and.saucer.fill")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .padding(.horizontal, 14).padding(.vertical, 8)
+                                    .background(Capsule().fill(Color.orange))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .help("buymeacoffee.com/mahinkadery")
+                    }
+
                     Text("FlowShelf \(Self.appVersion) — a smarter temporary shelf for your Mac.")
                         .font(.system(size: 10)).foregroundStyle(.tertiary)
                 }

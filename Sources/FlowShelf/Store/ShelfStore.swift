@@ -25,9 +25,24 @@ final class ShelfStore: ObservableObject {
         dbURL = baseDir.appendingPathComponent("shelf.json")
 
         try? FileManager.default.createDirectory(at: filesDir, withIntermediateDirectories: true)
+        hardenStorage()
         load()
         sweepExpired()
         startSweepTimer()
+    }
+
+    /// Clipboard history can contain sensitive copied text, so keep it private:
+    /// owner-only (0700) directory permissions and excluded from backups so it
+    /// never syncs to iCloud / Time Machine.
+    private func hardenStorage() {
+        let fm = FileManager.default
+        for dir in [baseDir, filesDir] {
+            try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            var url = dir
+            try? url.setResourceValues(values)
+        }
     }
 
     // MARK: - Public API
@@ -141,6 +156,7 @@ final class ShelfStore: ObservableObject {
         encoder.outputFormatting = [.prettyPrinted]
         if let data = try? encoder.encode(items) {
             try? data.write(to: dbURL, options: .atomic)
+            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: dbURL.path)
         }
     }
 

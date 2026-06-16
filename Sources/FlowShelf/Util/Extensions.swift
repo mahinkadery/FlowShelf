@@ -27,6 +27,14 @@ extension NSImage {
     }
 }
 
+extension Bundle {
+    /// Load a loose image resource (e.g. bundled PNG) from the app bundle.
+    func loadImage(_ name: String, ext: String = "png") -> NSImage? {
+        guard let url = url(forResource: name, withExtension: ext) else { return nil }
+        return NSImage(contentsOf: url)
+    }
+}
+
 extension String {
     /// Heuristic: does this text look like a single URL?
     var looksLikeURL: Bool {

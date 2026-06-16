@@ -26,6 +26,7 @@ bundle: build icon
 	@cp $(BIN) $(MACOS_DIR)/$(APP)
 	@cp Resources/Info.plist $(CONTENTS)/Info.plist
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
+	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
 	@$(MAKE) sign
 	@echo "Built $(BUNDLE)"
 

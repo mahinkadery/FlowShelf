@@ -203,6 +203,7 @@ final class DockPreviewController {
     func hide() {
         panel?.orderOut(nil)
         currentPID = nil
+        model.windows = []     // release thumbnails from memory
     }
 
     /// Convert the icon's CoreGraphics (top-left) frame to a Cocoa origin for the
