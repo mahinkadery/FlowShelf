@@ -117,6 +117,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if AppSettings.shared.dockPreviewsEnabled, Permissions.hasAccessibility {
             DockObserver.shared.start()
         }
+        // Resume the Option+Tab window switcher if enabled.
+        if AppSettings.shared.altTabEnabled, Permissions.hasAccessibility {
+            AltTabController.shared.start()
+        }
 
         // If Dock previews are on but we genuinely can't capture other apps'
         // windows (ground-truth test, not the lying preflight flag), surface the

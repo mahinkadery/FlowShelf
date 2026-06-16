@@ -24,6 +24,13 @@ enum DockPreviewSize: String, CaseIterable, Identifiable {
     }
 }
 
+/// Visual style for the Option+Tab window switcher.
+enum AltTabLayout: String, CaseIterable, Identifiable {
+    case thumbnails, list
+    var id: String { rawValue }
+    var label: String { self == .thumbnails ? "Thumbnails" : "List" }
+}
+
 /// User-facing preferences + the privacy controls for clipboard capture.
 @MainActor
 final class AppSettings: ObservableObject {
@@ -61,6 +68,13 @@ final class AppSettings: ObservableObject {
     @Published var dockPreviewSize: DockPreviewSize {
         didSet { defaults.set(dockPreviewSize.rawValue, forKey: "dockPreviewSize") }
     }
+    /// Option+Tab window switcher.
+    @Published var altTabEnabled: Bool {
+        didSet { defaults.set(altTabEnabled, forKey: "altTabEnabled") }
+    }
+    @Published var altTabLayout: AltTabLayout {
+        didSet { defaults.set(altTabLayout.rawValue, forKey: "altTabLayout") }
+    }
 
     /// One-shot: skip recording the very next copy.
     var ignoreNextCopy = false
@@ -74,6 +88,8 @@ final class AppSettings: ObservableObject {
         dockPreviewHoverDelay = defaults.object(forKey: "dockPreviewHoverDelay") as? Double ?? 0.28
         dockPreviewSize = DockPreviewSize(rawValue: defaults.string(forKey: "dockPreviewSize") ?? "")
             ?? .medium
+        altTabEnabled = defaults.bool(forKey: "altTabEnabled")
+        altTabLayout = AltTabLayout(rawValue: defaults.string(forKey: "altTabLayout") ?? "") ?? .thumbnails
         // Default-exclude common password managers.
         excludedBundleIDs = defaults.object(forKey: "excludedBundleIDs") as? [String] ?? [
             "com.1password.1password",

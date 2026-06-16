@@ -36,6 +36,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     generalCard
                     peekCard
+                    switcherCard
                     clipboardCard
                     excludedCard
                     floatingShelfCard
@@ -102,6 +103,35 @@ struct SettingsView: View {
             }
             .disabled(!settings.dockPreviewsEnabled)
             .opacity(settings.dockPreviewsEnabled ? 1 : 0.5)
+        }
+    }
+
+    private var switcherCard: some View {
+        card("Window switcher — ⌥Tab", icon: "rectangle.stack") {
+            Toggle("Hold ⌥ and press Tab to switch windows", isOn: $settings.altTabEnabled)
+                .onChange(of: settings.altTabEnabled) { _, on in
+                    if on {
+                        if !Permissions.hasAccessibility { Permissions.requestAccessibility() }
+                        AltTabController.shared.start()
+                    } else {
+                        AltTabController.shared.stop()
+                    }
+                }
+            Text("⌥Tab to advance · ⌥⇧Tab back · arrows to move · release ⌥ or Return to switch · Esc to cancel. Needs Accessibility.")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Divider().opacity(0.4)
+            HStack {
+                Text("Layout").font(.system(size: 12))
+                Spacer()
+                Picker("", selection: $settings.altTabLayout) {
+                    ForEach(AltTabLayout.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 200)
+            }
+            .disabled(!settings.altTabEnabled)
+            .opacity(settings.altTabEnabled ? 1 : 0.5)
         }
     }
 
