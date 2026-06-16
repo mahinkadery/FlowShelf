@@ -6,12 +6,13 @@ CONTENTS   := $(BUNDLE)/Contents
 MACOS_DIR  := $(CONTENTS)/MacOS
 INSTALL_DIR := /Applications
 
-# Code-signing identity. A STABLE identity is important: ad-hoc ("-") changes the
-# signature every build, so macOS resets Accessibility/Screen-Recording grants on
-# each rebuild. We default to this Mac's Apple Development identity (stable team
-# id → grants persist). Override with `CODESIGN_ID=-` for ad-hoc, or another hash.
-# The sign step falls back to ad-hoc if this identity is unavailable.
-CODESIGN_ID ?= E1474BAEE61438AB92BACD718B0B8A2A9FAE853B
+# Code-signing identity. A STABLE identity is critical: ad-hoc ("-") changes the
+# signature every build, so macOS RESETS Accessibility/Screen-Recording grants on
+# every update (TCC keys on the signature's designated requirement). We default to
+# a self-signed "FlowShelf Self-Signed" cert: it's a stable identity (grants
+# persist across updates) AND runs on any Mac (unlike an Apple Development cert).
+# Create it once with `make cert-help`. Falls back to ad-hoc if it's missing.
+CODESIGN_ID ?= FlowShelf Self-Signed
 
 .PHONY: all build bundle sign run clean install
 
@@ -64,13 +65,11 @@ sign:
 			&& echo "Signed $(BUNDLE) (ad-hoc fallback — grants won't persist across rebuilds)")
 
 cert-help:
-	@echo "To make permissions persist across rebuilds, create a stable identity once:"
-	@echo "  1. Open Keychain Access → menu: Keychain Access ▸ Certificate Assistant ▸"
-	@echo "     Create a Certificate…"
-	@echo "  2. Name: FlowShelf   Identity Type: Self Signed Root"
-	@echo "     Certificate Type: Code Signing   → Create"
-	@echo "  3. Then:  make install CODESIGN_ID=\"FlowShelf\""
-	@echo "  4. Grant Accessibility + Screen Recording to FlowShelf once; they'll stick."
+	@echo "Permissions persist across updates only with a STABLE signing identity."
+	@echo "Create a self-signed 'FlowShelf Self-Signed' Code Signing certificate once,"
+	@echo "either via Keychain Access ▸ Certificate Assistant ▸ Create a Certificate"
+	@echo "(Identity: Self Signed Root, Type: Code Signing), or via openssl + security."
+	@echo "It's the default CODESIGN_ID; the build falls back to ad-hoc if it's absent."
 
 run: bundle
 	@open $(BUNDLE)
@@ -122,15 +121,14 @@ notary-setup:
 	@echo '    --apple-id YOUR_APPLE_ID --team-id TEAMID --password APP_SPECIFIC_PASSWORD'
 	@echo "(Create an app-specific password at https://account.apple.com → Sign-In & Security.)"
 
-# Free, NON-notarized .dmg (no Apple Developer account needed). Signed AD-HOC so it
-# runs on ANY Mac (an Apple Development cert would fail on other people's Macs).
-# On first launch the user opens it via System Settings ▸ Privacy & Security ▸
-# "Open Anyway". Notarize (`make dist`) to remove that step entirely.
-dmg:
-	@$(MAKE) bundle CODESIGN_ID=-
+# Free, NON-notarized .dmg (no Apple Developer account needed). Signed with the
+# stable self-signed identity (CODESIGN_ID) so permissions PERSIST across updates
+# and it still runs on any Mac. First launch needs System Settings ▸ Privacy &
+# Security ▸ "Open Anyway" (un-notarized). Notarize (`make dist`) to remove that.
+dmg: bundle
 	@mkdir -p dist
 	@sh scripts/build-dmg.sh $(BUNDLE) "$(DMG)"
-	@echo "Wrote $(DMG)  (ad-hoc; first launch via System Settings ▸ Open Anyway)"
+	@echo "Wrote $(DMG)  (stable-signed; first launch via System Settings ▸ Open Anyway)"
 
 # Publish the built DMG to GitHub Releases (permanent "latest" URL for the site).
 release: dmg

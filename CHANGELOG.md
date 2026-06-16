@@ -4,6 +4,14 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.2.1] — 2026-06-17 (build 5)
+
+### Fixed
+- **Permissions no longer reset on update.** Releases are now signed with a stable
+  identity instead of ad-hoc, so macOS recognizes each update as the same app and
+  keeps your Accessibility / Screen Recording grants. (One last re-grant when
+  updating to this version, then they stick.)
+
 ## [1.2.0] — 2026-06-17 (build 4)
 
 ### Added
