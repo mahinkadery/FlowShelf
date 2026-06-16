@@ -112,6 +112,10 @@ dmg:
 	@sh scripts/build-dmg.sh $(BUNDLE) "$(DMG)"
 	@echo "Wrote $(DMG)  (ad-hoc; first launch via System Settings ▸ Open Anyway)"
 
+# Publish the built DMG to GitHub Releases (permanent "latest" URL for the site).
+release: dmg
+	@sh scripts/release.sh
+
 # Bump the app version. Usage: make set-version VER=1.1.0 [BUILD=2]
 set-version:
 	@test -n "$(VER)" || { echo 'Usage: make set-version VER=1.1.0 [BUILD=2]'; exit 1; }
