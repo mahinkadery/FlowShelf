@@ -49,8 +49,9 @@ final class WindowService {
         // Always attempt the capture — never gate on CGPreflightScreenCaptureAccess,
         // which lies (stays false after the user grants the permission). The
         // capture itself returns nil if genuinely denied.
+        let dim = AppSettings.shared.dockPreviewSize.captureDimension
         for i in windows.indices {
-            windows[i].thumbnail = captureWindow(windowID: windows[i].id, maxDimension: 660)
+            windows[i].thumbnail = captureWindow(windowID: windows[i].id, maxDimension: dim)
         }
         return windows
     }

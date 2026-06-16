@@ -1,5 +1,28 @@
 import Foundation
 import Combine
+import CoreGraphics
+
+/// Dock-preview thumbnail size options.
+enum DockPreviewSize: String, CaseIterable, Identifiable {
+    case small, medium, large
+    var id: String { rawValue }
+    var label: String { rawValue.capitalized }
+    var thumb: CGSize {
+        switch self {
+        case .small:  return CGSize(width: 230, height: 144)
+        case .medium: return CGSize(width: 300, height: 188)
+        case .large:  return CGSize(width: 380, height: 238)
+        }
+    }
+    /// Resolution to capture at, so larger tiles stay crisp.
+    var captureDimension: CGFloat {
+        switch self {
+        case .small:  return 520
+        case .medium: return 660
+        case .large:  return 820
+        }
+    }
+}
 
 /// User-facing preferences + the privacy controls for clipboard capture.
 @MainActor
@@ -30,6 +53,14 @@ final class AppSettings: ObservableObject {
     @Published var shakeToSummon: Bool {
         didSet { defaults.set(shakeToSummon, forKey: "shakeToSummon") }
     }
+    /// Delay before a Dock-hover preview appears (seconds).
+    @Published var dockPreviewHoverDelay: Double {
+        didSet { defaults.set(dockPreviewHoverDelay, forKey: "dockPreviewHoverDelay") }
+    }
+    /// Dock-preview thumbnail size.
+    @Published var dockPreviewSize: DockPreviewSize {
+        didSet { defaults.set(dockPreviewSize.rawValue, forKey: "dockPreviewSize") }
+    }
 
     /// One-shot: skip recording the very next copy.
     var ignoreNextCopy = false
@@ -40,6 +71,9 @@ final class AppSettings: ObservableObject {
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         dockPreviewsEnabled = defaults.bool(forKey: "dockPreviewsEnabled")
         shakeToSummon = defaults.bool(forKey: "shakeToSummon")
+        dockPreviewHoverDelay = defaults.object(forKey: "dockPreviewHoverDelay") as? Double ?? 0.28
+        dockPreviewSize = DockPreviewSize(rawValue: defaults.string(forKey: "dockPreviewSize") ?? "")
+            ?? .medium
         // Default-exclude common password managers.
         excludedBundleIDs = defaults.object(forKey: "excludedBundleIDs") as? [String] ?? [
             "com.1password.1password",

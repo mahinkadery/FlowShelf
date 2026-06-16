@@ -89,8 +89,8 @@ struct DockPreviewView: View {
             .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1))
     }
 
-    private let thumbW: CGFloat = 300
-    private let thumbH: CGFloat = 188
+    private var thumbW: CGFloat { AppSettings.shared.dockPreviewSize.thumb.width }
+    private var thumbH: CGFloat { AppSettings.shared.dockPreviewSize.thumb.height }
 }
 
 private struct WindowThumb: View {

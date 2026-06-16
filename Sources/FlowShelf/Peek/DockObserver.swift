@@ -29,7 +29,7 @@ final class DockObserver {
     private var currentPID: pid_t?
     private var currentIconFrameCG: CGRect?         // CoreGraphics top-left
     private var leftRegionSince: Date?
-    private let hideDelay: TimeInterval = 0.28
+    private var hideDelay: TimeInterval { AppSettings.shared.dockPreviewHoverDelay }
 
     private(set) var isRunning = false
     private init() {}
