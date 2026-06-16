@@ -4,6 +4,21 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.2.0] — 2026-06-17 (build 4)
+
+### Added
+- **Window switcher (⌥Tab)** — hold Option and press Tab for a live-preview
+  switcher across all apps. Arrows/Tab to navigate, release Option or Return to
+  switch, Esc to cancel. Balanced grid (2×2 → 3×3 → 4×4) or compact List layout.
+  Opt-in, with a layout picker in Settings.
+- **Peek tuning** — choose Dock-preview size (Small / Medium / Large) and adjust
+  the hover delay.
+
+### Changed
+- **Redesigned Settings** — clean card-based layout with every feature toggle
+  grouped sensibly.
+- Larger, more visible Buy Me a Coffee button.
+
 ## [1.1.1] — 2026-06-17 (build 3)
 
 ### Fixed
