@@ -211,15 +211,19 @@ struct SettingsView: View {
                 }
             } label: {
                 if let img = Bundle.main.loadImage("buymeacoffee") {
-                    Image(nsImage: img).resizable().scaledToFit().frame(height: 46)
+                    Image(nsImage: img).resizable().scaledToFit()
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 84)
                 } else {
                     Label("Buy Me a Coffee", systemImage: "cup.and.saucer.fill")
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
                         .background(Capsule().fill(Color.orange)).foregroundStyle(.white)
                 }
             }
             .buttonStyle(.plain).help("buymeacoffee.com/mahinkadery")
+            .padding(.top, 2)
         }
     }
 

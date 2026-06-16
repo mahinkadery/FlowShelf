@@ -24,11 +24,20 @@ struct AltTabOverlayView: View {
             .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1))
     }
 
-    // MARK: Thumbnails (a wrapping row of window previews)
+    // MARK: Thumbnails (a balanced grid: 2×2, then 3×3, then 4×4 …)
+
+    /// Square-ish grid that grows with the window count (2 cols up to 4 windows,
+    /// 3 up to 9, 4 up to 16, capped at 5).
+    private var columnCount: Int {
+        let n = model.windows.count
+        if n <= 1 { return 1 }
+        return min(max(2, Int(ceil(Double(n).squareRoot()))), 5)
+    }
 
     private var thumbnailLayout: some View {
-        VStack(spacing: 10) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 188), spacing: 12)], spacing: 12) {
+        let columns = Array(repeating: GridItem(.fixed(178), spacing: 14), count: columnCount)
+        return VStack(spacing: 12) {
+            LazyVGrid(columns: columns, spacing: 14) {
                 ForEach(Array(model.windows.enumerated()), id: \.element.id) { i, w in
                     thumbCard(w, selected: i == model.selectedIndex)
                 }
