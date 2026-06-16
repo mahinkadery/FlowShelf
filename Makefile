@@ -1,7 +1,7 @@
 APP        := FlowShelf
 BUNDLE     := $(APP).app
 CONFIG     := release
-BIN        := .build/$(CONFIG)/$(APP)
+BIN        := .build/$(APP)-universal
 CONTENTS   := $(BUNDLE)/Contents
 MACOS_DIR  := $(CONTENTS)/MacOS
 INSTALL_DIR := /Applications
@@ -17,8 +17,16 @@ CODESIGN_ID ?= E1474BAEE61438AB92BACD718B0B8A2A9FAE853B
 
 all: bundle
 
+# Universal build: compile each arch (full Xcode's multi-arch needs xcbuild, which
+# Command Line Tools lacks), then lipo the slices into one fat binary.
 build:
-	swift build -c $(CONFIG)
+	swift build -c $(CONFIG) --arch arm64
+	swift build -c $(CONFIG) --arch x86_64
+	@lipo -create \
+		.build/arm64-apple-macosx/$(CONFIG)/$(APP) \
+		.build/x86_64-apple-macosx/$(CONFIG)/$(APP) \
+		-output $(BIN)
+	@echo "Universal binary: $$(lipo -archs $(BIN))"
 
 bundle: build icon
 	@rm -rf $(BUNDLE)

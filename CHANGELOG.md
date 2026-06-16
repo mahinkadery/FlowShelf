@@ -4,6 +4,12 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.1.1] — 2026-06-17 (build 3)
+
+### Fixed
+- **Universal binary** — now runs natively on both Apple Silicon and Intel Macs
+  (1.1.0 was Apple-Silicon-only by mistake).
+
 ## [1.1.0] — 2026-06-16 (build 2)
 
 ### Added
