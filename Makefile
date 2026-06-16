@@ -27,8 +27,20 @@ bundle: build icon
 	@cp Resources/Info.plist $(CONTENTS)/Info.plist
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
 	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
+	@$(MAKE) embed-sparkle
 	@$(MAKE) sign
 	@echo "Built $(BUNDLE)"
+
+# Embed Sparkle.framework (with its XPC services + Updater.app) and add the rpath
+# so the executable can find it inside the bundle.
+embed-sparkle:
+	@SPK=$$(find .build/artifacts -name Sparkle.framework -type d -path '*macos*' | head -1); \
+	if [ -n "$$SPK" ]; then \
+		mkdir -p $(CONTENTS)/Frameworks; \
+		ditto "$$SPK" $(CONTENTS)/Frameworks/Sparkle.framework; \
+		install_name_tool -add_rpath @executable_path/../Frameworks $(MACOS_DIR)/$(APP) 2>/dev/null || true; \
+		echo "Embedded Sparkle.framework"; \
+	else echo "Sparkle.framework not found (run swift build first)"; fi
 
 # Regenerate AppIcon.icns from Resources/AppIcon.png when the PNG is present/newer.
 icon:

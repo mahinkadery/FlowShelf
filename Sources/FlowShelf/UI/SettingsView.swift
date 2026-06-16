@@ -39,6 +39,12 @@ struct SettingsView: View {
                             .onChange(of: settings.launchAtLogin) { _, on in
                                 LoginItem.setEnabled(on)
                             }
+                        HStack {
+                            Text("Updates").font(.system(size: 12))
+                            Spacer()
+                            Button("Check for Updates…") { UpdaterManager.shared.checkForUpdates() }
+                                .controlSize(.small)
+                        }
                     }
 
                     section("Clipboard") {

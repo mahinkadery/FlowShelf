@@ -99,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPopover()
 
         ClipboardMonitor.shared.start()
+        UpdaterManager.shared.start()   // Sparkle: background update checks
 
         // Reflect the real login-item state (the user may have changed it elsewhere).
         AppSettings.shared.launchAtLogin = LoginItem.isEnabled

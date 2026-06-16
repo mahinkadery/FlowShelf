@@ -7,6 +7,8 @@ changes. The number in parentheses is the build number (`CFBundleVersion`).
 ## [1.1.0] — 2026-06-16 (build 2)
 
 ### Added
+- **Automatic updates** via Sparkle — checks daily and prompts when a new version
+  is available; "Check for Updates…" in Settings.
 - **Buy Me a Coffee** support button in Settings (buymeacoffee.com/mahinkadery).
 - **Launch at login** toggle (General settings).
 
