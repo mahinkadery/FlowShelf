@@ -5,3 +5,5 @@ FlowShelf.app/
 Resources/AppIcon.icns
 dist/
 *.xcuserstate
+Resources/dmg-background.jpg
+Resources/dmg-background.png
