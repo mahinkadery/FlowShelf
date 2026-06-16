@@ -33,7 +33,7 @@
 	<!-- Sparkle auto-update. SUFeedURL must point at your published appcast.xml;
 	     update the owner/host once the GitHub repo or website is live. -->
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/CHANGE-ME/FlowShelf/main/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/mahinkadery/FlowShelf/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>w6G3ldvJvyBuBsep+b1oBczl1J+0n/zbvlHQily4W8Y=</string>
 	<key>SUEnableAutomaticChecks</key>
