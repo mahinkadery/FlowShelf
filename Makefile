@@ -102,12 +102,15 @@ notary-setup:
 	@echo '    --apple-id YOUR_APPLE_ID --team-id TEAMID --password APP_SPECIFIC_PASSWORD'
 	@echo "(Create an app-specific password at https://account.apple.com → Sign-In & Security.)"
 
-# Free, NON-notarized .dmg (no Apple Developer account needed). It works, but on
-# download users get a Gatekeeper warning and must right-click → Open once.
-dmg: bundle
+# Free, NON-notarized .dmg (no Apple Developer account needed). Signed AD-HOC so it
+# runs on ANY Mac (an Apple Development cert would fail on other people's Macs).
+# On first launch the user opens it via System Settings ▸ Privacy & Security ▸
+# "Open Anyway". Notarize (`make dist`) to remove that step entirely.
+dmg:
+	@$(MAKE) bundle CODESIGN_ID=-
 	@mkdir -p dist
 	@sh scripts/build-dmg.sh $(BUNDLE) "$(DMG)"
-	@echo "Wrote $(DMG)  (NOT notarized — first launch needs right-click ▸ Open)"
+	@echo "Wrote $(DMG)  (ad-hoc; first launch via System Settings ▸ Open Anyway)"
 
 # Bump the app version. Usage: make set-version VER=1.1.0 [BUILD=2]
 set-version:
