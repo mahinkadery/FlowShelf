@@ -166,9 +166,15 @@ struct MenuBarView: View {
                          settings.privateMode ? "Resume clipboard" : "Private mode") {
                 settings.privateMode.toggle()
             }
-            footerButton("rectangle.3.group", "Open Dashboard · ⌘⇧D") {
-                DashboardWindowController.shared.show()
+            Button { DashboardWindowController.shared.show() } label: {
+                Label("App", systemImage: "macwindow")
+                    .font(.system(size: 11, weight: .semibold))
+                    .padding(.horizontal, 9).padding(.vertical, 3)
+                    .background(Capsule().fill(Color.accentColor.opacity(0.2)))
+                    .foregroundStyle(Color.accentColor)
             }
+            .buttonStyle(.plain)
+            .help("Open the full FlowShelf app · ⌘⇧D")
             Spacer()
             footerButton("trash", "Clear unpinned") {
                 store.clearAll(includingPinned: false)

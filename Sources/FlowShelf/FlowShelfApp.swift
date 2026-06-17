@@ -141,10 +141,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.image = NSImage.menuBarGlyph(height: 18)
                 ?? NSImage(systemSymbolName: "tray.full", accessibilityDescription: "FlowShelf")
             button.image?.isTemplate = true
-            button.action = #selector(togglePopover)
+            button.action = #selector(statusItemClicked)
             button.target = self
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])   // left = shelf, right = menu
         }
     }
+
+    @objc private func statusItemClicked() {
+        if NSApp.currentEvent?.type == .rightMouseUp
+            || (NSApp.currentEvent?.modifierFlags.contains(.control) ?? false) {
+            showStatusMenu()
+        } else {
+            togglePopover()
+        }
+    }
+
+    /// Right-click / Control-click menu so the full app is discoverable.
+    private func showStatusMenu() {
+        let menu = NSMenu()
+        func item(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
+            let i = NSMenuItem(title: title, action: action, keyEquivalent: key)
+            i.target = self; return i
+        }
+        menu.addItem(item("Open App (Dashboard)", #selector(menuOpenDashboard)))
+        menu.addItem(item("Open Shelf", #selector(menuOpenShelf)))
+        menu.addItem(.separator())
+        menu.addItem(item("Quit FlowShelf", #selector(menuQuit), key: "q"))
+
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil                  // restore left-click action
+    }
+
+    @objc private func menuOpenDashboard() { closePopover(); DashboardWindowController.shared.show() }
+    @objc private func menuOpenShelf() { showPopover() }
+    @objc private func menuQuit() { NSApp.terminate(nil) }
 
     private func setupPopover() {
         popover.behavior = .transient
