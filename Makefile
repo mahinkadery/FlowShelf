@@ -36,6 +36,7 @@ bundle: build icon
 	@cp Resources/Info.plist $(CONTENTS)/Info.plist
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
 	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
+	@if [ -f Resources/MenuBarIcon.png ]; then cp Resources/MenuBarIcon.png $(CONTENTS)/Resources/MenuBarIcon.png; fi
 	@$(MAKE) embed-sparkle
 	@$(MAKE) sign
 	@echo "Built $(BUNDLE)"

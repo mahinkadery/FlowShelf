@@ -138,7 +138,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "tray.full", accessibilityDescription: "FlowShelf")
+            button.image = NSImage.menuBarGlyph(height: 18)
+                ?? NSImage(systemSymbolName: "tray.full", accessibilityDescription: "FlowShelf")
             button.image?.isTemplate = true
             button.action = #selector(togglePopover)
             button.target = self

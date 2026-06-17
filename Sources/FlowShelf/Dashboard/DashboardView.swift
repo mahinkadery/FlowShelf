@@ -52,7 +52,7 @@ struct DashboardView: View {
             .listStyle(.sidebar)
             .safeAreaInset(edge: .top) {
                 HStack(spacing: 7) {
-                    Image(systemName: "tray.full.fill").foregroundStyle(.tint)
+                    FlowShelfGlyph(size: 18, color: .accentColor)
                     Text("FlowShelf").font(.system(size: 14, weight: .semibold))
                     Spacer()
                 }

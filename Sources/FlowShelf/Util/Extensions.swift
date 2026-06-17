@@ -1,4 +1,34 @@
 import AppKit
+import SwiftUI
+
+extension NSImage {
+    /// The bundled FlowShelf shelf glyph as a menu-bar template image (auto-tinted
+    /// by macOS), sized to `height`. Falls back to nil if the asset is missing.
+    static func menuBarGlyph(height: CGFloat) -> NSImage? {
+        guard let img = Bundle.main.loadImage("MenuBarIcon") else { return nil }
+        img.isTemplate = true
+        let ratio = img.size.height > 0 ? img.size.width / img.size.height : 1
+        img.size = NSSize(width: height * ratio, height: height)
+        return img
+    }
+}
+
+/// FlowShelf's shelf glyph for in-app headers (template, tintable).
+struct FlowShelfGlyph: View {
+    var size: CGFloat = 16
+    var color: Color = .accentColor
+    var body: some View {
+        Group {
+            if let img = Bundle.main.loadImage("MenuBarIcon") {
+                Image(nsImage: img).renderingMode(.template).resizable().scaledToFit()
+            } else {
+                Image(systemName: "tray.full.fill").resizable().scaledToFit()
+            }
+        }
+        .frame(width: size, height: size)
+        .foregroundStyle(color)
+    }
+}
 
 extension NSImage {
     /// PNG data for the image at its current representation.

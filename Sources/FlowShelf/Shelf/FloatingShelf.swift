@@ -8,18 +8,17 @@ struct FloatingShelfView: View {
     @ObservedObject private var store = ShelfStore.shared
     var onClose: () -> Void
     @State private var targeted = false
+    @State private var filter: ShelfFilter = .today
 
-    private var items: [ShelfItem] { store.visibleItems }
+    private var items: [ShelfItem] { store.visibleItems.filter { filter.matches($0) } }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
-                Image(systemName: "tray.full")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                FlowShelfGlyph(size: 13, color: .secondary)
                 Text("Shelf")
                     .font(.system(size: 12, weight: .semibold))
-                Text("\(items.count)")
+                Text("\(store.visibleItems.count)")
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
                 Spacer()
@@ -32,6 +31,23 @@ struct FloatingShelfView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background(WindowMoveHandle())   // drag the panel by its header only
+
+            // Filter chips (Today · Pinned · Shots · Files · Links · Text).
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 5) {
+                    ForEach(ShelfFilter.allCases) { f in
+                        Button { filter = f } label: {
+                            Label(f.label, systemImage: f.symbol).font(.system(size: 10))
+                                .padding(.horizontal, 7).padding(.vertical, 3)
+                                .background(Capsule().fill(filter == f
+                                    ? Color.accentColor.opacity(0.22) : Color.primary.opacity(0.07)))
+                                .foregroundStyle(filter == f ? Color.accentColor : .primary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 10).padding(.bottom, 6)
+            }
 
             Divider().opacity(0.5)
 
