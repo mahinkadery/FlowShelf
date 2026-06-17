@@ -10,6 +10,17 @@ enum CleanerEngine {
         let category: LeftoverCategory
     }
 
+    /// True for paths on the sealed, SIP-protected system volume (built-in Apple
+    /// apps, `/System`, system `/usr`, etc.). These can't be moved to Trash by
+    /// anyone — not with admin, not with Full Disk Access — so we never select or
+    /// attempt them, and we label them honestly instead of pretending.
+    static func isProtected(_ url: URL) -> Bool {
+        let p = url.standardizedFileURL.path
+        return p == "/System" || p.hasPrefix("/System/")
+            || p == "/usr" || (p.hasPrefix("/usr/") && !p.hasPrefix("/usr/local"))
+            || p.hasPrefix("/bin/") || p.hasPrefix("/sbin/")
+    }
+
     /// Scan an app bundle for leftover files. Pure file IO — call off the main actor.
     static func scan(appURL: URL) -> AppScanResult {
         let info = readBundleInfo(appURL)
@@ -35,7 +46,7 @@ enum CleanerEngine {
         seen.insert(appURL.path)
         items.append(LeftoverFile(
             url: appURL, category: .appBundle, confidence: .high,
-            size: directorySize(appURL), selected: true))
+            size: directorySize(appURL), selected: !isProtected(appURL)))
 
         for loc in scanLocations() {
             guard let children = try? FileManager.default.contentsOfDirectory(
@@ -60,7 +71,7 @@ enum CleanerEngine {
                 items.append(LeftoverFile(
                     url: child, category: loc.category, confidence: confidence,
                     size: size,
-                    selected: confidence >= .medium))   // pre-select high+medium
+                    selected: confidence >= .medium && !isProtected(child)))   // pre-select high+medium, never protected
             }
         }
 

@@ -40,13 +40,15 @@ enum Permissions {
     }
 
     enum Pane {
-        case accessibility, screenRecording
+        case accessibility, screenRecording, fullDiskAccess
         var urlString: String {
             switch self {
             case .accessibility:
                 return "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
             case .screenRecording:
                 return "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+            case .fullDiskAccess:
+                return "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
             }
         }
     }
