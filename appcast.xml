@@ -4,11 +4,11 @@
         <title>FlowShelf</title>
         <item>
             <title>1.2.1</title>
-            <pubDate>Wed, 17 Jun 2026 04:59:17 +1000</pubDate>
+            <pubDate>Wed, 17 Jun 2026 20:26:56 +1000</pubDate>
             <sparkle:version>5</sparkle:version>
             <sparkle:shortVersionString>1.2.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/mahinkadery/FlowShelf/releases/latest/download/FlowShelf.dmg" length="4309955" type="application/octet-stream" sparkle:edSignature="+99GEZRObGJ8eF9SY+gLluDE19/0bCxl4hZHT9oKt30gRq7o6tgZX++i01T4Kz6EvspsbLR1Rjb9QMP/AK9vDg=="/>
+            <enclosure url="https://github.com/mahinkadery/FlowShelf/releases/latest/download/FlowShelf.dmg" length="4337888" type="application/octet-stream" sparkle:edSignature="a1pBw63BqewPeOXYTWC8wteh+EYyvliQGAHFBWMccJT6rLKx5iaodg1CN8muEd4yvqVQrDYmff3vgimIpnR5CQ=="/>
         </item>
     </channel>
 </rss>
