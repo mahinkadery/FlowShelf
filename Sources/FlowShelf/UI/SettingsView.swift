@@ -37,6 +37,10 @@ struct SettingsView: View {
                     generalCard
                     peekCard
                     switcherCard
+                    snapCard
+                    notchCard
+                    screenshotCard
+                    aiCard
                     clipboardCard
                     excludedCard
                     floatingShelfCard
@@ -135,12 +139,124 @@ struct SettingsView: View {
         }
     }
 
+    private var notchCard: some View {
+        card("Notch shelf", icon: "macbook") {
+            Toggle("Show a Dynamic-Island shelf in the notch", isOn: $settings.notchEnabled)
+                .onChange(of: settings.notchEnabled) { _, on in
+                    on ? NotchController.shared.start() : NotchController.shared.stop()
+                }
+            Text("Hover the notch (or top-center pill) to expand it; drop files, images, or text to add them to the shelf. On Macs without a notch it shows as a small pill at the top.")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var snapCard: some View {
+        card("Window snapping", icon: "rectangle.split.2x2") {
+            Toggle("Snap windows with ⌃⌥ + keys", isOn: $settings.windowSnapEnabled)
+                .onChange(of: settings.windowSnapEnabled) { _, on in
+                    if on {
+                        if !Permissions.hasAccessibility { Permissions.requestAccessibility() }
+                        WindowSnapManager.shared.start()
+                    } else {
+                        WindowSnapManager.shared.stop()
+                    }
+                }
+            Text("Hold ⌃⌥ (Control-Option) and press a key to move the focused window. Needs Accessibility.")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if settings.windowSnapEnabled {
+                Divider().opacity(0.4)
+                VStack(alignment: .leading, spacing: 4) {
+                    snapHint("← / →", "Left / right half")
+                    snapHint("↑ / ↓", "Top / bottom half")
+                    snapHint("U I J K", "Corners (¼ screen)")
+                    snapHint("↩  /  C", "Maximize / center")
+                }
+            }
+        }
+    }
+
+    private func snapHint(_ keys: String, _ label: String) -> some View {
+        HStack {
+            Text("⌃⌥ \(keys)")
+                .font(.system(size: 11, design: .monospaced))
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.08)))
+            Text(label).font(.system(size: 11)).foregroundStyle(.secondary)
+            Spacer()
+        }
+    }
+
+    private var aiCard: some View {
+        card("On-device AI", icon: "sparkles") {
+            if AIService.isSupported {
+                Toggle("Show AI actions (summarize · clean up · ask · smart search)", isOn: $settings.aiEnabled)
+                Text("Runs entirely on your Mac with Apple Intelligence — no internet, no accounts, no cost. Right-click a text item on the shelf, or hit the ✨ button when searching. Runs only when you ask.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider().opacity(0.4)
+                Toggle("Auto-title new text items", isOn: $settings.aiAutoTitle)
+                    .disabled(!settings.aiEnabled)
+                Text("Names items for you as you copy them. Off by default — this runs the AI on capture, so leave it off to save battery/RAM.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Label("Not available yet", systemImage: "exclamationmark.circle")
+                    .font(.system(size: 12)).foregroundStyle(.orange)
+                Text(AIService.statusMessage)
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Open Apple Intelligence settings") {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preferences.intelligence") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+
+    private var screenshotCard: some View {
+        card("Screenshots", icon: "camera.viewfinder") {
+            Toggle("Open the annotation editor after a screenshot", isOn: $settings.annotateAfterScreenshot)
+            Text("Mark up captures with arrows, boxes, highlight, blur (to hide sensitive info), and text — then copy, save, or add to the shelf. You can also right-click any image on the shelf and choose “Annotate…”.")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private var clipboardCard: some View {
         card("Clipboard", icon: "doc.on.clipboard") {
             Toggle("Record clipboard history", isOn: $settings.clipboardEnabled)
             Toggle("Private mode (pause capture)", isOn: $settings.privateMode)
-            Text("Items clear automatically after 24 hours unless pinned.")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
+
+            Divider().opacity(0.4)
+
+            HStack {
+                Text("Keep items for").font(.system(size: 12))
+                Spacer()
+                Picker("", selection: $settings.clipboardRetention) {
+                    ForEach(ClipboardRetention.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 200)
+                .onChange(of: settings.clipboardRetention) { _, _ in
+                    store.applyRetentionChange()
+                }
+            }
+            if settings.clipboardRetention.isForever {
+                Label {
+                    Text("Permanent keeps everything you copy forever — it can get large and messy over time. Items won’t auto-clear; remove them by hand or switch back to 24 hours.")
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                }
+                .font(.system(size: 11)).foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("Items clear automatically after 24 hours unless pinned.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
         }
     }
 

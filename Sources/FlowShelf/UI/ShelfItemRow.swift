@@ -33,13 +33,11 @@ struct ShelfItemRow: View {
             } else {
                 // Recompute the label periodically so it counts down while visible.
                 TimelineView(.periodic(from: .now, by: 30)) { _ in
-                    Text(item.expiryLabel)
+                    Text(expiryText)
                         .font(.system(size: 10))
-                        .foregroundStyle(item.pinned ? Color.orange
-                                         : (item.expiringSoon ? Color.red : Color.secondary.opacity(0.7)))
+                        .foregroundStyle(expiryColor)
                 }
-                .help(item.pinned ? "Pinned — won’t auto-delete"
-                      : "Auto-deletes \(item.expiresAt.shortTime)")
+                .help(expiryHelp)
             }
         }
         .padding(.horizontal, 8)
@@ -71,6 +69,34 @@ struct ShelfItemRow: View {
                         .foregroundStyle(.secondary)
                 )
         }
+    }
+
+    private var keepForever: Bool { AppSettings.shared.clipboardRetention.isForever }
+
+    /// AI actions only for text-bearing items, and only when supported + enabled.
+    private var showsAI: Bool {
+        guard AppSettings.shared.aiEnabled, AIService.isSupported else { return false }
+        switch item.kind {
+        case .text, .ocr, .link, .cleanReport: return (item.text?.isEmpty == false) || !item.preview.isEmpty
+        default: return false
+        }
+    }
+
+    /// In Permanent mode items never expire, so show "Saved" rather than a
+    /// misleading countdown.
+    private var expiryText: String {
+        if item.pinned { return "Pinned" }
+        return keepForever ? "Saved" : item.expiryLabel
+    }
+    private var expiryColor: Color {
+        if item.pinned { return .orange }
+        if keepForever { return .secondary.opacity(0.7) }
+        return item.expiringSoon ? .red : .secondary.opacity(0.7)
+    }
+    private var expiryHelp: String {
+        if item.pinned { return "Pinned — won’t auto-delete" }
+        if keepForever { return "Saved — permanent retention is on" }
+        return "Auto-deletes \(item.expiresAt.shortTime)"
     }
 
     private var subtitle: String {
@@ -110,7 +136,24 @@ struct ShelfItemRow: View {
             Button("Reveal in Finder") { ItemActions.reveal(item) }
         }
         if item.hasImage {
+            Button("Annotate…") { ItemActions.annotate(item) }
             Button("Run OCR") { ItemActions.runOCR(item) }
+        }
+        if showsAI {
+            Divider()
+            Button("Summarize (AI)") { ItemActions.aiSummarize(item) }
+            Button("Clean up (AI)") { ItemActions.aiCleanUp(item) }
+            Button("Smart title (AI)") { ItemActions.aiTitle(item) }
+            Menu("Ask AI") {
+                Button("Reply") { ItemActions.aiTransform(item, instruction: "Write a concise reply to the following message. Reply with only the reply.", title: "AI reply") }
+                Button("Explain") { ItemActions.aiTransform(item, instruction: "Explain the following clearly and simply. Reply with only the explanation.", title: "Explanation") }
+                Button("Make formal") { ItemActions.aiTransform(item, instruction: "Rewrite the following in a formal, professional tone. Reply with only the rewrite.", title: "Formal") }
+                Button("Make casual") { ItemActions.aiTransform(item, instruction: "Rewrite the following in a casual, friendly tone. Reply with only the rewrite.", title: "Casual") }
+                Button("Bullet points") { ItemActions.aiTransform(item, instruction: "Turn the following into concise bullet points. Reply with only the bullet points.", title: "Bullets") }
+                Button("Translate…") { ItemActions.aiTranslate(item) }
+                Divider()
+                Button("Custom…") { ItemActions.aiAsk(item) }
+            }
         }
         Divider()
         Button(item.pinned ? "Unpin" : "Pin") { store.togglePin(item.id) }

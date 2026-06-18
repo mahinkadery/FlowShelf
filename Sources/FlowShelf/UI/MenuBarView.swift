@@ -45,9 +45,20 @@ struct MenuBarView: View {
     @State private var query = ""
     @State private var filter: ShelfFilter = .today
     @State private var showSettings = false
+    @State private var aiResultIDs: [UUID]? = nil   // non-nil = showing AI search results
+    @State private var aiSearching = false
+
+    private var aiActive: Bool { aiResultIDs != nil }
+    private var canSmartSearch: Bool {
+        AIService.isSupported && settings.aiEnabled && !query.trimmingCharacters(in: .whitespaces).isEmpty
+    }
 
     private var results: [ShelfItem] {
-        store.visibleItems.filter { item in
+        if let ids = aiResultIDs {
+            let map = Dictionary(store.visibleItems.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+            return ids.compactMap { map[$0] }
+        }
+        return store.visibleItems.filter { item in
             guard filter.matches(item) else { return false }
             guard !query.isEmpty else { return true }
             let q = query.lowercased()
@@ -55,6 +66,22 @@ struct MenuBarView: View {
                 || item.preview.lowercased().contains(q)
                 || (item.text?.lowercased().contains(q) ?? false)
                 || (item.sourceApp?.lowercased().contains(q) ?? false)
+        }
+    }
+
+    private func runAISearch() {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return }
+        aiSearching = true
+        let candidates = store.visibleItems.map {
+            (id: $0.id.uuidString, text: "\($0.title) \($0.preview) \($0.text ?? "")")
+        }
+        Task {
+            let ids = await AIService.smartSearch(query: q, candidates: candidates)
+            await MainActor.run {
+                aiResultIDs = ids.compactMap { UUID(uuidString: $0) }
+                aiSearching = false
+            }
         }
     }
 
@@ -86,6 +113,21 @@ struct MenuBarView: View {
             TextField("Search today’s shelf…", text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
+                .onSubmit { if canSmartSearch { runAISearch() } }
+                .onChange(of: query) { _, _ in aiResultIDs = nil }   // back to normal search
+            if aiSearching {
+                ProgressView().controlSize(.small)
+            } else if aiActive {
+                Button { aiResultIDs = nil } label: {
+                    Image(systemName: "sparkles").foregroundStyle(Color.accentColor)
+                }
+                .buttonStyle(.plain).help("Clear AI results")
+            } else if canSmartSearch {
+                Button { runAISearch() } label: {
+                    Image(systemName: "sparkles").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain).help("Smart search with AI · ⏎")
+            }
             if settings.privateMode {
                 Label("Private", systemImage: "eye.slash")
                     .labelStyle(.iconOnly)

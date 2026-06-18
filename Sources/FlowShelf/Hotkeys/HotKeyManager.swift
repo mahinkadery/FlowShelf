@@ -42,15 +42,18 @@ final class HotKeyManager {
                                  eventKind: UInt32(kEventHotKeyPressed))
         let selfPtr = Unmanaged.passUnretained(self).toOpaque()
         InstallEventHandler(GetApplicationEventTarget(), { _, event, userData -> OSStatus in
-            guard let userData, let event else { return noErr }
+            guard let userData, let event else { return OSStatus(eventNotHandledErr) }
             var hkID = EventHotKeyID()
             GetEventParameter(event, EventParamName(kEventParamDirectObject),
                               EventParamType(typeEventHotKeyID), nil,
                               MemoryLayout<EventHotKeyID>.size, nil, &hkID)
             let manager = Unmanaged<HotKeyManager>.fromOpaque(userData).takeUnretainedValue()
-            if let action = Action(rawValue: hkID.id) {
-                DispatchQueue.main.async { manager.onAction?(action) }
+            // Only handle our own hotkeys; otherwise let the event fall through to
+            // other registered handlers (e.g. the window snapper, whose ids overlap).
+            guard hkID.signature == manager.signature, let action = Action(rawValue: hkID.id) else {
+                return OSStatus(eventNotHandledErr)
             }
+            DispatchQueue.main.async { manager.onAction?(action) }
             return noErr
         }, 1, &spec, selfPtr, &handler)
     }

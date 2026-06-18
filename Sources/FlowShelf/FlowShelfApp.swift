@@ -121,6 +121,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if AppSettings.shared.altTabEnabled, Permissions.hasAccessibility {
             AltTabController.shared.start()
         }
+        // Resume window snapping if enabled.
+        if AppSettings.shared.windowSnapEnabled, Permissions.hasAccessibility {
+            WindowSnapManager.shared.start()
+        }
+        // Resume the notch shelf if enabled.
+        if AppSettings.shared.notchEnabled {
+            NotchController.shared.start()
+        }
 
         // If Dock previews are on but we genuinely can't capture other apps'
         // windows (ground-truth test, not the lying preflight flag), surface the
@@ -165,6 +173,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(item("Open App (Dashboard)", #selector(menuOpenDashboard)))
         menu.addItem(item("Open Shelf", #selector(menuOpenShelf)))
+
+        // Quick "Copy Snippet ▸" submenu — paste-ready text without opening the app.
+        let snippets = SnippetStore.shared.snippets
+        if !snippets.isEmpty {
+            let parent = NSMenuItem(title: "Copy Snippet", action: nil, keyEquivalent: "")
+            let sub = NSMenu()
+            for s in snippets.prefix(20) {
+                let mi = NSMenuItem(title: s.title, action: #selector(menuCopySnippet(_:)), keyEquivalent: "")
+                mi.target = self
+                mi.representedObject = s.id.uuidString
+                sub.addItem(mi)
+            }
+            menu.addItem(parent)
+            menu.setSubmenu(sub, for: parent)
+        }
+
         menu.addItem(.separator())
         menu.addItem(item("Quit FlowShelf", #selector(menuQuit), key: "q"))
 
@@ -176,6 +200,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func menuOpenDashboard() { closePopover(); DashboardWindowController.shared.show() }
     @objc private func menuOpenShelf() { showPopover() }
     @objc private func menuQuit() { NSApp.terminate(nil) }
+
+    @objc private func menuCopySnippet(_ sender: NSMenuItem) {
+        guard let idStr = sender.representedObject as? String,
+              let id = UUID(uuidString: idStr),
+              let s = SnippetStore.shared.snippets.first(where: { $0.id == id }) else { return }
+        SnippetStore.shared.copy(s)
+    }
 
     private func setupPopover() {
         popover.behavior = .transient

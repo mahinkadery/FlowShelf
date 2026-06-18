@@ -112,6 +112,44 @@ enum AX {
         }
     }
 
+    // MARK: - Window move/resize (for snapping/tiling)
+
+    /// The focused window of the frontmost app (falls back to its first window).
+    @MainActor
+    static func focusedWindow() -> AXUIElement? {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        if let win = attribute(axApp, kAXFocusedWindowAttribute as String),
+           CFGetTypeID(win) == AXUIElementGetTypeID() {
+            return (win as! AXUIElement)
+        }
+        return (attribute(axApp, kAXWindowsAttribute as String) as? [AXUIElement])?.first
+    }
+
+    /// Move + resize a window. Frame is in AX coords (top-left origin, y-down).
+    /// Position is set twice (apps sometimes clamp size first), so the final
+    /// placement lands where we asked.
+    static func setFrame(_ element: AXUIElement, _ rect: CGRect) {
+        var origin = rect.origin
+        var size = rect.size
+        if let posVal = AXValueCreate(.cgPoint, &origin) {
+            AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, posVal)
+        }
+        if let sizeVal = AXValueCreate(.cgSize, &size) {
+            AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, sizeVal)
+        }
+        if let posVal = AXValueCreate(.cgPoint, &origin) {
+            AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, posVal)
+        }
+    }
+
+    /// Convert between AX/Quartz coords (top-left origin, y grows down) and Cocoa
+    /// coords (bottom-left origin, y grows up). The transform is its own inverse.
+    static func flipY(_ r: CGRect) -> CGRect {
+        let primaryHeight = (NSScreen.screens.first { $0.frame.origin == .zero } ?? NSScreen.main)?.frame.height ?? 0
+        return CGRect(x: r.origin.x, y: primaryHeight - r.maxY, width: r.width, height: r.height)
+    }
+
     @MainActor
     static func minimizeWindow(pid: pid_t, windowID: CGWindowID) {
         let appElement = AXUIElementCreateApplication(pid)

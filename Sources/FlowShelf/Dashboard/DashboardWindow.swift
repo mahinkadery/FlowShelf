@@ -9,6 +9,8 @@ final class DashboardWindowController: NSObject, NSWindowDelegate {
     static let shared = DashboardWindowController()
     private var window: NSWindow?
 
+    var isVisible: Bool { window?.isVisible ?? false }
+
     func show() {
         if window == nil { makeWindow() }
         NSApp.setActivationPolicy(.regular)

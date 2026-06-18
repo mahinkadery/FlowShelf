@@ -31,6 +31,14 @@ enum AltTabLayout: String, CaseIterable, Identifiable {
     var label: String { self == .thumbnails ? "Thumbnails" : "List" }
 }
 
+/// How long captured clipboard/shelf items live before auto-clearing.
+enum ClipboardRetention: String, CaseIterable, Identifiable {
+    case day, forever
+    var id: String { rawValue }
+    var label: String { self == .day ? "24 hours" : "Permanent" }
+    var isForever: Bool { self == .forever }
+}
+
 /// User-facing preferences + the privacy controls for clipboard capture.
 @MainActor
 final class AppSettings: ObservableObject {
@@ -40,6 +48,10 @@ final class AppSettings: ObservableObject {
 
     @Published var clipboardEnabled: Bool {
         didSet { defaults.set(clipboardEnabled, forKey: "clipboardEnabled") }
+    }
+    /// 24h auto-clear (default) or keep everything permanently.
+    @Published var clipboardRetention: ClipboardRetention {
+        didSet { defaults.set(clipboardRetention.rawValue, forKey: "clipboardRetention") }
     }
     /// "Private mode" — pauses clipboard capture entirely.
     @Published var privateMode: Bool {
@@ -75,12 +87,35 @@ final class AppSettings: ObservableObject {
     @Published var altTabLayout: AltTabLayout {
         didSet { defaults.set(altTabLayout.rawValue, forKey: "altTabLayout") }
     }
+    /// Magnet-style window snapping via ⌃⌥ + keys (needs Accessibility).
+    @Published var windowSnapEnabled: Bool {
+        didSet { defaults.set(windowSnapEnabled, forKey: "windowSnapEnabled") }
+    }
+    /// Dynamic-Island-style shelf living in the notch / top-center pill.
+    @Published var notchEnabled: Bool {
+        didSet { defaults.set(notchEnabled, forKey: "notchEnabled") }
+    }
+    /// Open the annotation editor after a region screenshot.
+    @Published var annotateAfterScreenshot: Bool {
+        didSet { defaults.set(annotateAfterScreenshot, forKey: "annotateAfterScreenshot") }
+    }
+    /// Show on-device AI actions (summarize / clean / smart title). Only has any
+    /// effect on Apple-Intelligence-capable Macs.
+    @Published var aiEnabled: Bool {
+        didSet { defaults.set(aiEnabled, forKey: "aiEnabled") }
+    }
+    /// Auto-generate a title for new text items via AI. Off by default — it runs
+    /// the model on capture, so it's opt-in for people watching battery/RAM.
+    @Published var aiAutoTitle: Bool {
+        didSet { defaults.set(aiAutoTitle, forKey: "aiAutoTitle") }
+    }
 
     /// One-shot: skip recording the very next copy.
     var ignoreNextCopy = false
 
     private init() {
         clipboardEnabled = defaults.object(forKey: "clipboardEnabled") as? Bool ?? true
+        clipboardRetention = ClipboardRetention(rawValue: defaults.string(forKey: "clipboardRetention") ?? "") ?? .day
         privateMode = defaults.bool(forKey: "privateMode")
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         dockPreviewsEnabled = defaults.bool(forKey: "dockPreviewsEnabled")
@@ -90,6 +125,11 @@ final class AppSettings: ObservableObject {
             ?? .medium
         altTabEnabled = defaults.bool(forKey: "altTabEnabled")
         altTabLayout = AltTabLayout(rawValue: defaults.string(forKey: "altTabLayout") ?? "") ?? .thumbnails
+        windowSnapEnabled = defaults.bool(forKey: "windowSnapEnabled")
+        notchEnabled = defaults.bool(forKey: "notchEnabled")
+        annotateAfterScreenshot = defaults.bool(forKey: "annotateAfterScreenshot")
+        aiEnabled = defaults.object(forKey: "aiEnabled") as? Bool ?? true
+        aiAutoTitle = defaults.bool(forKey: "aiAutoTitle")
         // Default-exclude common password managers.
         excludedBundleIDs = defaults.object(forKey: "excludedBundleIDs") as? [String] ?? [
             "com.1password.1password",

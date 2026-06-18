@@ -1,11 +1,12 @@
 import SwiftUI
 
 enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
-    case shelf, peek, clean, settings
+    case shelf, snippets, peek, clean, settings
     var id: String { rawValue }
     var label: String {
         switch self {
         case .shelf: return "Shelf"
+        case .snippets: return "Snippets"
         case .peek: return "Peek"
         case .clean: return "Clean"
         case .settings: return "Settings"
@@ -14,6 +15,7 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
     var symbol: String {
         switch self {
         case .shelf: return "tray.full"
+        case .snippets: return "text.quote"
         case .peek: return "rectangle.on.rectangle"
         case .clean: return "trash"
         case .settings: return "gearshape"
@@ -22,6 +24,7 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
     var subtitle: String {
         switch self {
         case .shelf: return "Today’s items"
+        case .snippets: return "Reusable text"
         case .peek: return "Window previews"
         case .clean: return "App cleaner"
         case .settings: return "Preferences"
@@ -62,6 +65,7 @@ struct DashboardView: View {
             Group {
                 switch section {
                 case .shelf:    ShelfBrowser()
+                case .snippets: SnippetsView()
                 case .peek:     PeekView()
                 case .clean:    CleanView()
                 case .settings: DashboardSettings()
@@ -77,6 +81,7 @@ struct DashboardView: View {
 /// A roomier Shelf for the dashboard — same items, filter chips, search.
 private struct ShelfBrowser: View {
     @ObservedObject private var store = ShelfStore.shared
+    @ObservedObject private var settings = AppSettings.shared
     @State private var query = ""
     @State private var filter: ShelfFilter = .today
 
@@ -97,6 +102,13 @@ private struct ShelfBrowser: View {
                 Text("Shelf").font(.system(size: 15, weight: .semibold))
                 Text("\(store.visibleItems.count)").foregroundStyle(.secondary)
                 Spacer()
+                if AIService.isSupported && settings.aiEnabled && !store.visibleItems.isEmpty {
+                    Button { ItemActions.aiSummarizeDay() } label: {
+                        Label("Summarize day", systemImage: "sparkles")
+                    }
+                    .controlSize(.small)
+                    .help("AI digest of everything you collected today")
+                }
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 12))
                     TextField("Search…", text: $query).textFieldStyle(.plain).frame(width: 180)

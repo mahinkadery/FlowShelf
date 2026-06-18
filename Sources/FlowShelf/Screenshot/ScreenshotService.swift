@@ -42,15 +42,20 @@ final class ScreenshotService {
               let image = NSImage(contentsOf: url) else { return }
         defer { try? FileManager.default.removeItem(at: url) }
 
-        guard let (rel, thumb) = store.storeImage(image, prefix: "shot") else { return }
-        store.add(ShelfItem(
-            kind: .screenshot,
-            title: "Screenshot",
-            preview: "Captured \(Date().shortTime)",
-            sourceApp: "FlowShelf",
-            imageRelPath: rel,
-            thumbRelPath: thumb
-        ))
+        // If the user wants to mark up shots, hand off to the annotation editor
+        // (it adds the result to the Shelf itself). Otherwise shelf it directly.
+        if AppSettings.shared.annotateAfterScreenshot {
+            AnnotationEditorController.shared.open(image: image)
+        } else if let (rel, thumb) = store.storeImage(image, prefix: "shot") {
+            store.add(ShelfItem(
+                kind: .screenshot,
+                title: "Screenshot",
+                preview: "Captured \(Date().shortTime)",
+                sourceApp: "FlowShelf",
+                imageRelPath: rel,
+                thumbRelPath: thumb
+            ))
+        }
 
         if ocr { recognizeText(in: image) }
     }

@@ -47,14 +47,31 @@ final class ShelfStore: ObservableObject {
 
     // MARK: - Public API
 
+    /// When the user chooses "Permanent" retention, nothing auto-clears.
+    private var keepForever: Bool { AppSettings.shared.clipboardRetention.isForever }
+
     /// Items currently visible: not expired, newest first, pinned floated to top.
     var visibleItems: [ShelfItem] {
         items
-            .filter { !$0.isExpired }
+            .filter { keepForever || !$0.isExpired }
             .sorted { a, b in
                 if a.pinned != b.pinned { return a.pinned && !b.pinned }
                 return a.createdAt > b.createdAt
             }
+    }
+
+    /// Called when the retention setting changes. Switching back to 24h must not
+    /// instantly wipe a large permanent history — give any already-stale items a
+    /// fresh 24h so they age out gracefully instead of all vanishing at once.
+    func applyRetentionChange() {
+        guard !keepForever else { objectWillChange.send(); return }
+        let now = Date()
+        var changed = false
+        for i in items.indices where !items[i].pinned && items[i].expiresAt <= now {
+            items[i].expiresAt = now.addingTimeInterval(24 * 60 * 60)
+            changed = true
+        }
+        if changed { persist() } else { objectWillChange.send() }
     }
 
     func add(_ item: ShelfItem) {
@@ -67,6 +84,22 @@ final class ShelfStore: ObservableObject {
         }
         items.insert(item, at: 0)
         persist()
+        maybeAutoTitle(item)
+    }
+
+    /// When the user has opted in, give new text items an AI-generated title.
+    /// Skips AI-produced items (avoids feedback loops) and short snippets.
+    private func maybeAutoTitle(_ item: ShelfItem) {
+        guard AppSettings.shared.aiAutoTitle, AIService.isSupported,
+              item.sourceApp != "AI",
+              item.kind == .text || item.kind == .ocr else { return }
+        let text = item.text ?? item.preview
+        guard text.count >= 40 else { return }
+        let id = item.id
+        Task {
+            guard let title = await AIService.title(for: text) else { return }
+            updateTitle(id, title)
+        }
     }
 
     func togglePin(_ id: UUID) {
@@ -76,6 +109,12 @@ final class ShelfStore: ObservableObject {
         if !items[idx].pinned {
             items[idx].expiresAt = Date().addingTimeInterval(24 * 60 * 60)
         }
+        persist()
+    }
+
+    func updateTitle(_ id: UUID, _ title: String) {
+        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        items[idx].title = title
         persist()
     }
 
@@ -170,6 +209,7 @@ final class ShelfStore: ObservableObject {
     }
 
     func sweepExpired() {
+        guard !keepForever else { return }   // permanent retention: never auto-clear
         let expired = items.filter { $0.isExpired }
         guard !expired.isEmpty else { return }
         for item in expired { deleteFiles(for: item) }
