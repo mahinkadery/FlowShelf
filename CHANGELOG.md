@@ -4,6 +4,15 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.3.1] — 2026-06-18 (build 18)
+
+### Changed
+- **Notch shelf opens on a downward swipe**, not on hover — flick the pointer down
+  out of the notch to open it. It no longer pops open just because the mouse passed
+  near the top of the screen.
+- **Notch shelf now appears on every display** — the built-in screen uses its real
+  notch; external monitors get a matching top-center pill, each with its own shelf.
+
 ## [1.3.0] — 2026-06-18 (build 15)
 
 A big feature release. **Everything new is opt-in (off by default) and fully local** —

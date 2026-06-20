@@ -49,7 +49,6 @@ struct NotchShape: Shape {
 struct NotchView: View {
     @ObservedObject var model: NotchModel
     @ObservedObject private var store = ShelfStore.shared
-    @State private var collapseTask: DispatchWorkItem?
 
     private var recent: [ShelfItem] { Array(store.visibleItems.prefix(7)) }
     private var size: CGSize { model.expanded ? model.expandedSize : model.collapsedSize }
@@ -89,10 +88,15 @@ struct NotchView: View {
         .foregroundStyle(.white)
         .shadow(color: .black.opacity(model.expanded ? 0.45 : 0), radius: 16, y: 6)
         .contentShape(shape)
-        .onHover { hovering in hovering ? open() : scheduleClose() }
+        // Open/close is driven by the controller's swipe-aware mouse monitor.
+        // Dragging onto the notch still opens it so it can accept the drop.
         .onDrop(of: [.fileURL, .image, .text], isTargeted: Binding(
             get: { model.targeted },
-            set: { t in model.targeted = t; t ? open() : scheduleClose() }
+            set: { t in
+                model.targeted = t
+                if t { model.expanded = true }
+                else { NotchController.shared.scheduleCollapseAll() }
+            }
         )) { providers in
             DragDrop.ingest(providers)
         }
@@ -154,22 +158,6 @@ struct NotchView: View {
         }
     }
 
-    // MARK: Open/close with hysteresis
-
-    private func open() {
-        collapseTask?.cancel()
-        guard !model.expanded else { return }
-        model.expanded = true
-    }
-
-    private func scheduleClose() {
-        collapseTask?.cancel()
-        let task = DispatchWorkItem {
-            if !model.targeted, model.expanded { model.expanded = false }
-        }
-        collapseTask = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: task)
-    }
 }
 
 /// A compact, type-aware tile in the expanded notch: click to copy, drag out.
