@@ -65,20 +65,12 @@ enum ItemActions {
 
     static func aiSummarize(_ item: ShelfItem) {
         guard let text = aiText(of: item) else { return }
-        Task {
-            guard let out = await AIService.summarize(text) else { return }
-            ShelfStore.shared.add(ShelfItem(kind: .text, title: "Summary",
-                preview: out.firstLine(max: 140), text: out, sourceApp: "AI"))
-        }
+        AIResultPresenter.shared.present(title: "Summary") { await AIService.summarize(text) }
     }
 
     static func aiCleanUp(_ item: ShelfItem) {
         guard let text = aiText(of: item) else { return }
-        Task {
-            guard let out = await AIService.cleanUp(text) else { return }
-            ShelfStore.shared.add(ShelfItem(kind: .text, title: "Cleaned text",
-                preview: out.firstLine(max: 140), text: out, sourceApp: "AI"))
-        }
+        AIResultPresenter.shared.present(title: "Cleaned text") { await AIService.cleanUp(text) }
     }
 
     static func aiTitle(_ item: ShelfItem) {
@@ -89,13 +81,11 @@ enum ItemActions {
         }
     }
 
-    /// Run a transform and drop the result onto the shelf as a new text item.
+    /// Run a transform and show the result in the small AI window.
     static func aiTransform(_ item: ShelfItem, instruction: String, title: String) {
         guard let text = aiText(of: item) else { return }
-        Task {
-            guard let out = await AIService.transform(text, instruction: instruction) else { return }
-            ShelfStore.shared.add(ShelfItem(kind: .text, title: title,
-                preview: out.firstLine(max: 140), text: out, sourceApp: "AI"))
+        AIResultPresenter.shared.present(title: title) {
+            await AIService.transform(text, instruction: instruction)
         }
     }
 
@@ -115,16 +105,30 @@ enum ItemActions {
                     title: "AI: \(String(instr.prefix(28)))")
     }
 
+    /// General assistant — asks the user a question and answers using the shelf
+    /// (and snippets) as context.
+    static func aiAskGeneral() {
+        guard let q = prompt(title: "Ask AI",
+                             message: "Ask anything — I'll check your shelf for context first.",
+                             default: "", placeholder: "e.g. What did I save about taxes?") else { return }
+        var context = ShelfStore.shared.visibleItems.compactMap { item -> String? in
+            let t = (item.text ?? item.preview).trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? nil : t
+        }
+        context += SnippetStore.shared.snippets.map { "\($0.title): \($0.content)" }
+        AIResultPresenter.shared.present(title: "Ask AI") {
+            await AIService.ask(question: q, shelf: context)
+        }
+    }
+
     static func aiSummarizeDay() {
         let texts = ShelfStore.shared.visibleItems.compactMap { item -> String? in
             let t = (item.text ?? item.preview).trimmingCharacters(in: .whitespacesAndNewlines)
             return t.isEmpty ? nil : t
         }
         guard !texts.isEmpty else { return }
-        Task {
-            guard let out = await AIService.summarizeDay(texts) else { return }
-            ShelfStore.shared.add(ShelfItem(kind: .text, title: "Today’s summary",
-                preview: out.firstLine(max: 140), text: out, sourceApp: "AI"))
+        AIResultPresenter.shared.present(title: "Today’s summary") {
+            await AIService.summarizeDay(texts)
         }
     }
 
@@ -140,6 +144,7 @@ enum ItemActions {
         alert.accessoryView = field
         alert.addButton(withTitle: "Run")
         alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field   // type immediately, no extra click
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         let value = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value

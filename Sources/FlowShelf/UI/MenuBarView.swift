@@ -58,15 +58,8 @@ struct MenuBarView: View {
             let map = Dictionary(store.visibleItems.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
             return ids.compactMap { map[$0] }
         }
-        return store.visibleItems.filter { item in
-            guard filter.matches(item) else { return false }
-            guard !query.isEmpty else { return true }
-            let q = query.lowercased()
-            return item.title.lowercased().contains(q)
-                || item.preview.lowercased().contains(q)
-                || (item.text?.lowercased().contains(q) ?? false)
-                || (item.sourceApp?.lowercased().contains(q) ?? false)
-        }
+        let tokens = SearchQuery.tokens(query)
+        return store.visibleItems.filter { filter.matches($0) && $0.matches(searchTokens: tokens) }
     }
 
     private func runAISearch() {

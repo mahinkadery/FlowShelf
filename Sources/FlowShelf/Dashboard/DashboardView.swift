@@ -86,14 +86,8 @@ private struct ShelfBrowser: View {
     @State private var filter: ShelfFilter = .today
 
     private var results: [ShelfItem] {
-        store.visibleItems.filter { item in
-            guard filter.matches(item) else { return false }
-            guard !query.isEmpty else { return true }
-            let q = query.lowercased()
-            return item.title.lowercased().contains(q)
-                || item.preview.lowercased().contains(q)
-                || (item.text?.lowercased().contains(q) ?? false)
-        }
+        let tokens = SearchQuery.tokens(query)
+        return store.visibleItems.filter { filter.matches($0) && $0.matches(searchTokens: tokens) }
     }
 
     var body: some View {
@@ -102,12 +96,19 @@ private struct ShelfBrowser: View {
                 Text("Shelf").font(.system(size: 15, weight: .semibold))
                 Text("\(store.visibleItems.count)").foregroundStyle(.secondary)
                 Spacer()
-                if AIService.isSupported && settings.aiEnabled && !store.visibleItems.isEmpty {
-                    Button { ItemActions.aiSummarizeDay() } label: {
-                        Label("Summarize day", systemImage: "sparkles")
+                if AIService.isSupported && settings.aiEnabled {
+                    Button { ItemActions.aiAskGeneral() } label: {
+                        Label("Ask AI", systemImage: "sparkle")
                     }
                     .controlSize(.small)
-                    .help("AI digest of everything you collected today")
+                    .help("Ask anything — answers using your shelf as context")
+                    if !store.visibleItems.isEmpty {
+                        Button { ItemActions.aiSummarizeDay() } label: {
+                            Label("Summarize day", systemImage: "sparkles")
+                        }
+                        .controlSize(.small)
+                        .help("A friendly recap of everything you collected today")
+                    }
                 }
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 12))

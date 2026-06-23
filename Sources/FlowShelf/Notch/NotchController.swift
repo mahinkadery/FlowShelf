@@ -65,7 +65,12 @@ final class NotchController {
         for screen in NSScreen.screens {
             let model = NotchModel()
             model.collapsedSize = notchSize(on: screen)
-            let panel = makePanel(model: model)
+            // On the real notch the collapsed area is dead hardware space, so it's
+            // safe to make it a drag/hover target. On external screens it would sit
+            // over the menu bar, so keep the collapsed pill click-through (it still
+            // opens via the downward swipe).
+            let hasNotch = screen.safeAreaInsets.top > 0
+            let panel = makePanel(model: model, interactiveCollapsed: hasNotch)
             let unit = Unit(screen: screen, panel: panel, model: model)
             position(unit)
             panel.orderFrontRegardless()
@@ -98,12 +103,13 @@ final class NotchController {
                       y: unit.screen.frame.maxY - s.height, width: s.width, height: s.height)
     }
 
-    private func makePanel(model: NotchModel) -> NSPanel {
+    private func makePanel(model: NotchModel, interactiveCollapsed: Bool) -> NSPanel {
         let host = NotchHostingView(rootView: NotchView(model: model))
         host.sizingOptions = []
         host.regionSize = { [weak model] in
             guard let model else { return .zero }
-            return model.expanded ? model.expandedSize : model.collapsedSize
+            if model.expanded { return model.expandedSize }
+            return interactiveCollapsed ? model.collapsedSize : .zero
         }
         let p = NSPanel(contentRect: .zero,
                         styleMask: [.borderless, .nonactivatingPanel],
@@ -130,8 +136,10 @@ final class NotchController {
     // MARK: - Swipe-aware open/close
 
     private func startMouseMonitor() {
+        // NSEvent monitors are delivered on the main thread, so run synchronously
+        // there instead of spawning a Task per mouse-move (this fires ~100×/sec).
         let handler: (NSEvent) -> Void = { [weak self] _ in
-            Task { @MainActor in self?.handleMouse() }
+            MainActor.assumeIsolated { self?.handleMouse() }
         }
         mouseGlobal = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved], handler: handler)
         mouseLocal = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved]) { ev in handler(ev); return ev }

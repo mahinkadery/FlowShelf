@@ -112,4 +112,29 @@ struct ShelfItem: Identifiable, Codable, Equatable {
 
     /// True when the item is within the last hour of its life (for emphasis).
     var expiringSoon: Bool { !pinned && secondsRemaining < 3600 }
+
+    /// Everything searchable, folded to be case- and accent-insensitive.
+    private var searchHaystack: String {
+        [title, preview, text ?? "", sourceApp ?? "", kind.label]
+            .joined(separator: " ")
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+    }
+
+    /// Matches when *every* token appears somewhere, in any order — so
+    /// "google login" finds an item containing "login page on Google".
+    func matches(searchTokens tokens: [String]) -> Bool {
+        guard !tokens.isEmpty else { return true }
+        let hay = searchHaystack
+        return tokens.allSatisfy { hay.contains($0) }
+    }
+}
+
+/// Tokenizes a search query the same way items are folded.
+enum SearchQuery {
+    static func tokens(_ query: String) -> [String] {
+        query.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .split(whereSeparator: { $0 == " " || $0 == "\n" || $0 == "\t" })
+            .map(String.init)
+            .filter { !$0.isEmpty }
+    }
 }

@@ -39,8 +39,24 @@ enum AIService {
 
     static func summarize(_ text: String) async -> String? {
         await run(instruction:
-            "Summarize the following in 1–3 concise sentences. Reply with only the summary.",
+            "Summarize the following in a warm, casual tone — like you're catching a friend up. Give a few sentences with the useful details, not a dry one-liner. Reply with only the summary.",
             input: text, cap: 6000)
+    }
+
+    /// Friendly assistant that answers a question using the user's shelf as context.
+    static func ask(question: String, shelf: [String]) async -> String? {
+        let ctx = shelf.prefix(40).enumerated()
+            .map { "\($0.offset + 1). \($0.element.prefix(220))" }
+            .joined(separator: "\n")
+        let body = """
+        The user's shelf (what they've copied / saved today):
+        \(ctx.isEmpty ? "(empty)" : ctx)
+
+        The user's question: \(question)
+        """
+        return await run(instruction:
+            "You are the user's friendly personal assistant inside their Mac app. First look through their shelf items above and use anything relevant as context, then answer their question. Talk like a helpful friend — warm, casual, and genuinely useful, with a good amount of detail. If their shelf doesn't have what they need, just answer normally from what you know. Reply with only the answer.",
+            input: body, cap: 9000)
     }
 
     static func cleanUp(_ text: String) async -> String? {
@@ -54,14 +70,14 @@ enum AIService {
         await run(instruction: instruction, input: text, cap: 6000)
     }
 
-    /// A short digest of everything collected today.
+    /// A friendly, detailed recap of everything collected today.
     static func summarizeDay(_ texts: [String]) async -> String? {
         let joined = texts.enumerated()
-            .map { "\($0.offset + 1). \($0.element.prefix(200))" }
+            .map { "\($0.offset + 1). \($0.element.prefix(220))" }
             .joined(separator: "\n")
         return await run(instruction:
-            "These are items the user collected today. Write a short, friendly digest (2–4 sentences) of what they were working on or saved. Reply with only the digest.",
-            input: joined, cap: 8000)
+            "These are the things the user saved and copied today. Write them a warm, casual recap — like a friend catching them up on their day over coffee. Be specific about what they worked on, call out the interesting bits, and keep it genuinely friendly and conversational (a detailed paragraph or two, not a dry list). Reply with only the recap.",
+            input: joined, cap: 9000)
     }
 
     /// AI-ranked search: returns the ids of items matching a natural-language
@@ -121,11 +137,15 @@ enum AIService {
         let capped = Array(candidates.prefix(40))
         guard !capped.isEmpty else { return [] }
         let list = capped.enumerated()
-            .map { "\($0.offset): \($0.element.text.replacingOccurrences(of: "\n", with: " ").prefix(120))" }
+            .map { "\($0.offset): \($0.element.text.replacingOccurrences(of: "\n", with: " ").prefix(160))" }
             .joined(separator: "\n")
         let prompt = """
-        From the numbered list below, return the numbers of the items that best match this search: "\(query)".
-        Reply with ONLY the matching numbers separated by commas (most relevant first), or "none".
+        You are searching a user's clipboard shelf. They are looking for: "\(query)".
+        Below is a numbered list of saved items. Return the numbers of the items that
+        are relevant — match by **meaning and topic**, not just exact words (e.g. "that
+        tax link" should match an item about taxes or the IRS). Order them most
+        relevant first. If nothing fits, reply "none".
+        Reply with ONLY comma-separated numbers (e.g. "3, 7, 1"), nothing else.
 
         \(list)
         """

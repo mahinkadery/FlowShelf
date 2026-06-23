@@ -4,6 +4,27 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.3.2] — 2026-06-18 (build 21)
+
+### Added
+- **Ask AI** — a button in the shelf that answers any question using your shelf
+  (and snippets) as context. Fully on-device and private. "What did I save about
+  taxes?" actually looks through your stuff first.
+
+### Changed
+- **AI results now open in a small window** with **Copy** and **Add to Shelf** —
+  they're no longer dumped onto the shelf automatically.
+- **Friendlier, more detailed AI summaries** — recaps read like a friend catching
+  you up, not a dry list.
+- **Smarter search** — matches all your words in any order, case- and
+  accent-insensitive; AI smart search now matches by **meaning**, not just exact
+  words.
+
+### Fixed
+- Notch shelf no longer captures clicks over the menu bar on **external monitors**
+  (collapsed pill is click-through there; still opens with a downward swipe).
+- Lighter notch mouse handling — no more spawning work on every mouse move.
+
 ## [1.3.1] — 2026-06-18 (build 18)
 
 ### Changed
