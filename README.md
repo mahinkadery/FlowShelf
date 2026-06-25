@@ -22,43 +22,23 @@ cleaner, and on-device AI. **One menu-bar icon instead of five separate apps.**
 
 ## See it in action
 
-**Screenshot studio — capture, annotate, redact, magnify, beautify:**
+<div align="center">
 
-https://github.com/mahinkadery/FlowShelf/raw/main/docs/videos/screenshot-annotation.mp4
+**Screenshot studio — capture, annotate, redact, magnify, beautify**
+
+<img src="docs/videos/screenshot-annotation.gif" alt="FlowShelf screenshot studio" width="680" />
+
+</div>
 
 <table>
-<tr>
-<td width="50%">
-
-**The shelf**
-
-https://github.com/mahinkadery/FlowShelf/raw/main/docs/videos/floating-shelf.mp4
-
-</td>
-<td width="50%">
-
-**Notch shelf**
-
-https://github.com/mahinkadery/FlowShelf/raw/main/docs/videos/notch-drag.mp4
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-**On-device AI**
-
-https://github.com/mahinkadery/FlowShelf/raw/main/docs/videos/ai-features.mp4
-
-</td>
-<td width="50%">
-
-**Window snapping**
-
-https://github.com/mahinkadery/FlowShelf/raw/main/docs/videos/window-snapping.mp4
-
-</td>
-</tr>
+  <tr>
+    <td align="center" width="50%"><b>The shelf</b><br/><img src="docs/videos/floating-shelf.gif" alt="The shelf" width="380" /></td>
+    <td align="center" width="50%"><b>Notch shelf</b><br/><img src="docs/videos/notch-drag.gif" alt="Notch shelf" width="380" /></td>
+  </tr>
+  <tr>
+    <td align="center"><b>On-device AI</b><br/><img src="docs/videos/ai-features.gif" alt="On-device AI" width="380" /></td>
+    <td align="center"><b>Window snapping</b><br/><img src="docs/videos/window-snapping.gif" alt="Window snapping" width="380" /></td>
+  </tr>
 </table>
 
 > More demos at **[flowshelf.app](https://flowshelf.app)**.
