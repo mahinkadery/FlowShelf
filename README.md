@@ -24,16 +24,16 @@ cleaner, and on-device AI. **One menu-bar icon instead of five separate apps.**
 
 <div align="center">
 
-**Screenshot studio — capture, annotate, redact, magnify, beautify**
+**Your notch, finally useful — drag in, drop out**
 
-<img src="docs/videos/screenshot-annotation.gif" alt="FlowShelf screenshot studio" width="680" />
+<img src="docs/videos/notch-drag.gif" alt="FlowShelf notch shelf" width="680" />
 
 </div>
 
 <table>
   <tr>
+    <td align="center" width="50%"><b>Screenshot studio</b><br/><img src="docs/videos/screenshot-annotation.gif" alt="Screenshot studio" width="380" /></td>
     <td align="center" width="50%"><b>The shelf</b><br/><img src="docs/videos/floating-shelf.gif" alt="The shelf" width="380" /></td>
-    <td align="center" width="50%"><b>Notch shelf</b><br/><img src="docs/videos/notch-drag.gif" alt="Notch shelf" width="380" /></td>
   </tr>
   <tr>
     <td align="center"><b>On-device AI</b><br/><img src="docs/videos/ai-features.gif" alt="On-device AI" width="380" /></td>
