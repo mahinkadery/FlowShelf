@@ -4,10 +4,16 @@ import SwiftUI
 final class NotchModel: ObservableObject {
     @Published var expanded = false
     @Published var targeted = false
-    /// Size of the physical notch (the collapsed card). Updated by the controller.
+    /// Size of the physical notch (the visible collapsed pill). Set by controller.
     @Published var collapsedSize = CGSize(width: 200, height: 32)
     /// Size of the open panel — wide and slim, like a Dynamic Island bar.
     let expandedSize = CGSize(width: 560, height: 124)
+
+    /// The *interactive* area when collapsed — a bit wider and taller than the
+    /// visible pill so it's easy to drag a file into (and to swipe down from).
+    var triggerSize: CGSize {
+        CGSize(width: collapsedSize.width + 44, height: collapsedSize.height + 34)
+    }
 }
 
 /// The signature Dynamic-Island silhouette: a flat top edge flush with the screen
@@ -51,23 +57,33 @@ struct NotchView: View {
     @ObservedObject private var store = ShelfStore.shared
 
     private var recent: [ShelfItem] { Array(store.visibleItems.prefix(7)) }
-    private var size: CGSize { model.expanded ? model.expandedSize : model.collapsedSize }
+    /// The visible pill/panel size.
+    private var pillSize: CGSize { model.expanded ? model.expandedSize : model.collapsedSize }
+    /// The interactive (hover/drag/drop) frame — larger than the pill when closed.
+    private var frameSize: CGSize { model.expanded ? model.expandedSize : model.triggerSize }
     private var shape: NotchShape {
         NotchShape(topRadius: model.expanded ? 12 : 6, bottomRadius: model.expanded ? 28 : 10)
     }
 
     var body: some View {
-        card
-            .frame(width: size.width, height: size.height)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .animation(.spring(response: 0.42, dampingFraction: 0.80), value: model.expanded)
+        // The whole interactive frame (top-anchored) catches hover + drag, even the
+        // transparent area around the small pill — so dragging a file near the
+        // notch opens it.
+        ZStack(alignment: .top) {
+            pill
+        }
+        .frame(width: frameSize.width, height: frameSize.height, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .contentShape(Rectangle())
+        // Drag/drop is handled at the AppKit level in NotchHostingView.
+        .animation(.spring(response: 0.42, dampingFraction: 0.80), value: model.expanded)
     }
 
-    private var card: some View {
+    private var pill: some View {
         ZStack(alignment: .top) {
             Color.black
 
-            // Expanded content lives at its full size and is revealed as the card
+            // Expanded content lives at its full size and is revealed as the pill
             // grows (clipped to the shape), so it never squishes mid-animation.
             expandedContent
                 .frame(width: model.expandedSize.width, height: model.expandedSize.height, alignment: .top)
@@ -81,25 +97,12 @@ struct NotchView: View {
                 }
             }
         }
-        .frame(width: size.width, height: size.height)
+        .frame(width: pillSize.width, height: pillSize.height)
         .clipShape(shape)
         .overlay(shape.stroke(model.targeted ? Color.accentColor : Color.white.opacity(0.10),
                               lineWidth: model.targeted ? 2 : 1))
         .foregroundStyle(.white)
         .shadow(color: .black.opacity(model.expanded ? 0.45 : 0), radius: 16, y: 6)
-        .contentShape(shape)
-        // Open/close is driven by the controller's swipe-aware mouse monitor.
-        // Dragging onto the notch still opens it so it can accept the drop.
-        .onDrop(of: [.fileURL, .image, .text], isTargeted: Binding(
-            get: { model.targeted },
-            set: { t in
-                model.targeted = t
-                if t { model.expanded = true }
-                else { NotchController.shared.scheduleCollapseAll() }
-            }
-        )) { providers in
-            DragDrop.ingest(providers)
-        }
     }
 
     // MARK: Expanded content

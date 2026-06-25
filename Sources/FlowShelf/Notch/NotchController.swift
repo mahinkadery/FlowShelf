@@ -65,12 +65,7 @@ final class NotchController {
         for screen in NSScreen.screens {
             let model = NotchModel()
             model.collapsedSize = notchSize(on: screen)
-            // On the real notch the collapsed area is dead hardware space, so it's
-            // safe to make it a drag/hover target. On external screens it would sit
-            // over the menu bar, so keep the collapsed pill click-through (it still
-            // opens via the downward swipe).
-            let hasNotch = screen.safeAreaInsets.top > 0
-            let panel = makePanel(model: model, interactiveCollapsed: hasNotch)
+            let panel = makePanel(model: model)
             let unit = Unit(screen: screen, panel: panel, model: model)
             position(unit)
             panel.orderFrontRegardless()
@@ -103,13 +98,25 @@ final class NotchController {
                       y: unit.screen.frame.maxY - s.height, width: s.width, height: s.height)
     }
 
-    private func makePanel(model: NotchModel, interactiveCollapsed: Bool) -> NSPanel {
+    private func makePanel(model: NotchModel) -> NSPanel {
         let host = NotchHostingView(rootView: NotchView(model: model))
         host.sizingOptions = []
+        // Interactive region = the trigger zone when collapsed (so drags/hover land
+        // easily), the full panel when open. Everywhere else clicks pass through.
         host.regionSize = { [weak model] in
             guard let model else { return .zero }
-            if model.expanded { return model.expandedSize }
-            return interactiveCollapsed ? model.collapsedSize : .zero
+            return model.expanded ? model.expandedSize : model.triggerSize
+        }
+        host.onDragChange = { [weak model, weak self] entered in
+            MainActor.assumeIsolated {
+                guard let model else { return }
+                model.targeted = entered
+                if entered { model.expanded = true }
+                else { self?.scheduleCollapseAll() }
+            }
+        }
+        host.onPerformDrop = { pb in
+            MainActor.assumeIsolated { DragDrop.ingest(pb) }
         }
         let p = NSPanel(contentRect: .zero,
                         styleMask: [.borderless, .nonactivatingPanel],
@@ -201,9 +208,19 @@ final class NotchController {
     }
 }
 
-/// Hosting view that lets clicks pass through everywhere except the visible card.
+/// Hosting view that (a) lets clicks pass through everywhere except the visible
+/// card, and (b) handles file/image/text drags at the AppKit level — SwiftUI's
+/// `.onDrop` is unreliable on a click-through panel at this window level.
 final class NotchHostingView: NSHostingView<NotchView> {
     var regionSize: () -> CGSize = { .zero }
+    var onDragChange: (Bool) -> Void = { _ in }
+    var onPerformDrop: (NSPasteboard) -> Bool = { _ in false }
+
+    required init(rootView: NotchView) {
+        super.init(rootView: rootView)
+        registerForDraggedTypes([.fileURL, .png, .tiff, .string, .URL])
+    }
+    @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         let s = regionSize()
@@ -213,4 +230,16 @@ final class NotchHostingView: NSHostingView<NotchView> {
                           width: s.width, height: s.height)
         return rect.contains(point) ? super.hitTest(point) : nil
     }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        onDragChange(true)
+        return .copy
+    }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { .copy }
+    override func draggingExited(_ sender: NSDraggingInfo?) { onDragChange(false) }
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { true }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        onPerformDrop(sender.draggingPasteboard)
+    }
+    override func draggingEnded(_ sender: NSDraggingInfo) { onDragChange(false) }
 }

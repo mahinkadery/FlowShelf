@@ -197,6 +197,9 @@ struct MenuBarView: View {
             footerButton("text.viewfinder", "Screenshot + OCR · ⌘⇧O") {
                 ScreenshotService.shared.captureRegion(runOCR: true)
             }
+            footerButton("macwindow.and.cursorarrow", "Capture a window (no shadow)") {
+                ScreenshotService.shared.captureWindow()
+            }
             footerButton(settings.privateMode ? "eye.slash" : "eye",
                          settings.privateMode ? "Resume clipboard" : "Private mode") {
                 settings.privateMode.toggle()

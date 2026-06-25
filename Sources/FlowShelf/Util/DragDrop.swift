@@ -68,6 +68,42 @@ enum DragDrop {
         return handled
     }
 
+    /// Ingest an AppKit drag pasteboard (used by the notch panel, which handles
+    /// drags at the AppKit level for reliability). Returns true if anything handled.
+    @MainActor
+    static func ingest(_ pasteboard: NSPasteboard) -> Bool {
+        let store = ShelfStore.shared
+
+        if let urls = pasteboard.readObjects(forClasses: [NSURL.self],
+                                             options: [.urlReadingFileURLsOnly: true]) as? [URL],
+           !urls.isEmpty {
+            for url in urls {
+                let bookmark = try? url.bookmarkData(options: .minimalBookmark)
+                store.add(ShelfItem(kind: .file, title: url.lastPathComponent,
+                                    preview: url.deletingLastPathComponent().path, sourceApp: "Drop",
+                                    fileBookmark: bookmark, filePath: url.path))
+            }
+            return true
+        }
+        if let images = pasteboard.readObjects(forClasses: [NSImage.self], options: nil) as? [NSImage],
+           let img = images.first {
+            if let (rel, thumb) = store.storeImage(img, prefix: "drop") {
+                store.add(ShelfItem(kind: .image, title: "Image", preview: "Dropped image",
+                                    sourceApp: "Drop", imageRelPath: rel, thumbRelPath: thumb))
+            }
+            return true
+        }
+        if let s = pasteboard.string(forType: .string),
+           !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let isLink = s.looksLikeURL
+            store.add(ShelfItem(kind: isLink ? .link : .text,
+                                title: isLink ? (URL(string: s)?.host ?? "Link") : s.firstLine(),
+                                preview: s.firstLine(max: 140), text: s, sourceApp: "Drop"))
+            return true
+        }
+        return false
+    }
+
     /// Build an NSItemProvider for dragging an item OUT of the Shelf.
     @MainActor
     static func provider(for item: ShelfItem) -> NSItemProvider {

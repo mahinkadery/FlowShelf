@@ -137,7 +137,13 @@ struct ShelfItemRow: View {
         }
         if item.hasImage {
             Button("Annotate…") { ItemActions.annotate(item) }
+            Button("Pin to Screen") { ItemActions.pin(item) }
             Button("Run OCR") { ItemActions.runOCR(item) }
+            Button("Scan QR Code") { ItemActions.scanQR(item) }
+            Menu("Image Tools") {
+                Button("Combine with…") { ItemActions.combine(item) }
+                Button("Before / After GIF…") { ItemActions.beforeAfterGIF(item) }
+            }
         }
         if showsAI {
             Divider()

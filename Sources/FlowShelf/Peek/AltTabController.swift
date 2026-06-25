@@ -169,7 +169,11 @@ final class AltTabController {
     private func showOverlay() {
         if overlay == nil { makeOverlay() }
         DispatchQueue.main.async { [weak self] in
-            guard let self, let overlay = self.overlay, let screen = NSScreen.main else { return }
+            guard let self, let overlay = self.overlay else { return }
+            // Show on whichever screen the pointer is on, not always the main one.
+            let screen = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) }
+                ?? NSScreen.main
+            guard let screen else { return }
             overlay.layoutIfNeeded()
             let size = overlay.contentView?.fittingSize ?? NSSize(width: 600, height: 220)
             let vf = screen.visibleFrame

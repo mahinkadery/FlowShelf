@@ -81,16 +81,18 @@ enum AX {
     @MainActor
     static func raiseWindow(pid: pid_t, windowID: CGWindowID) {
         let appElement = AXUIElementCreateApplication(pid)
-        guard let axWindows = attribute(appElement, kAXWindowsAttribute as String) as? [AXUIElement] else {
-            activate(pid: pid)
-            return
+        if let axWindows = attribute(appElement, kAXWindowsAttribute as String) as? [AXUIElement] {
+            for axWindow in axWindows where cgWindowID(of: axWindow) == windowID {
+                AXUIElementSetAttributeValue(axWindow, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+                AXUIElementPerformAction(axWindow, kAXRaiseAction as CFString)
+                AXUIElementSetAttributeValue(axWindow, kAXMainAttribute as CFString, kCFBooleanTrue)
+                break
+            }
         }
-        for axWindow in axWindows where cgWindowID(of: axWindow) == windowID {
-            // Un-minimize if needed, raise, then activate the owning app.
-            AXUIElementSetAttributeValue(axWindow, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
-            AXUIElementPerformAction(axWindow, kAXRaiseAction as CFString)
-            break
-        }
+        // Bring the app forward via Accessibility — this works even when FlowShelf
+        // itself is in the background, whereas NSRunningApplication.activate() is
+        // blocked for non-frontmost apps (that's why only the first switch worked).
+        AXUIElementSetAttributeValue(appElement, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
         activate(pid: pid)
     }
 

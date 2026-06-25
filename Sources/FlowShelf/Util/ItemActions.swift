@@ -56,6 +56,72 @@ enum ItemActions {
         AnnotationEditorController.shared.open(image: img)
     }
 
+    /// Float the image on top of everything as a draggable pin (Shottr-style).
+    static func pin(_ item: ShelfItem) {
+        guard let url = ShelfStore.shared.imageURL(for: item),
+              let img = NSImage(contentsOf: url) else { return }
+        PinController.shared.pin(img)
+    }
+
+    /// Stitch this image together with others the user picks, into one tall canvas.
+    static func combine(_ item: ShelfItem) {
+        guard let base = loadImage(item) else { return }
+        let extra = pickImages(message: "Choose image(s) to stack below this one")
+        guard !extra.isEmpty else { return }
+        guard let out = ImageTools.stack([base] + extra, vertical: true, gap: 12, bg: .white) else { return }
+        shelf(out, title: "Combined", prefix: "combined")
+    }
+
+    /// Build a 2-frame before/after GIF from this image plus one the user picks.
+    static func beforeAfterGIF(_ item: ShelfItem) {
+        guard let before = loadImage(item) else { return }
+        guard let after = pickImages(message: "Choose the “after” image", multiple: false).first else { return }
+        let frames = ImageTools.normalize([before, after])
+        guard let data = ImageTools.makeGIF(frames: frames, seconds: 0.8) else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.gif]
+        panel.nameFieldStringValue = "before-after.gif"
+        if panel.runModal() == .OK, let url = panel.url { try? data.write(to: url) }
+    }
+
+    // MARK: helpers for the multi-image tools
+
+    private static func loadImage(_ item: ShelfItem) -> NSImage? {
+        guard let url = ShelfStore.shared.imageURL(for: item) else { return nil }
+        return NSImage(contentsOf: url)
+    }
+
+    private static func pickImages(message: String, multiple: Bool = true) -> [NSImage] {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.png, .jpeg, .tiff, .image]
+        panel.allowsMultipleSelection = multiple
+        panel.canChooseDirectories = false
+        panel.message = message
+        guard panel.runModal() == .OK else { return [] }
+        return panel.urls.compactMap { NSImage(contentsOf: $0) }
+    }
+
+    private static func shelf(_ image: NSImage, title: String, prefix: String) {
+        guard let (rel, thumb) = ShelfStore.shared.storeImage(image, prefix: prefix) else { return }
+        ShelfStore.shared.add(ShelfItem(kind: .screenshot, title: title,
+            preview: "\(title) \(Date().shortTime)", sourceApp: "Image Tools",
+            imageRelPath: rel, thumbRelPath: thumb))
+    }
+
+    /// Decode a QR / barcode in the image; result is shelfed + copied.
+    static func scanQR(_ item: ShelfItem) {
+        guard let url = ShelfStore.shared.imageURL(for: item),
+              let img = NSImage(contentsOf: url) else { return }
+        ScreenshotService.shared.decodeQR(in: img) { payload in
+            if payload == nil {
+                let alert = NSAlert()
+                alert.messageText = "No QR code found"
+                alert.informativeText = "FlowShelf couldn’t find a QR or barcode in this image."
+                alert.runModal()
+            }
+        }
+    }
+
     // MARK: - On-device AI (runs only on explicit user action)
 
     private static func aiText(of item: ShelfItem) -> String? {
