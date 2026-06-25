@@ -4,6 +4,30 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.3.3] — 2026-06-26 (build 38)
+
+### Added
+- **A full screenshot studio.** The annotation editor grew a complete toolkit:
+  - **Arrows** (arrow / line / double-headed), **boxes** (outline / filled /
+    rounded / ellipse), a real **highlighter marker**, numbered/lettered
+    **steps**, and **text** in four sizes.
+  - **Redaction** with three modes — **pixelate, blur, or solid black-out**.
+  - **Spotlight** (dim everything but a region), a **magnifier callout**
+    (select an area to show it zoomed, baked into the image), a **pixel ruler**,
+    and **beautify backdrops** (gradient background, rounded corners, shadow).
+  - Every tool has its own options row, and **⌘Z / ⇧⌘Z** undo & redo.
+- **Pin to Screen** — float any screenshot on top of everything; drag to move,
+  scroll to resize, double-click or Esc to dismiss.
+- **Window capture** without the macOS drop-shadow.
+- **Scan QR codes** from any image on your shelf.
+- **Image Tools** — combine images into one canvas, or make a before/after GIF.
+
+### Fixed
+- **Notch shelf** now reliably opens when you drag a file onto it.
+- **⌥-Tab switcher** now raises the chosen window every time (not just once).
+- **Much lower memory use** — the editor builds heavy image copies only when a
+  tool needs them, instead of up front.
+
 ## [1.3.2] — 2026-06-18 (build 21)
 
 ### Added

@@ -20,9 +20,48 @@ cleaner, and on-device AI. **One menu-bar icon instead of five separate apps.**
 
 </div>
 
-<!-- 📸 HERO IMAGE — add a wide screenshot/GIF of the shelf + notch here:
-![FlowShelf](docs/hero.png)
--->
+## See it in action
+
+**Screenshot studio — capture, annotate, redact, magnify, beautify:**
+
+https://github.com/mahinkadery/FlowShelf/raw/main/docs/videos/screenshot-annotation.mp4
+
+<table>
+<tr>
+<td width="50%">
+
+**The shelf**
+
+https://github.com/mahinkadery/FlowShelf/raw/main/docs/videos/floating-shelf.mp4
+
+</td>
+<td width="50%">
+
+**Notch shelf**
+
+https://github.com/mahinkadery/FlowShelf/raw/main/docs/videos/notch-drag.mp4
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**On-device AI**
+
+https://github.com/mahinkadery/FlowShelf/raw/main/docs/videos/ai-features.mp4
+
+</td>
+<td width="50%">
+
+**Window snapping**
+
+https://github.com/mahinkadery/FlowShelf/raw/main/docs/videos/window-snapping.mp4
+
+</td>
+</tr>
+</table>
+
+> More demos at **[flowshelf.app](https://flowshelf.app)**.
 
 ---
 
@@ -65,7 +104,7 @@ FlowShelf does what I actually used these popular apps for, in a single place:
 | 🎯 **Notch shelf** | A Dynamic-Island-style shelf in your MacBook notch (and a matching pill on external monitors). **Swipe down** to open, drop files in, click a tile to copy. |
 | 👀 **Peek** | Hover a Dock icon for **live previews** of that app's windows — click to switch, or close/minimize from the preview. |
 | 🔀 **⌥-Tab switcher** | Hold Option, press Tab for a live-thumbnail window switcher across all apps. |
-| 📸 **Capture + Annotate** | Region screenshots with **local OCR** (Apple Vision), plus an editor: arrows, boxes, highlight, **blur** to hide sensitive info, and text. |
+| 📸 **Screenshot studio** | Region & window capture with **local OCR** (Apple Vision), plus a full editor: arrows, shapes, a real **highlighter**, numbered **steps**, text, **redaction** (pixelate / blur / black-out), **spotlight**, a **magnifier callout**, a **pixel ruler**, and gradient **backdrops**. Plus **pin-on-top**, **QR scanning**, image **combine**, and **before/after GIFs**. |
 | ✂️ **Snippets** | A searchable library of reusable text — signatures, addresses, canned replies. One click to copy, or grab from the menu-bar menu. |
 | 🧹 **Clean** | Drag an app in to uninstall it — FlowShelf finds the leftovers, scores them by confidence, and moves them to the Trash (reversible). It even tells you what it *couldn't* remove and why. |
 | ✨ **On-device AI** | See below. |
