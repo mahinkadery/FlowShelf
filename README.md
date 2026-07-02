@@ -11,6 +11,7 @@ links — plus window snapping, window previews, a notch shelf, snippets, an app
 cleaner, and on-device AI. **One menu-bar icon instead of five separate apps.**
 
 [![Download](https://img.shields.io/badge/Download-for%20macOS-FFC107?style=for-the-badge&logo=apple&logoColor=black)](https://github.com/mahinkadery/FlowShelf/releases/latest)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/mahinkadery)
 
 ![Platform](https://img.shields.io/badge/macOS-14%2B-1C1C1C?logo=apple)
 ![Apple Silicon + Intel](https://img.shields.io/badge/Apple%20Silicon%20%2B%20Intel-universal-1C1C1C)
@@ -137,14 +138,10 @@ FlowShelf is **private by design**:
 1. **[Download the latest `.dmg`](https://github.com/mahinkadery/FlowShelf/releases/latest)**
 2. Open it and **drag FlowShelf into Applications**.
 3. Open FlowShelf normally. The app is **Developer ID signed and notarized by
-   Apple**, so it doesn't require the old “Open Anyway” workaround.
+   Apple**.
 4. Grant permissions when asked — **Accessibility** powers Peek, the ⌥-Tab
    switcher, and window snapping; **Screen Recording** adds the live window
    thumbnails. FlowShelf asks only when you first use a feature that needs them.
-
-> Updating from 1.3.2 or earlier may require granting Accessibility and Screen
-> Recording once more because 1.3.4 changes from the old self-signed identity to
-> Apple's Developer ID identity. Future updates keep the new stable identity.
 
 FlowShelf keeps itself up to date automatically (via Sparkle); you can also check
 manually in **Settings → General**.
