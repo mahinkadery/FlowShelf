@@ -136,12 +136,15 @@ FlowShelf is **private by design**:
 
 1. **[Download the latest `.dmg`](https://github.com/mahinkadery/FlowShelf/releases/latest)**
 2. Open it and **drag FlowShelf into Applications**.
-3. **First launch:** because the app isn't notarized yet, macOS shows a security
-   prompt. Open **System Settings → Privacy & Security → scroll down → "Open
-   Anyway."** (One time only.)
+3. Open FlowShelf normally. The app is **Developer ID signed and notarized by
+   Apple**, so it doesn't require the old “Open Anyway” workaround.
 4. Grant permissions when asked — **Accessibility** powers Peek, the ⌥-Tab
    switcher, and window snapping; **Screen Recording** adds the live window
    thumbnails. FlowShelf asks only when you first use a feature that needs them.
+
+> Updating from 1.3.2 or earlier may require granting Accessibility and Screen
+> Recording once more because 1.3.3 changes from the old self-signed identity to
+> Apple's Developer ID identity. Future updates keep the new stable identity.
 
 FlowShelf keeps itself up to date automatically (via Sparkle); you can also check
 manually in **Settings → General**.

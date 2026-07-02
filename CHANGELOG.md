@@ -22,6 +22,13 @@ changes. The number in parentheses is the build number (`CFBundleVersion`).
 - **Scan QR codes** from any image on your shelf.
 - **Image Tools** — combine images into one canvas, or make a before/after GIF.
 
+### Changed
+- FlowShelf is now **Developer ID signed and notarized by Apple**, so new users
+  can open it normally without the old System Settings → Open Anyway workaround.
+  Users upgrading from the previous self-signed build may need to grant
+  Accessibility and Screen Recording once more; future updates keep the stable
+  Developer ID identity.
+
 ### Fixed
 - **Notch shelf** now reliably opens when you drag a file onto it.
 - **⌥-Tab switcher** now raises the chosen window every time (not just once).

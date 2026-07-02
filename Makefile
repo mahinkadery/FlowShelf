@@ -93,7 +93,7 @@ clean:
 #   NOTARY = a notarytool keychain profile (run `make notary-setup` once)
 # Then:  make dist DEVID="Developer ID Application: Your Name (XXXXXXXXXX)"
 # ----------------------------------------------------------------------------
-DEVID  ?=
+DEVID  ?= Developer ID Application: Abu Monsur Md Moheuddin Kadery (27T48QHU7X)
 NOTARY ?= flowshelf-notary
 VERSION := $(shell /usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Resources/Info.plist)
 DMG    := dist/$(APP)-$(VERSION).dmg
@@ -110,6 +110,10 @@ dist: build icon
 		--sign "$(DEVID)" $(BUNDLE)
 	@codesign --verify --strict --verbose=2 $(BUNDLE)
 	@sh scripts/build-dmg.sh $(BUNDLE) "$(DMG)"
+	@echo "Signing disk image…"
+	@codesign --force --options runtime --timestamp \
+		--sign "$(DEVID)" "$(DMG)"
+	@codesign --verify --strict --verbose=2 "$(DMG)"
 	@echo "Notarizing $(DMG) (this can take a few minutes)…"
 	@xcrun notarytool submit "$(DMG)" --keychain-profile "$(NOTARY)" --wait
 	@xcrun stapler staple "$(DMG)"
@@ -131,8 +135,9 @@ dmg: bundle
 	@sh scripts/build-dmg.sh $(BUNDLE) "$(DMG)"
 	@echo "Wrote $(DMG)  (stable-signed; first launch via System Settings ▸ Open Anyway)"
 
-# Publish the built DMG to GitHub Releases (permanent "latest" URL for the site).
-release: dmg
+# Publish a Developer-ID-signed, notarized DMG to GitHub Releases.
+# The non-notarized `dmg` target remains available for local/test builds.
+release: dist
 	@sh scripts/release.sh
 
 # Bump the app version. Usage: make set-version VER=1.1.0 [BUILD=2]
