@@ -4,6 +4,15 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.3.5] — 2026-07-02 (build 40)
+
+### Fixed
+- Restored the **branded drag-to-install DMG window** with the FlowShelf
+  background, aligned app/Applications icons, and current notarized-install
+  guidance. The builder now styles a unique temporary volume and fails the
+  release if Finder does not persist the required layout metadata, preventing a
+  plain fallback installer from being published again.
+
 ## [1.3.4] — 2026-07-02 (build 39)
 
 ### Fixed
