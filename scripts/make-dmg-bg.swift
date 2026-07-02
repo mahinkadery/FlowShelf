@@ -72,11 +72,11 @@ centeredText("Drag FlowShelf onto the Applications folder to install",
              font: .systemFont(ofSize: 15, weight: .medium),
              color: NSColor(calibratedWhite: 0.9, alpha: 1), top: 320)
 
-// First-launch instructions (Gatekeeper).
-centeredText("First time opening? Apple shows a security prompt — it’s safe.",
+// Trust/install note. FlowShelf is Developer ID signed and notarized.
+centeredText("Developer ID signed and notarized by Apple.",
              font: .systemFont(ofSize: 12.5, weight: .regular),
              color: NSColor(calibratedWhite: 0.62, alpha: 1), top: 352)
-centeredText("System Settings ▸ Privacy & Security ▸ scroll down ▸ “Open Anyway”",
+centeredText("Drag, launch, and start organizing — no setup or account.",
              font: .systemFont(ofSize: 12.5, weight: .semibold),
              color: amber.withAlphaComponent(0.92), top: 374)
 
