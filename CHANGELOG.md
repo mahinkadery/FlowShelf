@@ -4,6 +4,22 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.3.4] — 2026-07-02 (build 39)
+
+### Fixed
+- **Critical distribution hotfix:** the first notarized v1.3.3 DMG omitted
+  `Sparkle.framework`, causing FlowShelf to terminate immediately at launch.
+  The release bundle now embeds every required framework and resource, signs
+  Sparkle's nested helpers in the correct inside-out order, and is cold-launch
+  tested before publishing.
+
+### Changed
+- FlowShelf is now **Developer ID signed and notarized by Apple**, so new users
+  can open it normally without the old System Settings → Open Anyway workaround.
+  Users upgrading from the previous self-signed build may need to grant
+  Accessibility and Screen Recording once more; future updates keep the stable
+  Developer ID identity.
+
 ## [1.3.3] — 2026-06-26 (build 38)
 
 ### Added
@@ -21,13 +37,6 @@ changes. The number in parentheses is the build number (`CFBundleVersion`).
 - **Window capture** without the macOS drop-shadow.
 - **Scan QR codes** from any image on your shelf.
 - **Image Tools** — combine images into one canvas, or make a before/after GIF.
-
-### Changed
-- FlowShelf is now **Developer ID signed and notarized by Apple**, so new users
-  can open it normally without the old System Settings → Open Anyway workaround.
-  Users upgrading from the previous self-signed build may need to grant
-  Accessibility and Screen Recording once more; future updates keep the stable
-  Developer ID identity.
 
 ### Fixed
 - **Notch shelf** now reliably opens when you drag a file onto it.

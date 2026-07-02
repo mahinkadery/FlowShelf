@@ -14,7 +14,7 @@ INSTALL_DIR := /Applications
 # Create it once with `make cert-help`. Falls back to ad-hoc if it's missing.
 CODESIGN_ID ?= FlowShelf Self-Signed
 
-.PHONY: all build bundle sign run clean install
+.PHONY: all build bundle embed-sparkle icon sign run clean install developer-id-bundle dist release notary-setup dmg set-version cert-help
 
 all: bundle
 
@@ -37,8 +37,18 @@ bundle: build icon
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
 	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
 	@if [ -f Resources/MenuBarIcon.png ]; then cp Resources/MenuBarIcon.png $(CONTENTS)/Resources/MenuBarIcon.png; fi
-	@$(MAKE) embed-sparkle
-	@$(MAKE) sign
+	@SPK=$$(find .build/artifacts -name Sparkle.framework -type d -path '*macos*' | head -1); \
+	if [ -n "$$SPK" ]; then \
+		mkdir -p $(CONTENTS)/Frameworks; \
+		ditto "$$SPK" $(CONTENTS)/Frameworks/Sparkle.framework; \
+		install_name_tool -add_rpath @executable_path/../Frameworks $(MACOS_DIR)/$(APP) 2>/dev/null || true; \
+		echo "Embedded Sparkle.framework"; \
+	else echo "Sparkle.framework not found (run swift build first)"; exit 1; fi
+	@codesign --force --deep --sign "$(CODESIGN_ID)" \
+		--entitlements Resources/FlowShelf.entitlements $(BUNDLE) 2>/dev/null \
+		&& echo "Signed $(BUNDLE) (identity: $(CODESIGN_ID))" \
+		|| (codesign --force --deep --sign - $(BUNDLE) \
+			&& echo "Signed $(BUNDLE) (ad-hoc fallback — grants won't persist across rebuilds)")
 	@echo "Built $(BUNDLE)"
 
 # Embed Sparkle.framework (with its XPC services + Updater.app) and add the rpath
@@ -98,17 +108,38 @@ NOTARY ?= flowshelf-notary
 VERSION := $(shell /usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Resources/Info.plist)
 DMG    := dist/$(APP)-$(VERSION).dmg
 
-dist: build icon
+developer-id-bundle: build icon
 	@test -n "$(DEVID)" || { echo 'Set DEVID="Developer ID Application: Name (TEAMID)"'; exit 1; }
-	@rm -rf $(BUNDLE) dist && mkdir -p $(MACOS_DIR) $(CONTENTS)/Resources dist
+	@rm -rf $(BUNDLE) && mkdir -p $(MACOS_DIR) $(CONTENTS)/Resources
 	@cp $(BIN) $(MACOS_DIR)/$(APP)
 	@cp Resources/Info.plist $(CONTENTS)/Info.plist
-	@cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns
+	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
+	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
+	@if [ -f Resources/MenuBarIcon.png ]; then cp Resources/MenuBarIcon.png $(CONTENTS)/Resources/MenuBarIcon.png; fi
+	@SPK=$$(find .build/artifacts -name Sparkle.framework -type d -path '*macos*' | head -1); \
+	if [ -n "$$SPK" ]; then \
+		mkdir -p $(CONTENTS)/Frameworks; \
+		ditto "$$SPK" $(CONTENTS)/Frameworks/Sparkle.framework; \
+		install_name_tool -add_rpath @executable_path/../Frameworks $(MACOS_DIR)/$(APP) 2>/dev/null || true; \
+		echo "Embedded Sparkle.framework"; \
+	else echo "Sparkle.framework not found (run swift build first)"; exit 1; fi
 	@echo "Signing with hardened runtime (required for notarization)…"
-	@codesign --force --deep --options runtime --timestamp \
+	@SPK="$(CONTENTS)/Frameworks/Sparkle.framework/Versions/B"; \
+	if [ -d "$$SPK" ]; then \
+		codesign --force --options runtime --timestamp --sign "$(DEVID)" "$$SPK/XPCServices/Installer.xpc"; \
+		codesign --force --options runtime --timestamp --preserve-metadata=entitlements --sign "$(DEVID)" "$$SPK/XPCServices/Downloader.xpc"; \
+		codesign --force --options runtime --timestamp --sign "$(DEVID)" "$$SPK/Autoupdate"; \
+		codesign --force --options runtime --timestamp --sign "$(DEVID)" "$$SPK/Updater.app"; \
+		codesign --force --options runtime --timestamp --sign "$(DEVID)" "$(CONTENTS)/Frameworks/Sparkle.framework"; \
+	fi
+	@codesign --force --options runtime --timestamp \
 		--entitlements Resources/FlowShelf.entitlements \
 		--sign "$(DEVID)" $(BUNDLE)
-	@codesign --verify --strict --verbose=2 $(BUNDLE)
+	@codesign --verify --deep --strict --verbose=2 $(BUNDLE)
+	@echo "Built Developer ID app bundle → $(BUNDLE)"
+
+dist: developer-id-bundle
+	@rm -rf dist && mkdir -p dist
 	@sh scripts/build-dmg.sh $(BUNDLE) "$(DMG)"
 	@echo "Signing disk image…"
 	@codesign --force --options runtime --timestamp \

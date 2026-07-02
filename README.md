@@ -143,7 +143,7 @@ FlowShelf is **private by design**:
    thumbnails. FlowShelf asks only when you first use a feature that needs them.
 
 > Updating from 1.3.2 or earlier may require granting Accessibility and Screen
-> Recording once more because 1.3.3 changes from the old self-signed identity to
+> Recording once more because 1.3.4 changes from the old self-signed identity to
 > Apple's Developer ID identity. Future updates keep the new stable identity.
 
 FlowShelf keeps itself up to date automatically (via Sparkle); you can also check
