@@ -34,17 +34,37 @@ git add appcast.xml
 git commit -q -m "Update appcast for $VERSION" 2>/dev/null || true
 git push origin HEAD 2>/dev/null || true
 
-# 3) Upload the DMGs to a GitHub Release.
+# 3) Upload the DMGs to a GitHub Release (notes = changelog + SHA-256 checksums).
+SHA_V="$(shasum -a 256 "$VDMG" | awk '{print $1}')"
+NOTES="$(mktemp)"
+cat CHANGELOG.md > "$NOTES"
+{
+  echo
+  echo "---"
+  echo
+  echo "**Verify your download (SHA-256):**"
+  echo
+  echo '```'
+  echo "$SHA_V  FlowShelf-$VERSION.dmg"
+  echo '```'
+  echo
+  echo "Check with: \`shasum -a 256 ~/Downloads/FlowShelf-$VERSION.dmg\`"
+} >> "$NOTES"
+
 if gh release view "$TAG" >/dev/null 2>&1; then
   gh release upload "$TAG" "$STABLE" "$VDMG" --clobber
+  gh release edit "$TAG" --notes-file "$NOTES"
   echo "Updated release $TAG"
 else
   git tag "$TAG" 2>/dev/null || true
   git push origin "$TAG" 2>/dev/null || true
-  gh release create "$TAG" "$STABLE" "$VDMG" --title "FlowShelf $VERSION" --notes-file CHANGELOG.md
+  gh release create "$TAG" "$STABLE" "$VDMG" --title "FlowShelf $VERSION" --notes-file "$NOTES"
   echo "Created release $TAG"
 fi
+rm -f "$NOTES"
 
 echo
 echo "Download link for the website:  https://github.com/$REPO/releases/latest/download/FlowShelf.dmg"
 echo "Set Info.plist SUFeedURL to:    https://raw.githubusercontent.com/$REPO/main/appcast.xml"
+echo "SHA-256 ($VERSION):             $SHA_V"
+echo "REMINDER: bump homebrew-tap Casks/flowshelf.rb → version $VERSION + sha256 above, and the checksum on flowshelf.app."
