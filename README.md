@@ -146,6 +146,15 @@ FlowShelf is **private by design**:
 FlowShelf keeps itself up to date automatically (via Sparkle); you can also check
 manually in **Settings → General**.
 
+### Or install with Homebrew
+
+```sh
+brew install --cask mahinkadery/tap/flowshelf
+```
+
+Same signed, notarized build as the direct download. Verify any release with its
+SHA-256 checksum, published in the [release notes](https://github.com/mahinkadery/FlowShelf/releases/latest).
+
 ## Build from source
 
 Requires the Swift toolchain (Xcode Command Line Tools are enough — no full Xcode).
