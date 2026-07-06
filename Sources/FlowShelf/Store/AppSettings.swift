@@ -110,6 +110,22 @@ final class AppSettings: ObservableObject {
         didSet { defaults.set(aiAutoTitle, forKey: "aiAutoTitle") }
     }
 
+    /// Supporter nudge: once the user taps "I already supported" (or donates),
+    /// the weekly coffee prompt never appears again. Honor-system, on-device only.
+    @Published var hasSupported: Bool {
+        didSet { defaults.set(hasSupported, forKey: "hasSupported") }
+    }
+    /// Last time the coffee prompt was shown (to keep it to ~once a week).
+    var lastSupportPromptAt: Date? {
+        get { defaults.object(forKey: "lastSupportPromptAt") as? Date }
+        set { defaults.set(newValue, forKey: "lastSupportPromptAt") }
+    }
+    /// First launch time — so we never nag someone on day one.
+    var firstLaunchAt: Date {
+        if let d = defaults.object(forKey: "firstLaunchAt") as? Date { return d }
+        let now = Date(); defaults.set(now, forKey: "firstLaunchAt"); return now
+    }
+
     /// One-shot: skip recording the very next copy.
     var ignoreNextCopy = false
 
@@ -130,6 +146,7 @@ final class AppSettings: ObservableObject {
         annotateAfterScreenshot = defaults.bool(forKey: "annotateAfterScreenshot")
         aiEnabled = defaults.object(forKey: "aiEnabled") as? Bool ?? true
         aiAutoTitle = defaults.bool(forKey: "aiAutoTitle")
+        hasSupported = defaults.bool(forKey: "hasSupported")
         // Default-exclude common password managers.
         excludedBundleIDs = defaults.object(forKey: "excludedBundleIDs") as? [String] ?? [
             "com.1password.1password",

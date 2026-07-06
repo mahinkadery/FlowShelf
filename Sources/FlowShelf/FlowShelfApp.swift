@@ -139,6 +139,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Permissions.requestScreenRecording()
             }
         }
+
+        // Occasional, honor-system "buy me a coffee" nudge (never for supporters).
+        SupporterPrompt.shared.maybeShowAtLaunch()
     }
 
     // MARK: - Status item
