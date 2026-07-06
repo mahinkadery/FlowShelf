@@ -11,13 +11,21 @@ links — plus window snapping, window previews, a notch shelf, snippets, an app
 cleaner, and on-device AI. **One menu-bar icon instead of five separate apps.**
 
 [![Download](https://img.shields.io/badge/Download-for%20macOS-FFC107?style=for-the-badge&logo=apple&logoColor=black)](https://github.com/mahinkadery/FlowShelf/releases/latest)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/mahinkadery)
+[![Homebrew](https://img.shields.io/badge/Homebrew-brew%20install-FBB040?style=for-the-badge&logo=homebrew&logoColor=white)](#or-install-with-homebrew)
+[![Website](https://img.shields.io/badge/Website-flowshelf.app-111111?style=for-the-badge&logo=safari&logoColor=white)](https://flowshelf.app)
 
 ![Platform](https://img.shields.io/badge/macOS-14%2B-1C1C1C?logo=apple)
 ![Apple Silicon + Intel](https://img.shields.io/badge/Apple%20Silicon%20%2B%20Intel-universal-1C1C1C)
+![Notarized](https://img.shields.io/badge/Signed%20%26%20notarized-Apple-1C1C1C?logo=apple)
 ![License](https://img.shields.io/badge/license-PolyForm%20Strict-orange)
 ![Latest release](https://img.shields.io/github/v/release/mahinkadery/FlowShelf?color=FFC107)
 ![Downloads](https://img.shields.io/github/downloads/mahinkadery/FlowShelf/total?color=FFC107)
+[![Stars](https://img.shields.io/github/stars/mahinkadery/FlowShelf?style=social)](https://github.com/mahinkadery/FlowShelf/stargazers)
+
+<br/>
+
+⭐ **If FlowShelf makes your Mac day easier, [give it a star](https://github.com/mahinkadery/FlowShelf) —**
+it helps other people find it (and gets us closer to a one-word `brew install flowshelf`).
 
 </div>
 
@@ -66,13 +74,14 @@ FlowShelf does what I actually used these popular apps for, in a single place:
 | **Paste / Maccy / Dropover** (clipboard + file shelf) | **Shelf** + **Floating shelf** |
 | **Magnet / Rectangle** (window snapping) | **Window snapping** |
 | **AltTab** + **DockDoor** (window switching & previews) | **⌥-Tab switcher** + **Peek** |
-| **CleanShot X / Shottr** (screenshots + annotation) | **Capture + Annotate** |
+| **CleanShot X / Shottr** (screenshots + annotation) | **Screenshot studio** |
 | **AppCleaner** (uninstaller) | **Clean** |
 | **TextExpander** (snippets) | **Snippets** |
 | **NotchNook** (notch utility) | **Notch shelf** |
 
 > Not a 1:1 clone of each — it covers the everyday parts most people use, in one
-> tidy, free app.
+> tidy, free app. The **Screenshot studio** in particular has grown into a full
+> toolkit (annotate, redact, magnify, measure, beautify) — see below.
 
 ## Features
 
@@ -155,6 +164,44 @@ brew install --cask mahinkadery/tap/flowshelf
 Same signed, notarized build as the direct download. Verify any release with its
 SHA-256 checksum, published in the [release notes](https://github.com/mahinkadery/FlowShelf/releases/latest).
 
+## Troubleshooting
+
+<details>
+<summary><b>The AI features say they're unavailable</b></summary>
+
+On-device AI needs an **Apple-Intelligence-capable Mac** with **Apple Intelligence
+enabled** (System Settings → Apple Intelligence & Siri). One easy-to-miss catch:
+Apple Intelligence won't turn on unless your Mac's **system language matches your
+Siri language** — if they differ (e.g. system "English (US)", Siri "English (AU)"),
+set them the same and it'll enable. AI only runs when you explicitly ask.
+</details>
+
+<details>
+<summary><b>A feature stopped working after an update (Peek, ⌥-Tab, snapping, window thumbnails)</b></summary>
+
+Those need **Accessibility** and/or **Screen Recording** permission. FlowShelf uses
+a stable Developer ID signature so grants normally persist across updates, but if
+macOS drops one, re-enable FlowShelf under **System Settings → Privacy & Security →
+Accessibility / Screen Recording**.
+</details>
+
+<details>
+<summary><b>Where is my data stored? Can I wipe it?</b></summary>
+
+Everything lives **on your Mac only** — no cloud, no account. History is stored in
+FlowShelf's Application Support folder, owner-only, and excluded from iCloud/Time
+Machine. Use **Clear** in the app to wipe it, or turn on **Private Mode** to pause
+capture entirely.
+</details>
+
+<details>
+<summary><b>"FlowShelf can't be opened"</b></summary>
+
+Since 1.3.4 the app is **notarized by Apple**, so it should open normally. If you're
+on an older build or macOS still blocks it, right-click the app → **Open**, or allow
+it under **System Settings → Privacy & Security**.
+</details>
+
 ## Build from source
 
 Requires the Swift toolchain (Xcode Command Line Tools are enough — no full Xcode).
@@ -205,8 +252,11 @@ the **[PolyForm Strict License 1.0.0](LICENSE.md)**.
 
 ## Support
 
-FlowShelf is free. If it saves you time, you can
-**[buy me a coffee ☕️](https://buymeacoffee.com/mahinkadery)**.
+FlowShelf is free. Two things help a lot:
+
+- ⭐ **[Star the repo](https://github.com/mahinkadery/FlowShelf)** — it's the biggest
+  boost for a solo project (and helps unlock a shorter `brew install`).
+- ☕ **[Buy me a coffee](https://buymeacoffee.com/mahinkadery)** if it saves you time.
 
 <div align="center">
 <sub>Built for Mac by <a href="https://github.com/mahinkadery">@mahinkadery</a></sub>
