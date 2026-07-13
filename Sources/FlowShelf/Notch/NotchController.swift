@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// A Dynamic-Island-style shelf at the top of **every** screen: the built-in
 /// display uses its real notch; external monitors get a matching top-centre pill.
@@ -14,7 +15,6 @@ final class NotchController {
         let screen: NSScreen
         let panel: NSPanel
         let model: NotchModel
-        var lastDistFromTop: CGFloat = .greatestFiniteMagnitude
         var collapseWork: DispatchWorkItem?
         init(screen: NSScreen, panel: NSPanel, model: NotchModel) {
             self.screen = screen; self.panel = panel; self.model = model
@@ -22,6 +22,13 @@ final class NotchController {
     }
 
     private var units: [Unit] = []
+    /// Debug: keep the shelf pinned open (used by `--notchopen` for visual QA).
+    var debugPinned = false
+
+    func debugExpandAll() {
+        debugPinned = true
+        for u in units { u.collapseWork?.cancel(); u.model.expanded = true }
+    }
     private var screenObserver: NSObjectProtocol?
     private var mouseGlobal: Any?
     private var mouseLocal: Any?
@@ -39,6 +46,11 @@ final class NotchController {
         running = true
         rebuild()
         startMouseMonitor()
+        // The moment ANY drag starts anywhere on screen, open the shelf to catch
+        // it (and close it again when the drag ends without a drop).
+        DragWatch.shared.onDragBegan = { [weak self] in self?.dragBegan() }
+        DragWatch.shared.onDragEnded = { [weak self] in self?.dragEnded() }
+        DragWatch.shared.start()
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main) { [weak self] _ in
@@ -48,10 +60,29 @@ final class NotchController {
 
     func stop() {
         running = false
+        DragWatch.shared.stop()
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         screenObserver = nil
         stopMouseMonitor()
         teardown()
+    }
+
+    // MARK: - Global drag reactions
+
+    private func dragBegan() {
+        for unit in units {
+            unit.collapseWork?.cancel()
+            unit.model.dropReady = true
+            unit.model.expanded = true
+        }
+    }
+
+    private func dragEnded() {
+        for unit in units {
+            unit.model.dropReady = false
+            unit.model.targeted = false
+            scheduleCollapse(unit)
+        }
     }
 
     private func teardown() {
@@ -86,12 +117,6 @@ final class NotchController {
         return CGSize(width: 200, height: 32)
     }
 
-    private func notchRect(_ unit: Unit) -> CGRect {
-        let s = unit.model.collapsedSize
-        return CGRect(x: unit.screen.frame.midX - s.width / 2,
-                      y: unit.screen.frame.maxY - s.height, width: s.width, height: s.height)
-    }
-
     private func expandedRect(_ unit: Unit) -> CGRect {
         let s = unit.model.expandedSize
         return CGRect(x: unit.screen.frame.midX - s.width / 2,
@@ -115,13 +140,16 @@ final class NotchController {
                 else { self?.scheduleCollapseAll() }
             }
         }
-        host.onPerformDrop = { pb in
-            MainActor.assumeIsolated { DragDrop.ingest(pb) }
+        host.onPerformDrop = { info in
+            MainActor.assumeIsolated { DragDrop.ingest(info) }
         }
         let p = NSPanel(contentRect: .zero,
                         styleMask: [.borderless, .nonactivatingPanel],
                         backing: .buffered, defer: false)
-        p.level = NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
+        // .statusBar, NOT the shielding level: windows above the status-bar level
+        // are skipped by the drag-and-drop destination search, which silently
+        // breaks dropping onto the notch.
+        p.level = .statusBar
         p.backgroundColor = .clear
         p.isOpaque = false
         p.hasShadow = false
@@ -165,30 +193,17 @@ final class NotchController {
             let scr = unit.screen
             guard scr.frame.contains(mouse) else {
                 if unit.model.expanded { scheduleCollapse(unit) }
-                unit.lastDistFromTop = .greatestFiniteMagnitude
                 continue
             }
-            let distFromTop = scr.frame.maxY - mouse.y
-            let notch = notchRect(unit)
-            let notchH = notch.height
-            let inX = mouse.x >= notch.minX - 10 && mouse.x <= notch.maxX + 10
-
+            // Opening is tap-only (plus auto-open for drags); the mouse monitor
+            // just collapses the shelf once the pointer wanders away.
             if unit.model.expanded {
                 if expandedRect(unit).insetBy(dx: -12, dy: -12).contains(mouse) {
                     unit.collapseWork?.cancel()
                 } else {
                     scheduleCollapse(unit)
                 }
-            } else {
-                let movingDown = distFromTop > unit.lastDistFromTop + 0.3
-                let cameFromNotch = unit.lastDistFromTop <= notchH + 2
-                let nowJustBelow = distFromTop > notchH && distFromTop < notchH + 48
-                if inX, movingDown, cameFromNotch, nowJustBelow {
-                    unit.collapseWork?.cancel()
-                    unit.model.expanded = true
-                }
             }
-            unit.lastDistFromTop = distFromTop
         }
     }
 
@@ -198,6 +213,7 @@ final class NotchController {
     }
 
     private func scheduleCollapse(_ unit: Unit) {
+        guard !debugPinned else { return }
         unit.collapseWork?.cancel()
         let work = DispatchWorkItem { [weak unit] in
             guard let unit else { return }
@@ -214,11 +230,19 @@ final class NotchController {
 final class NotchHostingView: NSHostingView<NotchView> {
     var regionSize: () -> CGSize = { .zero }
     var onDragChange: (Bool) -> Void = { _ in }
-    var onPerformDrop: (NSPasteboard) -> Bool = { _ in false }
+    var onPerformDrop: (NSDraggingInfo) -> Bool = { _ in false }
 
     required init(rootView: NotchView) {
         super.init(rootView: rootView)
-        registerForDraggedTypes([.fileURL, .png, .tiff, .string, .URL])
+        // Accept everything a Mac can drag: real files, promised files (browser
+        // images, screenshot thumbnails, Mail attachments), URLs, text, images.
+        var types: [NSPasteboard.PasteboardType] = [
+            .fileURL, .URL, .string, .png, .tiff,
+            NSPasteboard.PasteboardType(UTType.data.identifier),
+            NSPasteboard.PasteboardType(UTType.item.identifier),
+        ]
+        types += NSFilePromiseReceiver.readableDraggedTypes.map { NSPasteboard.PasteboardType($0) }
+        registerForDraggedTypes(types)
     }
     @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
 
@@ -239,7 +263,7 @@ final class NotchHostingView: NSHostingView<NotchView> {
     override func draggingExited(_ sender: NSDraggingInfo?) { onDragChange(false) }
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { true }
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        onPerformDrop(sender.draggingPasteboard)
+        onPerformDrop(sender)
     }
     override func draggingEnded(_ sender: NSDraggingInfo) { onDragChange(false) }
 }

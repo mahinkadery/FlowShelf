@@ -117,9 +117,9 @@ struct SnippetsView: View {
 
     private func copy(_ s: Snippet) {
         store.copy(s)
-        withAnimation(.easeOut(duration: 0.12)) { copiedID = s.id }
+        withAnimation(FlowMotion.bounce) { copiedID = s.id }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
-            withAnimation(.easeOut(duration: 0.2)) {
+            withAnimation(FlowMotion.state) {
                 if copiedID == s.id { copiedID = nil }
             }
         }

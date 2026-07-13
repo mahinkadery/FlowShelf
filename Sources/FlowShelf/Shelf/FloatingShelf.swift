@@ -186,9 +186,9 @@ private struct ShelfTile: View {
 
     private func copy() {
         ItemActions.copyToPasteboard(item)
-        withAnimation(.easeOut(duration: 0.12)) { copied = true }
+        withAnimation(FlowMotion.bounce) { copied = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            withAnimation(.easeOut(duration: 0.2)) { copied = false }
+            withAnimation(FlowMotion.state) { copied = false }
         }
     }
 
@@ -236,15 +236,74 @@ final class FloatingShelfController {
 
     var isVisible: Bool { panel?.isVisible ?? false }
 
+    private var autoHideTimer: Timer?
+
     func toggle() { isVisible ? hide() : show() }
 
-    func show() {
+    /// `autoDismiss` (the shake-summon path): the shelf slips away by itself
+    /// after a few seconds unless the pointer visits it.
+    func show(autoDismiss: Bool = false) {
         if panel == nil { makePanel() }
         positionAtCursor()
-        panel?.orderFrontRegardless()
+        guard let panel else { return }
+        if autoDismiss { startAutoHide() } else { cancelAutoHide() }
+
+        // Entrance: fade in while rising a few points to the summon position —
+        // reduced-motion users get a plain fade.
+        let target = panel.frame.origin
+        panel.alphaValue = 0
+        if !FlowMotion.reduceMotion {
+            panel.setFrameOrigin(NSPoint(x: target.x, y: target.y - 8))
+        }
+        panel.orderFrontRegardless()
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.22
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().alphaValue = 1
+            panel.animator().setFrameOrigin(target)
+        }
     }
 
-    func hide() { panel?.orderOut(nil) }
+    /// Watch the pointer for a few seconds: entering the shelf claims it (no
+    /// auto-hide); never visiting it lets it fade away on its own.
+    private func startAutoHide() {
+        cancelAutoHide()
+        let deadline = Date().addingTimeInterval(4.0)
+        let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] timer in
+            MainActor.assumeIsolated {
+                guard let self, let panel = self.panel, panel.isVisible else {
+                    timer.invalidate(); return
+                }
+                if panel.frame.insetBy(dx: -8, dy: -8).contains(NSEvent.mouseLocation) {
+                    self.cancelAutoHide()          // engaged — it stays
+                } else if Date() >= deadline {
+                    self.cancelAutoHide()
+                    self.hide()
+                }
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        autoHideTimer = t
+    }
+
+    private func cancelAutoHide() {
+        autoHideTimer?.invalidate()
+        autoHideTimer = nil
+    }
+
+    func hide() {
+        cancelAutoHide()
+        guard let panel, panel.isVisible else { return }
+        // Exit: quick fade, no travel — closing should feel instant and calm.
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.16
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+        }, completionHandler: {
+            panel.orderOut(nil)
+            panel.alphaValue = 1
+        })
+    }
 
     private func makePanel() {
         let host = NSHostingView(rootView: FloatingShelfView(onClose: { [weak self] in self?.hide() }))

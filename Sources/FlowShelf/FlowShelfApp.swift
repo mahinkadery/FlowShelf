@@ -110,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         HotKeyManager.shared.registerDefaults()
 
         // Shake-to-summon the floating shelf (Dropover-style).
-        ShakeDetector.shared.onShake = { FloatingShelfController.shared.show() }
+        ShakeDetector.shared.onShake = { FloatingShelfController.shared.show(autoDismiss: true) }
         if AppSettings.shared.shakeToSummon { ShakeDetector.shared.start() }
 
         // Resume Dock previews if the user had them on (and perms are still granted).
@@ -142,6 +142,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Occasional, honor-system "buy me a coffee" nudge (never for supporters).
         SupporterPrompt.shared.maybeShowAtLaunch()
+
+        #if DEBUG
+        // Visual QA: `FlowShelf --notchopen` pins the notch open so its glass can
+        // be screenshotted and tuned without hand interaction.
+        if CommandLine.arguments.contains("--notchopen") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                NotchController.shared.start()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    NotchController.shared.debugExpandAll()
+                }
+            }
+        }
+        #endif
     }
 
     // MARK: - Status item

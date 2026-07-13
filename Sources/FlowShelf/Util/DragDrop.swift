@@ -4,6 +4,57 @@ import UniformTypeIdentifiers
 /// Bridges AppKit/SwiftUI drag-and-drop into and out of the Shelf.
 enum DragDrop {
 
+    /// Queue for receiving promised files (screenshots-in-flight, browser images,
+    /// Mail attachments — anything that isn't a real file yet when the drag starts).
+    private static let promiseQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.qualityOfService = .userInitiated
+        return q
+    }()
+
+    /// Where promised files are written. Lives in Application Support so shelf
+    /// file items keep working after the drop (temp dirs get purged).
+    private static var dropsDir: URL {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("FlowShelf/Drops", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// Full drop handler for the notch: resolves file *promises* first (the case
+    /// plain pasteboard reading silently misses), then falls back to concrete
+    /// files / images / text on the pasteboard.
+    @MainActor
+    static func ingest(_ info: NSDraggingInfo) -> Bool {
+        let pb = info.draggingPasteboard
+
+        if let receivers = pb.readObjects(forClasses: [NSFilePromiseReceiver.self], options: nil)
+            as? [NSFilePromiseReceiver], !receivers.isEmpty {
+            let dest = dropsDir
+            for receiver in receivers {
+                receiver.receivePromisedFiles(atDestination: dest, options: [:],
+                                              operationQueue: promiseQueue) { url, error in
+                    guard error == nil else { return }
+                    Task { @MainActor in
+                        let bookmark = try? url.bookmarkData(options: .minimalBookmark)
+                        ShelfStore.shared.add(ShelfItem(
+                            kind: .file,
+                            title: url.lastPathComponent,
+                            preview: url.deletingLastPathComponent().path,
+                            sourceApp: "Drop",
+                            fileBookmark: bookmark,
+                            filePath: url.path
+                        ))
+                    }
+                }
+            }
+            Haptics.drop()
+            return true
+        }
+
+        return ingest(pb)
+    }
+
     /// Ingest dropped item providers into the Shelf. Returns true if anything handled.
     @MainActor
     static func ingest(_ providers: [NSItemProvider]) -> Bool {
@@ -65,6 +116,7 @@ enum DragDrop {
                 }
             }
         }
+        if handled { Haptics.drop() }
         return handled
     }
 
@@ -83,6 +135,7 @@ enum DragDrop {
                                     preview: url.deletingLastPathComponent().path, sourceApp: "Drop",
                                     fileBookmark: bookmark, filePath: url.path))
             }
+            Haptics.drop()
             return true
         }
         if let images = pasteboard.readObjects(forClasses: [NSImage.self], options: nil) as? [NSImage],
@@ -91,6 +144,7 @@ enum DragDrop {
                 store.add(ShelfItem(kind: .image, title: "Image", preview: "Dropped image",
                                     sourceApp: "Drop", imageRelPath: rel, thumbRelPath: thumb))
             }
+            Haptics.drop()
             return true
         }
         if let s = pasteboard.string(forType: .string),
@@ -99,6 +153,7 @@ enum DragDrop {
             store.add(ShelfItem(kind: isLink ? .link : .text,
                                 title: isLink ? (URL(string: s)?.host ?? "Link") : s.firstLine(),
                                 preview: s.firstLine(max: 140), text: s, sourceApp: "Drop"))
+            Haptics.drop()
             return true
         }
         return false

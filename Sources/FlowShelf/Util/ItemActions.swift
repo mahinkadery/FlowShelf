@@ -6,6 +6,7 @@ enum ItemActions {
     static func copyToPasteboard(_ item: ShelfItem) {
         let pb = NSPasteboard.general
         AppSettings.shared.ignoreNextCopy = true   // don't re-shelf our own copy
+        Haptics.copy()
         pb.clearContents()
 
         switch item.kind {

@@ -80,6 +80,7 @@ final class WindowSnapManager {
             ?? NSScreen.main
         guard let vf = screen?.visibleFrame else { return }
         AX.setFrame(win, AX.flipY(zone.rect(in: vf)))
+        Haptics.snap()
     }
 
     // MARK: - Carbon plumbing
