@@ -14,11 +14,28 @@ final class NotchModel: ObservableObject {
     @Published var collapsedSize = CGSize(width: 200, height: 32)
     /// Size of the open panel.
     let expandedSize = CGSize(width: 600, height: 185)
+    /// Now-playing media is showing a collapsed "live activity" (art + bars) that
+    /// flanks the notch — widen the interactive region so it's all tappable.
+    @Published var mediaActive = false
+
+    /// A transient system HUD (volume/brightness/charging) shown briefly in the
+    /// collapsed notch; takes visual priority over media while present.
+    @Published var hud: NotchHUD?
+    private var hudClear: DispatchWorkItem?
+
+    func showHUD(_ h: NotchHUD, for seconds: Double = 1.5) {
+        hudClear?.cancel()
+        hud = h
+        let work = DispatchWorkItem { [weak self] in self?.hud = nil }
+        hudClear = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
 
     /// The *interactive* area when collapsed — a bit wider and taller than the
     /// visible pill so it's easy to drag a file into (and to swipe down from).
     var triggerSize: CGSize {
-        CGSize(width: collapsedSize.width + 44, height: collapsedSize.height + 34)
+        let extra: CGFloat = (mediaActive || hud != nil) ? 132 : 44
+        return CGSize(width: collapsedSize.width + extra, height: collapsedSize.height + 34)
     }
 }
 
@@ -61,18 +78,40 @@ struct NotchShape: Shape {
 struct NotchView: View {
     @ObservedObject var model: NotchModel
     @ObservedObject private var store = ShelfStore.shared
+    @ObservedObject private var media = MediaManager.shared
 
     private var recent: [ShelfItem] { Array(store.visibleItems.prefix(7)) }
+    /// Now-playing media is available to show (feature on + something playing).
+    private var hasMedia: Bool { media.now.hasMedia }
 
     /// The open card sizes itself to its content — a couple of items make a small
     /// card, a full shelf grows toward the maximum.
+    /// Extra height reserved at the top of the open card for the compact media
+    /// strip (0 when nothing is playing).
+    private var mediaStripHeight: CGFloat { hasMedia ? 60 : 0 }
+
     private var expandedCardSize: CGSize {
         let stripH = model.collapsedSize.height
-        guard !recent.isEmpty else { return CGSize(width: 320, height: stripH + 104) }
+        let media = mediaStripHeight
+        guard !recent.isEmpty else {
+            return CGSize(width: hasMedia ? 420 : 320, height: stripH + media + 104)
+        }
         let n = CGFloat(recent.count)
         let tiles = n * 74 + (n - 1) * 10
-        let width = min(model.expandedSize.width, max(tiles + 44, model.collapsedSize.width + 40))
-        return CGSize(width: width, height: stripH + 118)
+        let minW = hasMedia ? 420 : model.collapsedSize.width + 40
+        let width = min(model.expandedSize.width, max(tiles + 44, minW))
+        return CGSize(width: width, height: stripH + media + 118)
+    }
+
+    /// Collapsed "live activity" pill: wide enough for album art + audio bars to
+    /// flank the notch.
+    private var mediaCollapsedSize: CGSize {
+        CGSize(width: model.collapsedSize.width + 132, height: max(model.collapsedSize.height, 30))
+    }
+
+    /// Collapsed pill for a transient system HUD (icon + bar/percent flanking).
+    private var hudCollapsedSize: CGSize {
+        CGSize(width: model.collapsedSize.width + 120, height: max(model.collapsedSize.height, 30))
     }
 
     /// On hover the invisible notch reveals itself as a rounded glass bar —
@@ -83,11 +122,18 @@ struct NotchView: View {
 
     private var pillSize: CGSize {
         if model.expanded { return expandedCardSize }
+        if model.hud != nil { return hudCollapsedSize }
+        if hasMedia { return mediaCollapsedSize }
         return (hovering || model.targeted) ? peekSize : model.collapsedSize
     }
 
     /// The interactive (hover/drag/drop) frame — larger than the pill when closed.
-    private var frameSize: CGSize { model.expanded ? model.expandedSize : model.triggerSize }
+    private var frameSize: CGSize {
+        if model.expanded { return model.expandedSize }
+        if model.hud != nil { return CGSize(width: hudCollapsedSize.width + 20, height: hudCollapsedSize.height + 34) }
+        if hasMedia { return CGSize(width: mediaCollapsedSize.width + 20, height: mediaCollapsedSize.height + 34) }
+        return model.triggerSize
+    }
     private var shape: NotchShape {
         NotchShape(topRadius: model.expanded ? 12 : 7, bottomRadius: model.expanded ? 26 : 12)
     }
@@ -137,6 +183,7 @@ struct NotchView: View {
         // pass, which freezes the live Liquid Glass backdrop into a static frost.
         .animation(FlowMotion.hoverScale, value: hovering)
         .animation(FlowMotion.state, value: model.targeted)
+        .animation(FlowMotion.expandOpen, value: model.hud)
         .onHover { hovering = $0 }
         // Tap the bar to open; tap again (outside tiles) to close.
         .onTapGesture {
@@ -159,6 +206,15 @@ struct NotchView: View {
                     // Emerge on open, plain fade on close — no separate zoom-out
                     // "layer" peeling off during the collapse.
                     .transition(.asymmetric(insertion: .flowEmergeLight, removal: .opacity))
+            } else if let hud = model.hud {
+                // Transient system HUD (volume / brightness / charging).
+                NotchHUDView(hud: hud, notchWidth: model.collapsedSize.width,
+                             height: hudCollapsedSize.height)
+            } else if hasMedia {
+                // Collapsed live activity: album art + audio bars flanking the notch.
+                MediaLiveActivity(notchWidth: model.collapsedSize.width,
+                                  height: mediaCollapsedSize.height)
+                    .transition(.opacity)
             } else {
                 VStack {
                     Spacer()
@@ -190,6 +246,14 @@ struct NotchView: View {
             // Reserve the camera-notch strip at the very top so nothing hides
             // behind it.
             Color.clear.frame(height: model.collapsedSize.height)
+
+            // Compact now-playing strip above the shelf (Phase D).
+            if hasMedia {
+                MediaStrip()
+                Rectangle().fill(.white.opacity(0.08)).frame(height: 1)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 6)
+            }
 
             ZStack {
                 if recent.isEmpty {

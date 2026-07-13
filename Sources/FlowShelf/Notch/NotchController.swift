@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 import UniformTypeIdentifiers
 
 /// A Dynamic-Island-style shelf at the top of **every** screen: the built-in
@@ -29,9 +30,15 @@ final class NotchController {
         debugPinned = true
         for u in units { u.collapseWork?.cancel(); u.model.expanded = true }
     }
+
+    /// Debug: preview a transient HUD on every screen (used by `FLOWSHELF_HUD_TEST`).
+    func debugShowHUD(_ hud: NotchHUD, for seconds: Double = 8) {
+        for u in units { u.model.showHUD(hud, for: seconds) }
+    }
     private var screenObserver: NSObjectProtocol?
     private var mouseGlobal: Any?
     private var mouseLocal: Any?
+    private var mediaCancellable: AnyCancellable?
     private(set) var running = false
 
     private let sideMargin: CGFloat = 60
@@ -51,6 +58,28 @@ final class NotchController {
         DragWatch.shared.onDragBegan = { [weak self] in self?.dragBegan() }
         DragWatch.shared.onDragEnded = { [weak self] in self?.dragEnded() }
         DragWatch.shared.start()
+        // Reflect now-playing media into each screen's model so the collapsed
+        // pill can widen for the live activity (art + audio bars).
+        mediaCancellable = MediaManager.shared.$now
+            .receive(on: RunLoop.main)
+            .sink { [weak self] np in
+                let active = AppSettings.shared.notchMediaEnabled && np.hasMedia
+                for u in self?.units ?? [] { u.model.mediaActive = active }
+            }
+        // Transient system HUDs (charging / low battery) → show on every screen.
+        BatteryMonitor.shared.onEvent = { [weak self] hud in
+            guard AppSettings.shared.notchHUDEnabled else { return }
+            var seconds = 2.5
+            if case .lowBattery = hud { seconds = 3.5 }
+            for u in self?.units ?? [] { u.model.showHUD(hud, for: seconds) }
+        }
+        BatteryMonitor.shared.start()
+        // Volume / brightness keys → notch HUD (and suppress Apple's overlay).
+        SystemHUDMonitor.shared.onEvent = { [weak self] hud in
+            guard AppSettings.shared.notchHUDEnabled else { return }
+            for u in self?.units ?? [] { u.model.showHUD(hud, for: 1.3) }
+        }
+        SystemHUDMonitor.shared.start()
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main) { [weak self] _ in
@@ -60,6 +89,9 @@ final class NotchController {
 
     func stop() {
         running = false
+        mediaCancellable = nil
+        BatteryMonitor.shared.stop()
+        SystemHUDMonitor.shared.stop()
         DragWatch.shared.stop()
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         screenObserver = nil
@@ -96,6 +128,7 @@ final class NotchController {
         for screen in NSScreen.screens {
             let model = NotchModel()
             model.collapsedSize = notchSize(on: screen)
+            model.mediaActive = AppSettings.shared.notchMediaEnabled && MediaManager.shared.now.hasMedia
             let panel = makePanel(model: model)
             let unit = Unit(screen: screen, panel: panel, model: model)
             position(unit)

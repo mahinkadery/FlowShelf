@@ -95,6 +95,18 @@ final class AppSettings: ObservableObject {
     @Published var notchEnabled: Bool {
         didSet { defaults.set(notchEnabled, forKey: "notchEnabled") }
     }
+    /// Show now-playing media (live activity + compact player) in the notch.
+    @Published var notchMediaEnabled: Bool {
+        didSet {
+            defaults.set(notchMediaEnabled, forKey: "notchMediaEnabled")
+            if notchMediaEnabled { MediaManager.shared.start() } else { MediaManager.shared.stop() }
+        }
+    }
+    /// Show transient system HUDs (charging / low battery / volume / brightness)
+    /// in the notch.
+    @Published var notchHUDEnabled: Bool {
+        didSet { defaults.set(notchHUDEnabled, forKey: "notchHUDEnabled") }
+    }
     /// Open the annotation editor after a region screenshot.
     @Published var annotateAfterScreenshot: Bool {
         didSet { defaults.set(annotateAfterScreenshot, forKey: "annotateAfterScreenshot") }
@@ -143,6 +155,8 @@ final class AppSettings: ObservableObject {
         altTabLayout = AltTabLayout(rawValue: defaults.string(forKey: "altTabLayout") ?? "") ?? .thumbnails
         windowSnapEnabled = defaults.bool(forKey: "windowSnapEnabled")
         notchEnabled = defaults.bool(forKey: "notchEnabled")
+        notchMediaEnabled = defaults.object(forKey: "notchMediaEnabled") as? Bool ?? true
+        notchHUDEnabled = defaults.object(forKey: "notchHUDEnabled") as? Bool ?? true
         annotateAfterScreenshot = defaults.bool(forKey: "annotateAfterScreenshot")
         aiEnabled = defaults.object(forKey: "aiEnabled") as? Bool ?? true
         aiAutoTitle = defaults.bool(forKey: "aiAutoTitle")

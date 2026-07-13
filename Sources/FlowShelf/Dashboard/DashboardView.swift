@@ -53,6 +53,7 @@ struct DashboardView: View {
             }
             .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
             .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)   // show the window's frosted glass
             .safeAreaInset(edge: .top) {
                 HStack(spacing: 7) {
                     FlowShelfGlyph(size: 18, color: .accentColor)

@@ -74,12 +74,9 @@ struct FloatingShelfView: View {
             }
         }
         .frame(width: 300, height: 360)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(targeted ? Color.accentColor : Color.white.opacity(0.12),
-                              lineWidth: targeted ? 2 : 1)
-        )
+        .glassPanel(cornerRadius: 16,
+                    stroke: targeted ? Color.accentColor : nil,
+                    strokeWidth: targeted ? 2 : 1)
         .onDrop(of: [.fileURL, .image, .text], isTargeted: $targeted) { providers in
             DragDrop.ingest(providers)
         }
@@ -99,8 +96,12 @@ private struct ShelfTile: View {
     var body: some View {
         VStack(spacing: 4) {
             ZStack {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.primary.opacity(0.06))
+                // Raised glass tile: frosted fill + a top-lit sheen for depth.
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(LinearGradient(colors: [.white.opacity(0.14), .clear],
+                                             startPoint: .top, endPoint: .center)))
 
                 content
 
@@ -136,8 +137,10 @@ private struct ShelfTile: View {
                 }
             }
             .frame(width: tileW, height: tileH)
-            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.07)))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.06)],
+                                             startPoint: .top, endPoint: .bottom), lineWidth: 0.8))
+            .shadow(color: .black.opacity(0.22), radius: 4, y: 2)   // raised depth
 
             Text(titleText)
                 .font(.system(size: 9))

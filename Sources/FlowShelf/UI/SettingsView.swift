@@ -148,6 +148,23 @@ struct SettingsView: View {
             Text("Hover the notch (or top-center pill) to expand it; drop files, images, or text to add them to the shelf. On Macs without a notch it shows as a small pill at the top.")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Divider().padding(.vertical, 2)
+
+            Toggle("Show now-playing media in the notch", isOn: $settings.notchMediaEnabled)
+                .disabled(!settings.notchEnabled)
+            Text("A live activity (album art + audio bars) when collapsed, and a compact player when open — for any app (Music, Spotify, browsers). Runs fully on-device.")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Toggle("Show volume, brightness & charging HUDs in the notch", isOn: $settings.notchHUDEnabled)
+                .disabled(!settings.notchEnabled)
+                .onChange(of: settings.notchHUDEnabled) { _, on in
+                    on ? SystemHUDMonitor.shared.start() : SystemHUDMonitor.shared.stop()
+                }
+            Text("Replaces macOS's centered overlay with a notch one. Volume & brightness need Input Monitoring permission to see the keys (you'll be asked once); charging works with no permission.")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

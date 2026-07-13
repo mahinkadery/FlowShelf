@@ -44,6 +44,12 @@ bundle: build icon
 		install_name_tool -add_rpath @executable_path/../Frameworks $(MACOS_DIR)/$(APP) 2>/dev/null || true; \
 		echo "Embedded Sparkle.framework"; \
 	else echo "Sparkle.framework not found (run swift build first)"; exit 1; fi
+	@if [ -d Vendor/mediaremote-adapter/MediaRemoteAdapter.framework ]; then \
+		mkdir -p $(CONTENTS)/Frameworks; \
+		ditto Vendor/mediaremote-adapter/MediaRemoteAdapter.framework $(CONTENTS)/Frameworks/MediaRemoteAdapter.framework; \
+		cp Vendor/mediaremote-adapter/mediaremote-adapter.pl $(CONTENTS)/Resources/mediaremote-adapter.pl; \
+		echo "Bundled mediaremote-adapter (now-playing)"; \
+	else echo "mediaremote-adapter not vendored — notch media unavailable"; fi
 	@codesign --force --deep --sign "$(CODESIGN_ID)" \
 		--entitlements Resources/FlowShelf.entitlements $(BUNDLE) 2>/dev/null \
 		&& echo "Signed $(BUNDLE) (identity: $(CODESIGN_ID))" \

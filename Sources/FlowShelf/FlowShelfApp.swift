@@ -129,6 +129,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if AppSettings.shared.notchEnabled {
             NotchController.shared.start()
         }
+        // Start the now-playing media stream for the notch (any app, on-device).
+        if AppSettings.shared.notchEnabled, AppSettings.shared.notchMediaEnabled {
+            MediaManager.shared.start()
+        }
 
         // If Dock previews are on but we genuinely can't capture other apps'
         // windows (ground-truth test, not the lying preflight flag), surface the
@@ -144,6 +148,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         SupporterPrompt.shared.maybeShowAtLaunch()
 
         #if DEBUG
+        // Visual QA: `FLOWSHELF_HUD_TEST=volume|brightness|low|charging` previews a
+        // transient notch HUD a couple seconds after launch.
+        if let test = ProcessInfo.processInfo.environment["FLOWSHELF_HUD_TEST"] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                let hud: NotchHUD
+                switch test {
+                case "volume": hud = .volume(0.6, muted: false)
+                case "brightness": hud = .brightness(0.75)
+                case "low": hud = .lowBattery(percent: 15)
+                default: hud = BatteryMonitor.shared.chargingSnapshot() ?? .charging(percent: 82, charging: true, full: false)
+                }
+                NotchController.shared.debugShowHUD(hud)
+            }
+        }
         // Visual QA: `FlowShelf --notchopen` pins the notch open so its glass can
         // be screenshotted and tuned without hand interaction.
         if CommandLine.arguments.contains("--notchopen") {
