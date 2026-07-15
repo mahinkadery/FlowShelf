@@ -42,11 +42,25 @@ struct ShelfItemRow: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
+        // Raised glass card (iOS-style depth). PERF: the expensive bits — the
+        // blur material and the shadow (an offscreen pass each) — exist only on
+        // the ONE hovered row; resting rows are a flat translucent fill that
+        // reads identically, so long lists scroll without N blur/shadow layers.
         .background(
-            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(selected ? Color.accentColor.opacity(0.18)
-                      : (hovering ? Color.primary.opacity(0.06) : Color.clear))
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(selected ? AnyShapeStyle(Color.accentColor.opacity(0.20))
+                      : hovering ? AnyShapeStyle(.ultraThinMaterial)
+                      : AnyShapeStyle(Color.primary.opacity(0.055)))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(LinearGradient(
+                    colors: [.white.opacity(hovering ? 0.32 : 0.14), .white.opacity(0.03)],
+                    startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
+        )
+        .shadow(color: .black.opacity(hovering ? 0.22 : 0), radius: hovering ? 5 : 0, y: hovering ? 2.5 : 0)
+        .scaleEffect(hovering ? 1.012 : 1)
+        .animation(FlowMotion.hover, value: hovering)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .onDrag { DragDrop.provider(for: item) }

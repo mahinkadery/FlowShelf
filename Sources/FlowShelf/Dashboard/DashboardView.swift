@@ -76,6 +76,15 @@ struct DashboardView: View {
                    alignment: .topLeading)
         }
         .frame(minWidth: 760, minHeight: 480)
+        // ⌘1…⌘5 jump straight to a section (power-user muscle memory).
+        .background {
+            ForEach(Array(DashboardSection.allCases.enumerated()), id: \.element) { i, item in
+                Button("") { section = item }
+                    .keyboardShortcut(KeyEquivalent(Character("\(i + 1)")), modifiers: .command)
+                    .opacity(0)
+                    .accessibilityHidden(true)
+            }
+        }
     }
 }
 
@@ -116,7 +125,7 @@ private struct ShelfBrowser: View {
                     TextField("Search…", text: $query).textFieldStyle(.plain).frame(width: 180)
                 }
                 .padding(.horizontal, 8).padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.06)))
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.06)))
             }
             .padding(14)
 
@@ -136,11 +145,25 @@ private struct ShelfBrowser: View {
             Divider()
 
             if results.isEmpty {
-                VStack(spacing: 8) {
+                VStack(spacing: 10) {
                     Spacer()
-                    Image(systemName: "tray").font(.system(size: 30)).foregroundStyle(.tertiary)
+                    ZStack {
+                        Circle().fill(.ultraThinMaterial)
+                        Circle().fill(LinearGradient(colors: [.white.opacity(0.14), .clear],
+                                                     startPoint: .top, endPoint: .bottom))
+                        Circle().strokeBorder(LinearGradient(colors: [.white.opacity(0.28), .white.opacity(0.05)],
+                                                             startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
+                        Image(systemName: query.isEmpty ? "tray" : "magnifyingglass")
+                            .font(.system(size: 26, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(width: 72, height: 72)
+                    .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
                     Text(query.isEmpty ? "Nothing on the shelf yet" : "No matches")
-                        .foregroundStyle(.secondary).font(.system(size: 12))
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(query.isEmpty ? "Copy something or drop a file — it lands here."
+                                       : "Try fewer words, or another filter.")
+                        .foregroundStyle(.secondary).font(.system(size: 11.5))
                     Spacer()
                 }.frame(maxWidth: .infinity)
             } else {

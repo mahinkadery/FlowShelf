@@ -79,6 +79,7 @@ struct NotchView: View {
     @ObservedObject var model: NotchModel
     @ObservedObject private var store = ShelfStore.shared
     @ObservedObject private var media = MediaManager.shared
+    @ObservedObject private var a11y = AccessibilityGlass.shared
 
     private var recent: [ShelfItem] { Array(store.visibleItems.prefix(7)) }
     /// Now-playing media is available to show (feature on + something playing).
@@ -149,6 +150,9 @@ struct NotchView: View {
         .contentShape(Rectangle())
         // Drag/drop is handled at the AppKit level in NotchHostingView.
         .flowExpand(model.expanded)
+        .onChange(of: model.expanded) { _, open in
+            if !open { OutputPickerController.shared.hide() }   // close the side panel
+        }
     }
 
     private var pill: some View {
@@ -158,7 +162,10 @@ struct NotchView: View {
             // stays warm; recreating it cold-started the stream, which was the
             // brief flicker of raw layers on open. It is fully hidden behind the
             // solid black card until the card's bottom fade reveals it.
-            GlassBackground()
+            // Reduce Transparency: no lens, the card stays solid to the edge.
+            if !a11y.reduceTransparency {
+                GlassBackground()
+            }
 
             // The black card: solid into the notch, thinning to smoke, and
             // alpha-fading to nothing over the live glass band.
@@ -227,7 +234,10 @@ struct NotchView: View {
         // One long, smooth ramp from solid black to fully clear so the black and
         // the glass read as a single continuous surface, not two stacked zones.
         .mask(
-            LinearGradient(stops: [
+            LinearGradient(stops: a11y.reduceTransparency ? [
+                .init(color: .black, location: 0),
+                .init(color: .black, location: 1),
+            ] : [
                 .init(color: .black, location: 0),
                 .init(color: .black, location: model.expanded ? 0.44 : 1),
                 .init(color: .black.opacity(0.85), location: model.expanded ? 0.60 : 1),
@@ -247,7 +257,8 @@ struct NotchView: View {
             // behind it.
             Color.clear.frame(height: model.collapsedSize.height)
 
-            // Compact now-playing strip above the shelf (Phase D).
+            // Compact now-playing strip above the shelf (Phase D). The output
+            // picker opens as a separate side panel (OutputPickerController).
             if hasMedia {
                 MediaStrip()
                 Rectangle().fill(.white.opacity(0.08)).frame(height: 1)
@@ -293,10 +304,19 @@ struct NotchView: View {
 
     /// Empty-shelf / drag-in-flight invitation.
     private var dropInvitation: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "arrow.down.to.line.compact")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(.white.opacity(model.targeted ? 0.95 : 0.55))
+        VStack(spacing: 7) {
+            ZStack {
+                Circle().fill(.white.opacity(model.targeted ? 0.16 : 0.08))
+                Circle().strokeBorder(LinearGradient(colors: [.white.opacity(0.35), .white.opacity(0.06)],
+                                                     startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
+                Image(systemName: "arrow.down.to.line.compact")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(.white.opacity(model.targeted ? 0.95 : 0.65))
+            }
+            .frame(width: 40, height: 40)
+            .scaleEffect(model.targeted ? 1.08 : 1)
+            .animation(FlowMotion.state, value: model.targeted)
+
             Text(model.targeted ? "Release to shelve" : "Drop files, images, or text")
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(.white.opacity(model.targeted ? 0.95 : 0.55))
@@ -370,7 +390,7 @@ private final class GlassStack: NSView {
     private var stream: SCStream?
     private var output: StreamOutput?
     private let lock = NSLock()
-    private var band: CGImage?
+    private var band: CVPixelBuffer?
     private var displayLink: CADisplayLink?
     private let bandHeightPoints: CGFloat = 340
     private var streaming = false
@@ -530,9 +550,10 @@ private final class GlassStack: NSView {
     }
 
     private func ingest(_ pb: CVPixelBuffer) {
-        let ci = CIImage(cvPixelBuffer: pb)
-        guard let cg = ciContext.createCGImage(ci, from: ci.extent) else { return }
-        lock.lock(); band = cg; lock.unlock()
+        // Just retain the frame. Converting the WHOLE band to a CGImage here
+        // (as this used to) read back ~35MB from the GPU 30×/s only for tick()
+        // to crop out a sliver — that churn was the notch's main energy cost.
+        lock.lock(); band = pb; lock.unlock()
     }
 
     /// Crop the captured desktop to what sits behind this view, run it through the
@@ -560,14 +581,20 @@ private final class GlassStack: NSView {
         var cy = topLeftY * s
         let cw = bounds.width * s
         let ch = bounds.height * s
-        let bw = CGFloat(b.width), bh = CGFloat(b.height)
+        let bw = CGFloat(CVPixelBufferGetWidth(b)), bh = CGFloat(CVPixelBufferGetHeight(b))
         guard cw > 1, ch > 1, cw <= bw, ch <= bh else { return }
         cx = max(0, min(cx, bw - cw)); cy = max(0, min(cy, bh - ch))
-        guard let crop = b.cropping(to: CGRect(x: cx, y: cy, width: cw, height: ch)) else { return }
 
-        // clampedToExtent so the displacement never samples past the crop edge
-        // (that produced the harsh corner fringe and the faint horizontal streak).
-        let src = CIImage(cgImage: crop).clampedToExtent()
+        // Crop in Core Image space BEFORE any conversion, so only the card-sized
+        // sliver is ever rendered (the full band stays on the GPU). CI is y-up,
+        // our `cy` is measured from the display top — flip it.
+        let ciY = bh - cy - ch
+        let src = CIImage(cvPixelBuffer: b)
+            .cropped(to: CGRect(x: cx, y: ciY, width: cw, height: ch))
+            .transformed(by: CGAffineTransform(translationX: -cx, y: -ciY))
+            // clampedToExtent so the displacement never samples past the crop edge
+            // (that produced the harsh corner fringe and the horizontal streak).
+            .clampedToExtent()
         let extent = CGRect(x: 0, y: 0, width: cw, height: ch)
         let w = Float(cw), h = Float(ch)
         let radius = Float(bottomRadius * s)
@@ -678,13 +705,13 @@ private struct NotchTile: View {
                     // Glass chip on black: a light lift-tint + the specular rim
                     // sell the effect without a per-tile blur layer (7 of those
                     // made opening stutter on 60Hz panels).
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Color.white.opacity(0.08))
                     thumb
                 }
                     .frame(width: thumbSide, height: thumbSide)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .strokeBorder(rim, lineWidth: 1))
 
                 if hovering {

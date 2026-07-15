@@ -23,20 +23,83 @@ final class AudioOutputManager: ObservableObject {
 
     @Published private(set) var devices: [AudioOutputDevice] = []
     @Published private(set) var currentID: AudioDeviceID = 0
+    /// The inline device list (iOS-style) is expanded in the notch.
+    @Published var pickerOpen = false
+    /// Volume of the CURRENT output device (0…1), or nil when the device offers
+    /// no volume control (e.g. DisplayLink/HDMI sinks controlled by the monitor).
+    @Published private(set) var volume: Float?
+
+    private var listenersInstalled = false
 
     private init() {}
+
+    /// Track the system's real state: if the default output or the device list
+    /// changes behind our back (AirPods connect, dock unplugged), follow it.
+    private func installListeners() {
+        guard !listenersInstalled else { return }
+        listenersInstalled = true
+        let system = AudioObjectID(kAudioObjectSystemObject)
+        var defAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        var devAddr = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal, mElement: kAudioObjectPropertyElementMain)
+        let onChange: AudioObjectPropertyListenerBlock = { _, _ in
+            Task { @MainActor in AudioOutputManager.shared.refresh() }
+        }
+        AudioObjectAddPropertyListenerBlock(system, &defAddr, DispatchQueue.main, onChange)
+        AudioObjectAddPropertyListenerBlock(system, &devAddr, DispatchQueue.main, onChange)
+    }
 
     var currentName: String { devices.first { $0.id == currentID }?.name ?? "Output" }
     var currentIcon: String { devices.first { $0.id == currentID }?.icon ?? "hifispeaker.fill" }
 
     func refresh() {
+        installListeners()
         devices = outputDevices()
         currentID = defaultOutputDevice()
+        volume = readVolume(currentID)
     }
 
     func select(_ id: AudioDeviceID) {
         guard setDefaultOutput(id) else { return }
-        currentID = id
+        // Read BACK rather than assume — some devices refuse the switch.
+        currentID = defaultOutputDevice()
+        volume = readVolume(currentID)
+    }
+
+    // MARK: Volume of the current device
+
+    func setVolume(_ v: Float) {
+        let clamped = max(0, min(1, v))
+        writeVolume(currentID, clamped)
+        volume = readVolume(currentID) ?? clamped
+    }
+
+    private func volumeAddress(_ element: AudioObjectPropertyElement) -> AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyVolumeScalar,
+                                   mScope: kAudioDevicePropertyScopeOutput, mElement: element)
+    }
+
+    private func readVolume(_ id: AudioDeviceID) -> Float? {
+        var v = Float32(0); var size = UInt32(4)
+        // Main element first; stereo devices often expose only channels 1/2.
+        for element: AudioObjectPropertyElement in [kAudioObjectPropertyElementMain, 1] {
+            var a = volumeAddress(element)
+            if AudioObjectGetPropertyData(id, &a, 0, nil, &size, &v) == noErr { return v }
+        }
+        return nil
+    }
+
+    private func writeVolume(_ id: AudioDeviceID, _ v: Float) {
+        var value = Float32(v)
+        for element: AudioObjectPropertyElement in [kAudioObjectPropertyElementMain, 1, 2] {
+            var a = volumeAddress(element)
+            var settable = DarwinBoolean(false)
+            guard AudioObjectIsPropertySettable(id, &a, &settable) == noErr, settable.boolValue else { continue }
+            AudioObjectSetPropertyData(id, &a, 0, nil, 4, &value)
+        }
     }
 
     // MARK: CoreAudio

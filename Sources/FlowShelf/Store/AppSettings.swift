@@ -95,6 +95,15 @@ final class AppSettings: ObservableObject {
     @Published var notchEnabled: Bool {
         didSet { defaults.set(notchEnabled, forKey: "notchEnabled") }
     }
+    /// Audio-reactive notch bars (taps system audio; macOS shows its recording
+    /// indicator while active — this switch exists for people who mind that).
+    @Published var audioReactiveBars: Bool {
+        didSet {
+            defaults.set(audioReactiveBars, forKey: "audioReactiveBars")
+            if !audioReactiveBars { AudioSpectrum.shared.setActive(false) }
+            else if MediaManager.shared.now.isPlaying { AudioSpectrum.shared.setActive(true) }
+        }
+    }
     /// Show now-playing media (live activity + compact player) in the notch.
     @Published var notchMediaEnabled: Bool {
         didSet {
@@ -156,6 +165,7 @@ final class AppSettings: ObservableObject {
         windowSnapEnabled = defaults.bool(forKey: "windowSnapEnabled")
         notchEnabled = defaults.bool(forKey: "notchEnabled")
         notchMediaEnabled = defaults.object(forKey: "notchMediaEnabled") as? Bool ?? true
+        audioReactiveBars = defaults.object(forKey: "audioReactiveBars") as? Bool ?? true
         notchHUDEnabled = defaults.object(forKey: "notchHUDEnabled") as? Bool ?? true
         annotateAfterScreenshot = defaults.bool(forKey: "annotateAfterScreenshot")
         aiEnabled = defaults.object(forKey: "aiEnabled") as? Bool ?? true

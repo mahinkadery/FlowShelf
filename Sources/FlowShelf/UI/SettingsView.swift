@@ -153,6 +153,9 @@ struct SettingsView: View {
 
             Toggle("Show now-playing media in the notch", isOn: $settings.notchMediaEnabled)
                 .disabled(!settings.notchEnabled)
+            Toggle("Audio-reactive bars (shows the macOS recording indicator)", isOn: $settings.audioReactiveBars)
+                .disabled(!settings.notchEnabled || !settings.notchMediaEnabled)
+                .padding(.leading, 18)
             Text("A live activity (album art + audio bars) when collapsed, and a compact player when open — for any app (Music, Spotify, browsers). Runs fully on-device.")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

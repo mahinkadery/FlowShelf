@@ -52,12 +52,24 @@ struct FloatingShelfView: View {
             Divider().opacity(0.5)
 
             if items.isEmpty {
-                VStack(spacing: 6) {
-                    Image(systemName: "tray.and.arrow.down")
-                        .font(.system(size: 24)).foregroundStyle(.tertiary)
-                    Text("Drop files, images, links,\nor text here")
-                        .font(.system(size: 11))
-                        .multilineTextAlignment(.center)
+                VStack(spacing: 10) {
+                    ZStack {
+                        Circle().fill(.ultraThinMaterial)
+                        Circle().fill(LinearGradient(colors: [.white.opacity(0.16), .clear],
+                                                     startPoint: .top, endPoint: .bottom))
+                        Circle().strokeBorder(LinearGradient(colors: [.white.opacity(0.32), .white.opacity(0.06)],
+                                                             startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
+                        Image(systemName: "tray.and.arrow.down")
+                            .font(.system(size: 22, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(width: 58, height: 58)
+                    .shadow(color: .black.opacity(0.18), radius: 5, y: 2)
+
+                    Text("Your shelf is empty")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Drop anything here — it keeps itself tidy.")
+                        .font(.system(size: 10.5))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -74,7 +86,7 @@ struct FloatingShelfView: View {
             }
         }
         .frame(width: 300, height: 360)
-        .glassPanel(cornerRadius: 16,
+        .glassPanel(cornerRadius: 16, style: .frosted,   // foggy, see-through
                     stroke: targeted ? Color.accentColor : nil,
                     strokeWidth: targeted ? 2 : 1)
         .onDrop(of: [.fileURL, .image, .text], isTargeted: $targeted) { providers in
@@ -96,9 +108,11 @@ private struct ShelfTile: View {
     var body: some View {
         VStack(spacing: 4) {
             ZStack {
-                // Raised glass tile: frosted fill + a top-lit sheen for depth.
+                // Raised glass tile: translucent fill + a top-lit sheen for depth.
+                // Flat fill, not a material — the panel behind is already frosted,
+                // and a dozen stacked blur layers made the grid feel heavy.
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                    .fill(Color.primary.opacity(0.07))
                     .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(LinearGradient(colors: [.white.opacity(0.14), .clear],
                                              startPoint: .top, endPoint: .center)))
@@ -138,7 +152,7 @@ private struct ShelfTile: View {
             }
             .frame(width: tileW, height: tileH)
             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(LinearGradient(colors: [.white.opacity(0.4), .white.opacity(0.06)],
+                .strokeBorder(LinearGradient(colors: [.white.opacity(0.32), .white.opacity(0.06)],
                                              startPoint: .top, endPoint: .bottom), lineWidth: 0.8))
             .shadow(color: .black.opacity(0.22), radius: 4, y: 2)   // raised depth
 
@@ -267,18 +281,33 @@ final class FloatingShelfController {
         }
     }
 
-    /// Watch the pointer for a few seconds: entering the shelf claims it (no
-    /// auto-hide); never visiting it lets it fade away on its own.
+    /// Dwell-based auto-hide. The shelf stays alive only while it's actively
+    /// being used: the pointer MOVING over it, or a mouse button held (a drag in
+    /// flight). Anything else — parked pointer, pointer elsewhere — lets a 4s
+    /// countdown run out and the shelf slips away.
+    ///
+    /// Why not "entering claims it": the shelf spawns under the cursor mid-shake,
+    /// and the shake itself jitters the pointer across the shelf's edge — a fake
+    /// outside→inside "entry" that pinned it open forever. Movement-while-inside
+    /// can't be faked by spawn position, and it naturally expires after the user
+    /// walks away (items live in the store, nothing is lost when it hides).
     private func startAutoHide() {
         cancelAutoHide()
-        let deadline = Date().addingTimeInterval(4.0)
+        var deadline = Date().addingTimeInterval(4.0)
+        var lastMouse = NSEvent.mouseLocation
         let t = Timer(timeInterval: 0.25, repeats: true) { [weak self] timer in
             MainActor.assumeIsolated {
                 guard let self, let panel = self.panel, panel.isVisible else {
                     timer.invalidate(); return
                 }
-                if panel.frame.insetBy(dx: -8, dy: -8).contains(NSEvent.mouseLocation) {
-                    self.cancelAutoHide()          // engaged — it stays
+                let mouse = NSEvent.mouseLocation
+                let moved = hypot(mouse.x - lastMouse.x, mouse.y - lastMouse.y) > 2
+                lastMouse = mouse
+                let inside = panel.frame.insetBy(dx: -8, dy: -8).contains(mouse)
+                let dragging = NSEvent.pressedMouseButtons != 0
+
+                if (inside && moved) || dragging {
+                    deadline = Date().addingTimeInterval(4.0)   // in use — keep alive
                 } else if Date() >= deadline {
                     self.cancelAutoHide()
                     self.hide()

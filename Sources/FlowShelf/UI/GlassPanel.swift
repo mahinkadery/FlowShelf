@@ -6,11 +6,40 @@ import AppKit
 /// frosted `NSVisualEffectView` fallback on older systems. The host window should
 /// be transparent (`backgroundColor = .clear`, `isOpaque = false`) so the glass
 /// samples the desktop behind it.
+/// Mirrors the system "Reduce transparency" accessibility setting live. Every
+/// custom glass surface in the app must honor it — users who set it are telling
+/// us they can't read text over translucency.
+@MainActor
+final class AccessibilityGlass: ObservableObject {
+    static let shared = AccessibilityGlass()
+    @Published private(set) var reduceTransparency: Bool
+
+    private init() {
+        reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+            object: nil, queue: .main) { _ in
+                Task { @MainActor in
+                    AccessibilityGlass.shared.reduceTransparency =
+                        NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+                }
+            }
+    }
+}
+
 struct GlassPanel: NSViewRepresentable {
+    enum Style {
+        /// Apple Liquid Glass (denser, adaptive) — window-chrome feel.
+        case liquid
+        /// Foggy translucency (HUD material) — see-through, softly blurred.
+        case frosted
+    }
+
     var cornerRadius: CGFloat = 16
+    var style: Style = .liquid
 
     func makeNSView(context: Context) -> NSView {
-        if #available(macOS 26.0, *) {
+        if style == .liquid, #available(macOS 26.0, *) {
             let g = NSGlassEffectView()
             g.style = .regular
             g.cornerRadius = cornerRadius
@@ -36,22 +65,84 @@ struct GlassPanel: NSViewRepresentable {
     }
 }
 
-extension View {
-    /// Glassmorphism treatment: a Liquid-Glass fill, a soft specular rim that reads
-    /// as a glass edge, and rounded-corner clipping. Pass `strokeColor` to override
-    /// the rim (e.g. an accent while a drop is targeted).
-    func glassPanel(cornerRadius: CGFloat = 16, stroke: Color? = nil, strokeWidth: CGFloat = 1) -> some View {
-        self
-            .background(GlassPanel(cornerRadius: cornerRadius))
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+/// Glassmorphism treatment: a Liquid-Glass fill, a soft specular rim that reads
+/// as a glass edge, and rounded-corner clipping. Honors Reduce Transparency by
+/// swapping the glass for a solid dark panel.
+private struct GlassPanelModifier: ViewModifier {
+    @ObservedObject private var a11y = AccessibilityGlass.shared
+    var cornerRadius: CGFloat
+    var style: GlassPanel.Style
+    var stroke: Color?
+    var strokeWidth: CGFloat
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        content
+            .background {
+                if a11y.reduceTransparency {
+                    shape.fill(Color(nsColor: .windowBackgroundColor))
+                } else {
+                    GlassPanel(cornerRadius: cornerRadius, style: style)
+                }
+            }
+            .clipShape(shape)
             .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(
-                        stroke.map { AnyShapeStyle($0) }
-                        ?? AnyShapeStyle(LinearGradient(
-                            colors: [.white.opacity(0.38), .white.opacity(0.05), .white.opacity(0.14)],
-                            startPoint: .top, endPoint: .bottom)),
-                        lineWidth: strokeWidth)
+                shape.strokeBorder(
+                    stroke.map { AnyShapeStyle($0) }
+                    ?? AnyShapeStyle(LinearGradient(
+                        colors: [.white.opacity(0.38), .white.opacity(0.05), .white.opacity(0.14)],
+                        startPoint: .top, endPoint: .bottom)),
+                    lineWidth: strokeWidth)
             )
+    }
+}
+
+/// The picker/panel surface: Apple's OFFICIAL SwiftUI Liquid Glass on macOS 26
+/// (`.glassEffect` — includes the system's own edge treatment and adaptivity),
+/// our AppKit glass on older systems, and a solid panel under Reduce Transparency.
+private struct LiquidGlassSurface: ViewModifier {
+    @ObservedObject private var a11y = AccessibilityGlass.shared
+    var cornerRadius: CGFloat
+    var tint: Color
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if a11y.reduceTransparency {
+            content
+                .background(shape.fill(Color(red: 0.13, green: 0.13, blue: 0.14)))
+                .clipShape(shape)
+        } else if #available(macOS 26.0, *) {
+            content.glassEffect(.regular.tint(tint), in: shape)
+        } else {
+            content
+                .background(tint)
+                .modifier(GlassPanelModifier(cornerRadius: cornerRadius, style: .liquid,
+                                             stroke: nil, strokeWidth: 1))
+        }
+    }
+}
+
+extension View {
+    func glassPanel(cornerRadius: CGFloat = 16, style: GlassPanel.Style = .liquid,
+                    stroke: Color? = nil, strokeWidth: CGFloat = 1) -> some View {
+        modifier(GlassPanelModifier(cornerRadius: cornerRadius, style: style,
+                                    stroke: stroke, strokeWidth: strokeWidth))
+    }
+
+    /// Apple-native liquid glass surface (dark, CC-style) with graceful fallbacks.
+    func liquidGlassSurface(cornerRadius: CGFloat = 22, tint: Color = .black.opacity(0.35)) -> some View {
+        modifier(LiquidGlassSurface(cornerRadius: cornerRadius, tint: tint))
+    }
+
+    /// Apple's interactive glass (hover/press glow) on a circular control —
+    /// macOS 26 only; a no-op elsewhere or under Reduce Transparency.
+    @ViewBuilder
+    func interactiveGlassCircle() -> some View {
+        if #available(macOS 26.0, *),
+           !AccessibilityGlass.shared.reduceTransparency {
+            self.glassEffect(.regular.interactive(), in: Circle())
+        } else {
+            self
+        }
     }
 }
