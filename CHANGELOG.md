@@ -4,6 +4,41 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.4.0] — 2026-07-15 (build 60)
+
+### Added
+- **Notch media player** — now-playing for any app (Music, Spotify, browsers):
+  a Dynamic-Island live activity when collapsed (album art + audio bars tinted
+  to the artwork's color, dancing to the actual music) and a compact player
+  when open (marquee title, artist, prev/play/next, click-or-drag-to-seek
+  progress bar). Powered by the vendored BSD `mediaremote-adapter`, fully
+  on-device.
+- **Sound-output switcher** — an iPhone-style device panel beside the notch
+  (Apple Liquid Glass, Control-Centre pop animation) with per-device volume
+  control and live device tracking.
+- **Real liquid-glass notch** — the card's transparent bottom genuinely
+  refracts the desktop behind it (live capture + displacement lens), with the
+  Dynamic-Island bounce, drag-to-notch auto-open, and file-promise drops.
+- **System HUDs in the notch** — volume, brightness, charging and low-battery
+  as sleek live activities replacing Apple's center-screen overlay (optional).
+- **Glassmorphism pass** — frosted floating shelf with raised 3D tiles, frosted
+  dashboard, Apple `.glassEffect` surfaces on macOS 26, unified design language,
+  friendlier empty states, ⌘1–⌘5 dashboard section shortcuts.
+
+### Changed
+- Floating shelf summoned by shake now auto-hides after ~4s unless you're
+  actively using it.
+- Big performance work: the notch lens renders only the card-sized region
+  (~60× less per-frame work), media parsing/artwork decoding moved off the
+  main thread, list rows use hover-only blur/shadow.
+
+### Accessibility
+- **Reduce Transparency** is honored everywhere: the lens turns off, all glass
+  falls back to solid panels, live-updating with the system setting.
+- Audio-reactive bars have an explicit toggle (they show the macOS recording
+  indicator) and pause while the screen is locked; Reduce Motion is respected
+  across animations.
+
 ## [1.3.5] — 2026-07-02 (build 40)
 
 ### Fixed
