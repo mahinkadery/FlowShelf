@@ -4,6 +4,29 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.5.0] — 2026-07-17 (build 61)
+
+### Added
+- **Customizable shortcuts** — every global hotkey (floating shelf, search,
+  screenshot, OCR, dashboard) can be rebound: click the shortcut in Settings
+  and press any combination. Conflicts inside FlowShelf are flagged, and
+  combos macOS refuses (owned by the system or another app) get an honest
+  warning. Changes apply instantly, no restart.
+- **Sound output inside the notch** — tap the AirPlay button and the island
+  itself grows sideways to reveal your output devices (speakers, AirPods,
+  displays) with a per-device volume slider. Live device tracking; devices
+  without volume control say so instead of showing a dead slider.
+- **Notch section in the dashboard** — all island settings (shelf, media
+  player, audio-reactive bars, HUDs) in one place as modular emblem rows.
+- **Copy confirmation everywhere** — copying from the notch, menu bar, or
+  dashboard flashes a "Copied ✓" on the exact item, like the floating shelf.
+
+### Changed
+- The notch shelf now shows up to 40 items (scroll with a plain mouse wheel).
+- Dashboard redesign (phase 1): grouped sidebar with colored icon chips, big
+  pane headers for Snippets/Peek/Clean, restyled settings cards with tinted
+  emblem chips, unified typography and roomier spacing.
+
 ## [1.4.0] — 2026-07-15 (build 60)
 
 ### Added
