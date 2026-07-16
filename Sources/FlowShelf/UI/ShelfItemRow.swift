@@ -6,6 +6,7 @@ struct ShelfItemRow: View {
     var selected: Bool = false
     @ObservedObject private var store = ShelfStore.shared
     @State private var hovering = false
+    @State private var copied = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -61,10 +62,30 @@ struct ShelfItemRow: View {
         .shadow(color: .black.opacity(hovering ? 0.22 : 0), radius: hovering ? 5 : 0, y: hovering ? 2.5 : 0)
         .scaleEffect(hovering ? 1.012 : 1)
         .animation(FlowMotion.hover, value: hovering)
+        .overlay {
+            if copied {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.16))
+                    .overlay(
+                        Label("Copied", systemImage: "checkmark.circle.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.green)
+                    )
+                    .transition(.opacity)
+            }
+        }
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .onDrag { DragDrop.provider(for: item) }
         .contextMenu { contextMenu }
+        // Flash whenever THIS item gets copied, from any UI (tap, hover button…).
+        .onReceive(NotificationCenter.default.publisher(for: ItemActions.didCopyNotification)) { note in
+            guard note.object as? UUID == item.id else { return }
+            withAnimation(FlowMotion.bounce) { copied = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                withAnimation(FlowMotion.state) { copied = false }
+            }
+        }
     }
 
     @ViewBuilder private var leading: some View {

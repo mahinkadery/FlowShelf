@@ -1,11 +1,12 @@
 import SwiftUI
 
 enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
-    case shelf, snippets, peek, clean, settings
+    case shelf, snippets, notch, peek, clean, settings
     var id: String { rawValue }
     var label: String {
         switch self {
         case .shelf: return "Shelf"
+        case .notch: return "Notch"
         case .snippets: return "Snippets"
         case .peek: return "Peek"
         case .clean: return "Clean"
@@ -15,6 +16,7 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
     var symbol: String {
         switch self {
         case .shelf: return "tray.full"
+        case .notch: return "macbook"
         case .snippets: return "text.quote"
         case .peek: return "rectangle.on.rectangle"
         case .clean: return "trash"
@@ -24,12 +26,32 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
     var subtitle: String {
         switch self {
         case .shelf: return "Today’s items"
+        case .notch: return "Island & HUDs"
         case .snippets: return "Reusable text"
         case .peek: return "Window previews"
         case .clean: return "App cleaner"
         case .settings: return "Preferences"
         }
     }
+
+    /// Chip color for the sidebar icon (System-Settings / Droppy style).
+    var tint: Color {
+        switch self {
+        case .shelf: return .orange
+        case .notch: return Color(red: 1.0, green: 0.45, blue: 0.25)
+        case .snippets: return .purple
+        case .peek: return .blue
+        case .clean: return .green
+        case .settings: return Color(white: 0.5)
+        }
+    }
+
+    /// Sidebar grouping.
+    static let groups: [(title: String, items: [DashboardSection])] = [
+        ("Workspace", [.shelf, .snippets]),
+        ("Tools", [.notch, .peek, .clean]),
+        ("App", [.settings]),
+    ]
 }
 
 /// The unified dashboard. One window, the Shelf at its heart, with Peek and
@@ -39,19 +61,39 @@ struct DashboardView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(DashboardSection.allCases, selection: $section) { item in
-                NavigationLink(value: item) {
-                    Label {
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(item.label).font(.system(size: 13))
-                            Text(item.subtitle).font(.system(size: 10)).foregroundStyle(.secondary)
+            // Droppy/System-Settings style sidebar: grouped sections with colored
+            // rounded-square icon chips — scannable at a glance, not squished.
+            List(selection: $section) {
+                ForEach(DashboardSection.groups, id: \.title) { group in
+                    Section {
+                        ForEach(group.items) { item in
+                            NavigationLink(value: item) {
+                                HStack(spacing: 9) {
+                                    ZStack {
+                                        RoundedRectangle(cornerRadius: 6.5, style: .continuous)
+                                            .fill(LinearGradient(
+                                                colors: [item.tint.opacity(0.95), item.tint.opacity(0.7)],
+                                                startPoint: .top, endPoint: .bottom))
+                                        Image(systemName: item.symbol)
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                    }
+                                    .frame(width: 24, height: 24)
+                                    .shadow(color: item.tint.opacity(0.35), radius: 2, y: 1)
+
+                                    Text(item.label).font(.system(size: 13, weight: .medium))
+                                }
+                                .padding(.vertical, 3)
+                            }
                         }
-                    } icon: {
-                        Image(systemName: item.symbol)
+                    } header: {
+                        Text(group.title)
+                            .font(.system(size: 10.5, weight: .semibold))
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
-            .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 230)
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)   // show the window's frosted glass
             .safeAreaInset(edge: .top) {
@@ -66,9 +108,10 @@ struct DashboardView: View {
             Group {
                 switch section {
                 case .shelf:    ShelfBrowser()
-                case .snippets: SnippetsView()
-                case .peek:     PeekView()
-                case .clean:    CleanView()
+                case .notch:    NotchPane()
+                case .snippets: VStack(spacing: 0) { PaneHeader(icon: "text.quote", tint: .purple, title: "Snippets", subtitle: "Reusable text, one click to paste") ; SnippetsView() }
+                case .peek:     VStack(spacing: 0) { PaneHeader(icon: "rectangle.on.rectangle", tint: .blue, title: "Peek", subtitle: "Live window previews from your Dock") ; PeekView() }
+                case .clean:    VStack(spacing: 0) { PaneHeader(icon: "trash", tint: .green, title: "Clean", subtitle: "Uninstall apps completely, leftovers included") ; CleanView() }
                 case .settings: DashboardSettings()
                 }
             }
@@ -103,8 +146,9 @@ private struct ShelfBrowser: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Shelf").font(.system(size: 15, weight: .semibold))
-                Text("\(store.visibleItems.count)").foregroundStyle(.secondary)
+                Text("Shelf").font(.system(size: 19, weight: .bold))
+                Text("\(store.visibleItems.count)")
+                    .font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary)
                 Spacer()
                 if AIService.isSupported && settings.aiEnabled {
                     Button { ItemActions.aiAskGeneral() } label: {
@@ -127,20 +171,20 @@ private struct ShelfBrowser: View {
                 .padding(.horizontal, 8).padding(.vertical, 5)
                 .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.06)))
             }
-            .padding(14)
+            .padding(.horizontal, 18).padding(.vertical, 16)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
+                HStack(spacing: 7) {
                     ForEach(ShelfFilter.allCases) { f in
                         Button { filter = f } label: {
-                            Label(f.label, systemImage: f.symbol).font(.system(size: 11))
-                                .padding(.horizontal, 9).padding(.vertical, 4)
+                            Label(f.label, systemImage: f.symbol).font(.system(size: 12, weight: .medium))
+                                .padding(.horizontal, 11).padding(.vertical, 5)
                                 .background(Capsule().fill(filter == f
                                     ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.06)))
                                 .foregroundStyle(filter == f ? Color.accentColor : .primary)
                         }.buttonStyle(.plain)
                     }
-                }.padding(.horizontal, 14).padding(.bottom, 8)
+                }.padding(.horizontal, 18).padding(.bottom, 10)
             }
             Divider()
 
@@ -168,13 +212,13 @@ private struct ShelfBrowser: View {
                 }.frame(maxWidth: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 2) {
+                    LazyVStack(spacing: 5) {
                         ForEach(results) { item in
                             ShelfItemRow(item: item)
                                 .onTapGesture(count: 2) { ItemActions.open(item) }
                                 .onTapGesture { ItemActions.copyToPasteboard(item) }
                         }
-                    }.padding(8)
+                    }.padding(12)
                 }
             }
         }

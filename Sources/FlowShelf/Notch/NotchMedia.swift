@@ -227,7 +227,9 @@ struct MediaStrip: View {
 
     private var outputSwitcher: some View {
         Button {
-            OutputPickerController.shared.toggle(near: anchorFrame)
+            audio.refresh()
+            NotchController.shared.pulseExpanded()
+            withAnimation(FlowMotion.expandOpen) { audio.pickerOpen.toggle() }
         } label: {
             Image(systemName: "airplayaudio")
                 .font(.system(size: 13.5, weight: .semibold))

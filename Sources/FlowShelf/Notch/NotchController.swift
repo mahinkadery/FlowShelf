@@ -41,7 +41,7 @@ final class NotchController {
     private var mediaCancellable: AnyCancellable?
     private(set) var running = false
 
-    private let sideMargin: CGFloat = 60
+    private let sideMargin: CGFloat = 320
     private let bottomMargin: CGFloat = 40
 
     private init() {}
@@ -163,7 +163,11 @@ final class NotchController {
         // easily), the full panel when open. Everywhere else clicks pass through.
         host.regionSize = { [weak model] in
             guard let model else { return .zero }
-            return model.expanded ? model.expandedSize : model.triggerSize
+            guard model.expanded else { return model.triggerSize }
+            // Widen for the attached output picker when it's slid out.
+            let extra: CGFloat = AudioOutputManager.shared.pickerOpen ? 520 : 0
+            return CGSize(width: model.expandedSize.width + extra,
+                          height: model.expandedSize.height)
         }
         host.onDragChange = { [weak model, weak self] entered in
             MainActor.assumeIsolated {
@@ -236,6 +240,21 @@ final class NotchController {
                 } else {
                     scheduleCollapse(unit)
                 }
+            }
+        }
+    }
+
+    /// The panel of the currently-open notch (for ordering side panels behind it).
+    func expandedPanel() -> NSPanel? {
+        units.first { $0.model.expanded }?.panel
+    }
+
+    /// Brief shrink pulse on the open notch (the picker slides out from behind).
+    func pulseExpanded() {
+        for u in units where u.model.expanded {
+            u.model.pulse = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { [weak u] in
+                u?.model.pulse = false
             }
         }
     }

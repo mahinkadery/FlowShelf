@@ -3,7 +3,12 @@ import AppKit
 /// Shared actions a Shelf item supports (copy, reveal, open, OCR).
 @MainActor
 enum ItemActions {
+    /// Posted after a shelf item is copied; object = the item's UUID. UIs listen
+    /// and flash a "copied" confirmation on the matching row/tile.
+    static let didCopyNotification = Notification.Name("FlowShelfDidCopyItem")
+
     static func copyToPasteboard(_ item: ShelfItem) {
+        defer { NotificationCenter.default.post(name: didCopyNotification, object: item.id) }
         let pb = NSPasteboard.general
         AppSettings.shared.ignoreNextCopy = true   // don't re-shelf our own copy
         Haptics.copy()

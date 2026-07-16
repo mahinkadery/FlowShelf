@@ -10,6 +10,8 @@ final class NotchModel: ObservableObject {
     @Published var targeted = false
     /// A drag is in flight somewhere on screen — show the drop invitation.
     @Published var dropReady = false
+    /// Brief shrink pulse (e.g. when the output picker slides out from behind).
+    @Published var pulse = false
     /// Size of the physical notch (the visible collapsed pill). Set by controller.
     @Published var collapsedSize = CGSize(width: 200, height: 32)
     /// Size of the open panel.
@@ -79,9 +81,12 @@ struct NotchView: View {
     @ObservedObject var model: NotchModel
     @ObservedObject private var store = ShelfStore.shared
     @ObservedObject private var media = MediaManager.shared
+    @ObservedObject private var audio = AudioOutputManager.shared
     @ObservedObject private var a11y = AccessibilityGlass.shared
 
-    private var recent: [ShelfItem] { Array(store.visibleItems.prefix(7)) }
+    // Show the whole shelf (capped for render sanity) — the row scrolls with a
+    // plain mouse wheel; the card width still tops out at expandedSize.
+    private var recent: [ShelfItem] { Array(store.visibleItems.prefix(40)) }
     /// Now-playing media is available to show (feature on + something playing).
     private var hasMedia: Bool { media.now.hasMedia }
 
@@ -91,17 +96,20 @@ struct NotchView: View {
     /// strip (0 when nothing is playing).
     private var mediaStripHeight: CGFloat { hasMedia ? 60 : 0 }
 
+    /// Width of the attached sound-output column when it's slid out.
+    private var pickerWidth: CGFloat { (hasMedia && audio.pickerOpen) ? 236 : 0 }
+
     private var expandedCardSize: CGSize {
         let stripH = model.collapsedSize.height
         let media = mediaStripHeight
         guard !recent.isEmpty else {
-            return CGSize(width: hasMedia ? 420 : 320, height: stripH + media + 104)
+            return CGSize(width: (hasMedia ? 420 : 320) + pickerWidth, height: stripH + media + 104)
         }
         let n = CGFloat(recent.count)
         let tiles = n * 74 + (n - 1) * 10
         let minW = hasMedia ? 420 : model.collapsedSize.width + 40
-        let width = min(model.expandedSize.width, max(tiles + 44, minW))
-        return CGSize(width: width, height: stripH + media + 118)
+        let base = min(model.expandedSize.width, max(tiles + 44, minW))
+        return CGSize(width: base + pickerWidth, height: stripH + media + 118)
     }
 
     /// Collapsed "live activity" pill: wide enough for album art + audio bars to
@@ -130,7 +138,10 @@ struct NotchView: View {
 
     /// The interactive (hover/drag/drop) frame — larger than the pill when closed.
     private var frameSize: CGSize {
-        if model.expanded { return model.expandedSize }
+        if model.expanded {
+            return CGSize(width: model.expandedSize.width + pickerWidth,
+                          height: model.expandedSize.height)
+        }
         if model.hud != nil { return CGSize(width: hudCollapsedSize.width + 20, height: hudCollapsedSize.height + 34) }
         if hasMedia { return CGSize(width: mediaCollapsedSize.width + 20, height: mediaCollapsedSize.height + 34) }
         return model.triggerSize
@@ -150,8 +161,9 @@ struct NotchView: View {
         .contentShape(Rectangle())
         // Drag/drop is handled at the AppKit level in NotchHostingView.
         .flowExpand(model.expanded)
+        .animation(FlowMotion.expandOpen, value: audio.pickerOpen)
         .onChange(of: model.expanded) { _, open in
-            if !open { OutputPickerController.shared.hide() }   // close the side panel
+            if !open { audio.pickerOpen = false }   // tuck the picker back under
         }
     }
 
@@ -186,6 +198,8 @@ struct NotchView: View {
             .opacity(model.expanded || hovering || model.targeted ? 1 : 0)
         )
         .foregroundStyle(.white)
+        .scaleEffect(model.pulse ? 0.965 : 1, anchor: .top)
+        .animation(FlowMotion.press, value: model.pulse)
         // NOTE: no .shadow here — a shadow forces the subtree into an offscreen
         // pass, which freezes the live Liquid Glass backdrop into a static frost.
         .animation(FlowMotion.hoverScale, value: hovering)
@@ -208,11 +222,19 @@ struct NotchView: View {
             Color.black
 
             if model.expanded {
-                expandedContent
-                    .frame(width: expandedCardSize.width, height: expandedCardSize.height, alignment: .top)
-                    // Emerge on open, plain fade on close — no separate zoom-out
-                    // "layer" peeling off during the collapse.
-                    .transition(.asymmetric(insertion: .flowEmergeLight, removal: .opacity))
+                HStack(spacing: 0) {
+                    expandedContent
+                    if hasMedia, audio.pickerOpen {
+                        Rectangle().fill(.white.opacity(0.08)).frame(width: 1)
+                            .padding(.vertical, 14)
+                        OutputPickerColumn()
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
+                }
+                .frame(width: expandedCardSize.width, height: expandedCardSize.height, alignment: .top)
+                // Emerge on open, plain fade on close — no separate zoom-out
+                // "layer" peeling off during the collapse.
+                .transition(.asymmetric(insertion: .flowEmergeLight, removal: .opacity))
             } else if let hud = model.hud {
                 // Transient system HUD (volume / brightness / charging).
                 NotchHUDView(hud: hud, notchWidth: model.collapsedSize.width,
@@ -685,6 +707,7 @@ private struct NotchTile: View {
     let item: ShelfItem
     @ObservedObject private var store = ShelfStore.shared
     @State private var hovering = false
+    @State private var copied = false
 
     private let thumbSide: CGFloat = 58
     private let tileWidth: CGFloat = 74
@@ -735,10 +758,26 @@ private struct NotchTile: View {
                 .lineLimit(1).truncationMode(.middle)
                 .frame(width: tileWidth)
         }
+        .overlay(alignment: .top) {
+            if copied {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.24))
+                    .overlay(Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18)).foregroundStyle(.green))
+                    .frame(width: 58, height: 58)
+                    .transition(.flowPop)
+            }
+        }
         .scaleEffect(hovering ? 1.06 : 1)
         .flowHover($hovering)
         .contentShape(Rectangle())
-        .onTapGesture { ItemActions.copyToPasteboard(item) }
+        .onTapGesture {
+            ItemActions.copyToPasteboard(item)
+            withAnimation(FlowMotion.bounce) { copied = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                withAnimation(FlowMotion.state) { copied = false }
+            }
+        }
         .onDrag { DragDrop.provider(for: item) }
         .help(item.preview)
     }
