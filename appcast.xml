@@ -3,12 +3,12 @@
     <channel>
         <title>FlowShelf</title>
         <item>
-            <title>1.5.0</title>
-            <pubDate>Fri, 17 Jul 2026 08:31:03 +1000</pubDate>
-            <sparkle:version>61</sparkle:version>
-            <sparkle:shortVersionString>1.5.0</sparkle:shortVersionString>
+            <title>1.6.0</title>
+            <pubDate>Sat, 18 Jul 2026 04:29:03 +1000</pubDate>
+            <sparkle:version>63</sparkle:version>
+            <sparkle:shortVersionString>1.6.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/mahinkadery/FlowShelf/releases/latest/download/FlowShelf.dmg" length="5776940" type="application/octet-stream" sparkle:edSignature="uGQzohHySqwA6TM5i9IrqzjswBr/u1udb/jk8jeMoBptpy9lUiHjZTQMeFgTnn/DOqg2MOgzW0xfdYQ8fMBgCA=="/>
+            <enclosure url="https://github.com/mahinkadery/FlowShelf/releases/latest/download/FlowShelf.dmg" length="6008800" type="application/octet-stream" sparkle:edSignature="+FqEMv5zsGGnEyaizGls9iNcc25LpdgWFzBQPdj43qKJwKkvLM82lCmkO+LUMRF8vr7hNbPGYFz7DUYuxKyHCQ=="/>
         </item>
     </channel>
 </rss>
