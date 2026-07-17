@@ -83,6 +83,7 @@ struct NotchView: View {
     @ObservedObject private var media = MediaManager.shared
     @ObservedObject private var audio = AudioOutputManager.shared
     @ObservedObject private var a11y = AccessibilityGlass.shared
+    @AppStorage("notchUseNativeLiquidGlass") private var useNativeLiquidGlass = true
 
     // Show the whole shelf (capped for render sanity) — the row scrolls with a
     // plain mouse wheel; the card width still tops out at expandedSize.
@@ -150,6 +151,8 @@ struct NotchView: View {
         NotchShape(topRadius: model.expanded ? 12 : 7, bottomRadius: model.expanded ? 26 : 12)
     }
 
+    private var enhancedGlassActive: Bool { useNativeLiquidGlass }
+
     @State private var hovering = false
 
     var body: some View {
@@ -169,14 +172,12 @@ struct NotchView: View {
 
     private var pill: some View {
         ZStack(alignment: .top) {
-            // LIVE refraction lens underneath — always present (never gated on
-            // `expanded`) so the view is not recreated and its capture stream
-            // stays warm; recreating it cold-started the stream, which was the
-            // brief flicker of raw layers on open. It is fully hidden behind the
-            // solid black card until the card's bottom fade reveals it.
-            // Reduce Transparency: no lens, the card stays solid to the edge.
+            // FlowShelf's focused liquid lens. A native-only glass modifier cannot
+            // refract pixels from other apps through this separate overlay window,
+            // so the backdrop is captured and bent only at the lower rim. The old
+            // broader lens remains available through the preference for rollback.
             if !a11y.reduceTransparency {
-                GlassBackground()
+                GlassBackground(mode: useNativeLiquidGlass ? .liquidLens : .legacyLens)
             }
 
             // The black card: solid into the notch, thinning to smoke, and
@@ -195,7 +196,8 @@ struct NotchView: View {
                 ], startPoint: .top, endPoint: .bottom),
                 lineWidth: 1
             )
-            .opacity(model.expanded || hovering || model.targeted ? 1 : 0)
+            .opacity(enhancedGlassActive ? 0 :
+                        (model.expanded || hovering || model.targeted ? 1 : 0))
         )
         .foregroundStyle(.white)
         .scaleEffect(model.pulse ? 0.965 : 1, anchor: .top)
@@ -217,9 +219,21 @@ struct NotchView: View {
     /// sibling underneath, not inside this subtree.
     private var cardLayer: some View {
         ZStack(alignment: .top) {
-            // Solid black fill; the mask below is the single thing that eases it
-            // into the glass, so there is no doubled-up gradient seam.
             Color.black
+                .mask(
+                    LinearGradient(stops: a11y.reduceTransparency ? [
+                        .init(color: .black, location: 0),
+                        .init(color: .black, location: 1),
+                    ] : [
+                        .init(color: .black, location: 0),
+                        .init(color: .black, location: model.expanded ? 0.48 : 1),
+                        .init(color: .black.opacity(0.86), location: model.expanded ? 0.61 : 1),
+                        .init(color: .black.opacity(0.58), location: model.expanded ? 0.74 : 1),
+                        .init(color: .black.opacity(0.30), location: model.expanded ? 0.85 : 1),
+                        .init(color: .black.opacity(0.10), location: model.expanded ? 0.94 : 1),
+                        .init(color: .clear, location: 1),
+                    ], startPoint: .top, endPoint: .bottom)
+                )
 
             if model.expanded {
                 HStack(spacing: 0) {
@@ -253,22 +267,6 @@ struct NotchView: View {
             }
         }
         .clipShape(shape)
-        // One long, smooth ramp from solid black to fully clear so the black and
-        // the glass read as a single continuous surface, not two stacked zones.
-        .mask(
-            LinearGradient(stops: a11y.reduceTransparency ? [
-                .init(color: .black, location: 0),
-                .init(color: .black, location: 1),
-            ] : [
-                .init(color: .black, location: 0),
-                .init(color: .black, location: model.expanded ? 0.44 : 1),
-                .init(color: .black.opacity(0.85), location: model.expanded ? 0.60 : 1),
-                .init(color: .black.opacity(0.6), location: model.expanded ? 0.72 : 1),
-                .init(color: .black.opacity(0.34), location: model.expanded ? 0.83 : 1),
-                .init(color: .black.opacity(0.12), location: model.expanded ? 0.93 : 1),
-                .init(color: .black.opacity(0.0), location: 1),
-            ], startPoint: .top, endPoint: .bottom)
-        )
     }
 
     // MARK: Expanded content
@@ -393,14 +391,18 @@ final class WheelScrollView: NSScrollView {
 
 /// The glass base layer the black gradient fades into.
 ///
-/// This is the one piece that makes the transparent bottom actually *lens* the
-/// desktop, the way Droppy does it: `NSGlassEffectView` only refracts content
-/// **inside its own window**, so we capture the live desktop behind the notch
-/// (ScreenCaptureKit) and pin it as an in-window backdrop *underneath* the glass.
-/// Apple's Liquid Glass then does the refraction / edge-curl / chroma for free.
-/// The card's alpha fade above reveals it only at the bottom.
+/// Legacy fallback: captures the live desktop behind the notch with
+/// ScreenCaptureKit, then applies FlowShelf's custom displacement lens. The
+/// card's alpha fade above reveals this layer only at the bottom.
+private enum GlassRenderMode: Equatable {
+    case liquidLens
+    case legacyLens
+}
+
 private struct GlassBackground: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { GlassStack() }
+    let mode: GlassRenderMode
+
+    func makeNSView(context: Context) -> NSView { GlassStack(mode: mode) }
     func updateNSView(_ nsView: NSView, context: Context) {}
     static func dismantleNSView(_ nsView: NSView, coordinator: ()) {
         (nsView as? GlassStack)?.teardown()
@@ -408,15 +410,22 @@ private struct GlassBackground: NSViewRepresentable {
 }
 
 private final class GlassStack: NSView {
+    private let mode: GlassRenderMode
+
     // Capture
     private var stream: SCStream?
     private var output: StreamOutput?
     private let lock = NSLock()
     private var band: CVPixelBuffer?
     private var displayLink: CADisplayLink?
-    private let bandHeightPoints: CGFloat = 340
+    private let bandHeightPoints: CGFloat = 240
+    private let maxCaptureWidthPoints: CGFloat = 1200
+    private var captureRectPoints = CGRect.zero
     private var streaming = false
     private var startingStream = false
+    private var capturePermissionDenied = false
+    private var nextCaptureAttempt: CFTimeInterval = 0
+    private var lastCaptureErrorLog: CFTimeInterval = 0
     /// Only capture/render once the card is tall enough to actually reveal glass —
     /// below this it is collapsed/peeking and fully covered by the black card.
     private let activeHeight: CGFloat = 90
@@ -426,14 +435,16 @@ private final class GlassStack: NSView {
     // card's alpha-fade reveals it — exactly like the old frosted GlassBackground,
     // but now bending the real desktop instead of frosting it.
     private let ciContext = CIContext(options: [.cacheIntermediates: false])
-    private let kernel: CIKernel? = GlassStack.makeKernel()
+    private let kernel: CIKernel?
     private let clipMask = CAShapeLayer()
     private let bottomRadius: CGFloat = 26
     private var lastSize: CGSize = .zero
     private var lastResize: CFTimeInterval = 0    // when the card last changed size
     private var lastRender: CFTimeInterval = 0
 
-    init() {
+    init(mode: GlassRenderMode) {
+        self.mode = mode
+        self.kernel = GlassStack.makeKernel()
         super.init(frame: .zero)
         wantsLayer = true
         layer?.masksToBounds = true
@@ -511,10 +522,17 @@ private final class GlassStack: NSView {
     // MARK: Capture
 
     private func startCapture() {
-        guard !streaming, !startingStream,
+        let now = CACurrentMediaTime()
+        guard !streaming, !startingStream, !capturePermissionDenied,
+              now >= nextCaptureAttempt,
               let screen = window?.screen ?? NSScreen.main else { return }
         startingStream = true
-        if !CGPreflightScreenCaptureAccess() { CGRequestScreenCaptureAccess() }
+        if !CGPreflightScreenCaptureAccess(), !CGRequestScreenCaptureAccess() {
+            capturePermissionDenied = true
+            startingStream = false
+            NSLog("Notch glass: Screen Recording permission denied; live lens disabled until FlowShelf restarts")
+            return
+        }
         let displayID = (screen.deviceDescription[
             NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? CGMainDisplayID()
         let scale = screen.backingScaleFactor
@@ -530,7 +548,10 @@ private final class GlassStack: NSView {
                 let mine = content.windows.filter { $0.owningApplication?.processID == myPID }
                 let filter = SCContentFilter(display: display, excludingWindows: mine)
 
-                let band = CGRect(x: 0, y: 0, width: CGFloat(display.width),
+                let captureWidth = min(self.maxCaptureWidthPoints, CGFloat(display.width))
+                let band = CGRect(x: (CGFloat(display.width) - captureWidth) / 2,
+                                  y: 0,
+                                  width: captureWidth,
                                   height: min(self.bandHeightPoints, CGFloat(display.height)))
                 let cfg = SCStreamConfiguration()
                 cfg.sourceRect = band
@@ -538,7 +559,7 @@ private final class GlassStack: NSView {
                 cfg.height = Int(band.height * scale)
                 cfg.pixelFormat = kCVPixelFormatType_32BGRA
                 cfg.showsCursor = false
-                cfg.queueDepth = 3
+                cfg.queueDepth = 2
                 cfg.minimumFrameInterval = CMTime(value: 1, timescale: 30)   // 30fps is plenty
                 cfg.scalesToFit = false
 
@@ -549,6 +570,7 @@ private final class GlassStack: NSView {
                 try await stream.startCapture()
                 await MainActor.run {
                     self.startingStream = false
+                    self.captureRectPoints = band
                     // Bail if we were asked to stop while starting up.
                     guard self.window != nil, self.bounds.height >= self.activeHeight else {
                         stream.stopCapture { _ in }; return
@@ -556,8 +578,15 @@ private final class GlassStack: NSView {
                     self.stream = stream; self.output = out; self.streaming = true
                 }
             } catch {
-                await MainActor.run { self.startingStream = false }
-                NSLog("Notch glass: capture unavailable: \(error)")
+                await MainActor.run {
+                    self.startingStream = false
+                    let now = CACurrentMediaTime()
+                    self.nextCaptureAttempt = now + 30
+                    if now - self.lastCaptureErrorLog >= 30 {
+                        self.lastCaptureErrorLog = now
+                        NSLog("Notch glass: capture unavailable: \(error)")
+                    }
+                }
             }
         }
     }
@@ -582,12 +611,12 @@ private final class GlassStack: NSView {
     /// displacement lens, and show the result. No white wash, no frost — the
     /// desktop is genuinely bent at the bottom edge.
     @objc private func tick() {
-        guard let window, let kernel, bounds.width > 2, bounds.height >= activeHeight else { return }
+        guard let window, bounds.width > 2, bounds.height >= activeHeight else { return }
         // Skip rendering while the card is actively springing (resized in the last
         // ~60ms) — the per-frame Core Image work on the main thread is what made
         // the open/close feel laggy; the lens settles in the moment motion stops.
         let now = CACurrentMediaTime()
-        if now - lastResize < 0.06 { return }
+        if mode == .legacyLens, now - lastResize < 0.06 { return }
         if now - lastRender < 1.0/30.0 { return }        // 30fps is plenty
         lastRender = now
         lock.lock(); let b = band; lock.unlock()
@@ -599,8 +628,8 @@ private final class GlassStack: NSView {
         // monitor, including ones offset vertically in the global layout).
         let topLeftY = screen.frame.maxY - scr.maxY
 
-        var cx = (scr.minX - screen.frame.minX) * s
-        var cy = topLeftY * s
+        var cx = (scr.minX - screen.frame.minX - captureRectPoints.minX) * s
+        var cy = (topLeftY - captureRectPoints.minY) * s
         let cw = bounds.width * s
         let ch = bounds.height * s
         let bw = CGFloat(CVPixelBufferGetWidth(b)), bh = CGFloat(CVPixelBufferGetHeight(b))
@@ -618,16 +647,35 @@ private final class GlassStack: NSView {
             // (that produced the harsh corner fringe and the horizontal streak).
             .clampedToExtent()
         let extent = CGRect(x: 0, y: 0, width: cw, height: ch)
-        let w = Float(cw), h = Float(ch)
-        let radius = Float(bottomRadius * s)
-        let edge = Float(min(ch, 80 * s))       // bevel spans the visible bottom band
-        let strength = Float(15 * s)            // inward pull at the rim (the bend)
-        let chroma = Float(0.9 * s)             // prismatic fringe — a whisper, not a rainbow
-        let margin = CGFloat(strength + chroma + 2)
-        let out = kernel.apply(extent: extent,
-                               roiCallback: { _, r in r.insetBy(dx: -margin, dy: -margin) },
-                               arguments: [src, w, h, radius, edge, strength, chroma])
-        guard let out, let cg = ciContext.createCGImage(out, from: extent) else { return }
+        let output: CIImage
+        switch mode {
+        case .liquidLens:
+            let w = Float(cw), h = Float(ch)
+            let radius = Float(bottomRadius * s)
+            let edge = Float(min(ch, 44 * s))
+            let strength = Float(18 * s)
+            let margin = CGFloat(strength + 2)
+            guard let kernel,
+                  let refracted = kernel.apply(
+                    extent: extent,
+                    roiCallback: { _, rect in rect.insetBy(dx: -margin, dy: -margin) },
+                    arguments: [src, w, h, radius, edge, strength, Float(0)]) else { return }
+            output = refracted
+        case .legacyLens:
+            let w = Float(cw), h = Float(ch)
+            let radius = Float(bottomRadius * s)
+            let edge = Float(min(ch, 80 * s))
+            let strength = Float(15 * s)
+            let chroma = Float(0.9 * s)
+            let margin = CGFloat(strength + chroma + 2)
+            guard let kernel,
+                  let refracted = kernel.apply(
+                    extent: extent,
+                    roiCallback: { _, rect in rect.insetBy(dx: -margin, dy: -margin) },
+                    arguments: [src, w, h, radius, edge, strength, chroma]) else { return }
+            output = refracted
+        }
+        guard let cg = ciContext.createCGImage(output, from: extent) else { return }
         CATransaction.begin(); CATransaction.setDisableActions(true)
         layer?.contents = cg
         layer?.contentsScale = s

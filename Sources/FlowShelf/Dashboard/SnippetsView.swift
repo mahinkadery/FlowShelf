@@ -21,10 +21,10 @@ struct SnippetsView: View {
                 noMatches
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 4) {
+                    LazyVStack(spacing: 6) {
                         ForEach(results) { row($0) }
                     }
-                    .padding(10)
+                    .padding(.horizontal, 14).padding(.vertical, 12)
                 }
             }
         }
@@ -36,45 +36,44 @@ struct SnippetsView: View {
         }
     }
 
+    // Toolbar only — the pane title lives in the big PaneHeader above.
     private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Snippets").font(.system(size: 15, weight: .semibold))
-                Text("Reusable text — click to copy").font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            Spacer()
+        HStack(spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 12))
-                TextField("Search…", text: $query).textFieldStyle(.plain).frame(width: 150)
+                TextField("Search snippets…", text: $query).textFieldStyle(.plain).frame(width: 180)
             }
-            .padding(.horizontal, 8).padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 7).fill(Color.primary.opacity(0.06)))
-            Button { creating = true } label: { Label("New", systemImage: "plus") }
+            .padding(.horizontal, 9).padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.06)))
+            Text("\(store.snippets.count)")
+                .font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
+            Spacer()
+            Button { creating = true } label: { Label("New snippet", systemImage: "plus") }
                 .controlSize(.small)
         }
-        .padding(14)
+        .padding(.horizontal, 18).padding(.vertical, 12)
     }
 
     private func row(_ s: Snippet) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "text.quote")
-                .font(.system(size: 13)).foregroundStyle(.secondary).frame(width: 16)
+        HStack(spacing: 11) {
+            EmblemChip(icon: "text.quote", tint: .purple)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(s.title).font(.system(size: 13, weight: .medium)).lineLimit(1)
+                    Text(s.title.isEmpty ? "Untitled" : s.title)
+                        .font(.system(size: 13, weight: .semibold)).lineLimit(1)
                     if !s.keyword.isEmpty {
                         Text(s.keyword)
                             .font(.system(size: 10, design: .monospaced))
                             .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Capsule().fill(Color.accentColor.opacity(0.15)))
-                            .foregroundStyle(Color.accentColor)
+                            .background(Capsule().fill(Color.purple.opacity(0.15)))
+                            .foregroundStyle(Color.purple)
                     }
                 }
                 Text(s.content)
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.tail)
             }
-            Spacer()
+            Spacer(minLength: 10)
             Button { copy(s) } label: {
                 Image(systemName: copiedID == s.id ? "checkmark" : "doc.on.doc")
                     .foregroundStyle(copiedID == s.id ? Color.green : Color.accentColor)
@@ -85,8 +84,8 @@ struct SnippetsView: View {
             Button { store.remove(s.id) } label: { Image(systemName: "trash") }
                 .buttonStyle(.plain).foregroundStyle(.secondary).help("Delete")
         }
-        .padding(.horizontal, 10).padding(.vertical, 8)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.04)))
+        .padding(.horizontal, 13).padding(.vertical, 10)
+        .raisedCard()
         .contentShape(Rectangle())
         .onTapGesture { copy(s) }
     }
@@ -94,10 +93,10 @@ struct SnippetsView: View {
     private var emptyState: some View {
         VStack(spacing: 10) {
             Spacer()
-            Image(systemName: "text.quote").font(.system(size: 32)).foregroundStyle(.tertiary)
-            Text("No snippets yet").font(.system(size: 13, weight: .medium))
+            GlassCircleBadge(icon: "text.quote")
+            Text("No snippets yet").font(.system(size: 13, weight: .semibold))
             Text("Save text you paste often — signatures, addresses,\ncanned replies, code — and reuse it in one click.")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .font(.system(size: 11.5)).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Button { creating = true } label: { Label("Create your first snippet", systemImage: "plus") }
                 .padding(.top, 4)
@@ -107,10 +106,10 @@ struct SnippetsView: View {
     }
 
     private var noMatches: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Spacer()
-            Image(systemName: "magnifyingglass").font(.system(size: 28)).foregroundStyle(.tertiary)
-            Text("No snippets match “\(query)”").font(.system(size: 12)).foregroundStyle(.secondary)
+            GlassCircleBadge(icon: "magnifyingglass")
+            Text("No snippets match “\(query)”").font(.system(size: 12.5)).foregroundStyle(.secondary)
             Spacer()
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
-    case shelf, snippets, notch, peek, clean, settings
+    case shelf, snippets, notch, peek, clean, permissions, settings
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -10,6 +10,7 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
         case .snippets: return "Snippets"
         case .peek: return "Peek"
         case .clean: return "Clean"
+        case .permissions: return "Permissions"
         case .settings: return "Settings"
         }
     }
@@ -20,6 +21,7 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
         case .snippets: return "text.quote"
         case .peek: return "rectangle.on.rectangle"
         case .clean: return "trash"
+        case .permissions: return "checkmark.shield"
         case .settings: return "gearshape"
         }
     }
@@ -30,11 +32,12 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
         case .snippets: return "Reusable text"
         case .peek: return "Window previews"
         case .clean: return "App cleaner"
+        case .permissions: return "Access health"
         case .settings: return "Preferences"
         }
     }
 
-    /// Chip color for the sidebar icon (System-Settings / Droppy style).
+    /// Accent color shared by navigation and the detail backdrop.
     var tint: Color {
         switch self {
         case .shelf: return .orange
@@ -42,6 +45,7 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
         case .snippets: return .purple
         case .peek: return .blue
         case .clean: return .green
+        case .permissions: return .teal
         case .settings: return Color(white: 0.5)
         }
     }
@@ -50,7 +54,7 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
     static let groups: [(title: String, items: [DashboardSection])] = [
         ("Workspace", [.shelf, .snippets]),
         ("Tools", [.notch, .peek, .clean]),
-        ("App", [.settings]),
+        ("App", [.permissions, .settings]),
     ]
 }
 
@@ -59,10 +63,21 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
 struct DashboardView: View {
     @State private var section: DashboardSection = .shelf
 
+    init() {
+        let saved = UserDefaults.standard.string(forKey: "dashboardLastSection")
+        var initial = DashboardSection(rawValue: saved ?? "") ?? .shelf
+        #if DEBUG
+        // FLOWSHELF_SECTION=snippets|peek|clean|… opens the dashboard on that pane.
+        if let raw = ProcessInfo.processInfo.environment["FLOWSHELF_SECTION"],
+           let s = DashboardSection(rawValue: raw) {
+            initial = s
+        }
+        #endif
+        _section = State(initialValue: initial)
+    }
+
     var body: some View {
         NavigationSplitView {
-            // Droppy/System-Settings style sidebar: grouped sections with colored
-            // rounded-square icon chips — scannable at a glance, not squished.
             List(selection: $section) {
                 ForEach(DashboardSection.groups, id: \.title) { group in
                     Section {
@@ -95,7 +110,6 @@ struct DashboardView: View {
             }
             .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 230)
             .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)   // show the window's frosted glass
             .safeAreaInset(edge: .top) {
                 HStack(spacing: 7) {
                     FlowShelfGlyph(size: 18, color: .accentColor)
@@ -103,23 +117,37 @@ struct DashboardView: View {
                     Spacer()
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(.bar)
             }
         } detail: {
-            Group {
-                switch section {
-                case .shelf:    ShelfBrowser()
-                case .notch:    NotchPane()
-                case .snippets: VStack(spacing: 0) { PaneHeader(icon: "text.quote", tint: .purple, title: "Snippets", subtitle: "Reusable text, one click to paste") ; SnippetsView() }
-                case .peek:     VStack(spacing: 0) { PaneHeader(icon: "rectangle.on.rectangle", tint: .blue, title: "Peek", subtitle: "Live window previews from your Dock") ; PeekView() }
-                case .clean:    VStack(spacing: 0) { PaneHeader(icon: "trash", tint: .green, title: "Clean", subtitle: "Uninstall apps completely, leftovers included") ; CleanView() }
-                case .settings: DashboardSettings()
+            ZStack {
+                DashboardDetailBackdrop(tint: section.tint)
+
+                Group {
+                    switch section {
+                    case .shelf:    ShelfBrowser()
+                    case .notch:    NotchPane()
+                    case .snippets: VStack(spacing: 0) { PaneHeader(icon: "text.quote", tint: .purple, title: "Snippets", subtitle: "Reusable text, one click to paste") ; SnippetsView() }
+                    case .peek:     VStack(spacing: 0) { PaneHeader(icon: "rectangle.on.rectangle", tint: .blue, title: "Peek", subtitle: "Live window previews from your Dock") ; PeekView() }
+                    case .clean:    VStack(spacing: 0) { PaneHeader(icon: "trash", tint: .green, title: "Clean", subtitle: "Uninstall apps completely, leftovers included") ; CleanView() }
+                    case .permissions: PermissionHealthView()
+                    case .settings: DashboardSettings()
+                    }
                 }
+                .frame(minWidth: 520, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity,
+                       alignment: .topLeading)
             }
-            .frame(minWidth: 520, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity,
-                   alignment: .topLeading)
         }
-        .frame(minWidth: 760, minHeight: 480)
-        // ⌘1…⌘5 jump straight to a section (power-user muscle memory).
+        .frame(minWidth: 820, minHeight: 540)
+        .onChange(of: section) { _, newSection in
+            UserDefaults.standard.set(newSection.rawValue, forKey: "dashboardLastSection")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .flowShelfDashboardSection)) { notification in
+            guard let raw = notification.object as? String,
+                  let destination = DashboardSection(rawValue: raw) else { return }
+            section = destination
+        }
+        // ⌘1…⌘7 jump straight to a section (power-user muscle memory).
         .background {
             ForEach(Array(DashboardSection.allCases.enumerated()), id: \.element) { i, item in
                 Button("") { section = item }
@@ -128,6 +156,30 @@ struct DashboardView: View {
                     .accessibilityHidden(true)
             }
         }
+    }
+}
+
+private struct DashboardDetailBackdrop: View {
+    @ObservedObject private var glass = AccessibilityGlass.shared
+    var tint: Color
+
+    var body: some View {
+        ZStack {
+            Color(nsColor: .windowBackgroundColor)
+                .opacity(glass.reduceTransparency ? 1 : 0.16)
+
+            if !glass.reduceTransparency {
+                RadialGradient(
+                    colors: [tint.opacity(0.13), tint.opacity(0.035), .clear],
+                    center: .topTrailing,
+                    startRadius: 20,
+                    endRadius: 520
+                )
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .animation(.easeOut(duration: 0.22), value: tint)
     }
 }
 

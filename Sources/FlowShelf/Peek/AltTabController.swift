@@ -12,11 +12,11 @@ private func altTabEventCallback(proxy: CGEventTapProxy, type: CGEventType,
     return consumed ? nil : Unmanaged.passUnretained(event)
 }
 
-/// Option+Tab window switcher (AltTab/DockDoor style). A `CGEventTap` intercepts
-/// Option+Tab to show an overlay of live window previews; arrows/Tab navigate;
-/// releasing Option (or Return) switches; Esc cancels.
+/// Customizable keyboard-driven window switcher. A `CGEventTap` intercepts the
+/// chosen modifier-and-key chord; arrows/the trigger navigate, releasing the
+/// chord's modifiers (or Return) switches, and Esc cancels.
 @MainActor
-final class AltTabController {
+final class AltTabController: ObservableObject {
     static let shared = AltTabController()
 
     private var tap: CFMachPort?
@@ -24,12 +24,48 @@ final class AltTabController {
     private(set) var isRunning = false
 
     private var active = false
+    private var shortcutCaptureSuspended = false
     private let model = AltTabModel()
     private var overlay: NSPanel?
 
+    @Published private(set) var shortcut: ShortcutSpec
+
     private var ownPID: pid_t { ProcessInfo.processInfo.processIdentifier }
 
-    private init() {}
+    static let defaultShortcut = ShortcutSpec(keyCode: UInt32(kVK_Tab), mods: UInt32(optionKey))
+    private static let shortcutDefaultsKey = "altTabShortcut"
+
+    private init() {
+        if let data = UserDefaults.standard.data(forKey: Self.shortcutDefaultsKey),
+           let stored = try? JSONDecoder().decode(ShortcutSpec.self, from: data),
+           stored.mods != 0 {
+            shortcut = stored
+        } else {
+            shortcut = Self.defaultShortcut
+        }
+    }
+
+    func setShortcut(_ spec: ShortcutSpec) {
+        guard spec.mods != 0 else { return }
+        shortcut = spec
+        if let data = try? JSONEncoder().encode(spec) {
+            UserDefaults.standard.set(data, forKey: Self.shortcutDefaultsKey)
+        }
+    }
+
+    func resetShortcut() {
+        shortcut = Self.defaultShortcut
+        UserDefaults.standard.removeObject(forKey: Self.shortcutDefaultsKey)
+    }
+
+    func suspendForShortcutCapture() {
+        shortcutCaptureSuspended = true
+        cancel()
+    }
+
+    func resumeAfterShortcutCapture() {
+        shortcutCaptureSuspended = false
+    }
 
     // MARK: Lifecycle
 
@@ -66,19 +102,29 @@ final class AltTabController {
             return false
         }
 
+        guard !shortcutCaptureSuspended else { return false }
+
         let flags = event.flags
-        let optionDown = flags.contains(.maskAlternate)
+        let mods = ShortcutSpec.carbonMods(flags)
+        let requiredModsDown = (mods & shortcut.mods) == shortcut.mods
 
         if type == .flagsChanged {
-            if active && !optionDown { commit() }   // released Option → switch
+            if active && !requiredModsDown { commit() }
             return false
         }
 
         guard type == .keyDown else { return false }
         let keycode = Int(event.getIntegerValueField(.keyboardEventKeycode))
 
-        if optionDown && keycode == kVK_Tab {
-            let reverse = flags.contains(.maskShift)
+        let modifierMask = UInt32(cmdKey | shiftKey | optionKey | controlKey)
+        let pressedMods = mods & modifierMask
+        let allowsReverseShift = shortcut.mods & UInt32(shiftKey) == 0
+        let forwardMods = shortcut.mods & modifierMask
+        let reverseMods = forwardMods | UInt32(shiftKey)
+
+        if keycode == Int(shortcut.keyCode),
+           pressedMods == forwardMods || (allowsReverseShift && pressedMods == reverseMods) {
+            let reverse = allowsReverseShift && pressedMods == reverseMods
             active ? advance(reverse: reverse) : begin(reverse: reverse)
             return true
         }

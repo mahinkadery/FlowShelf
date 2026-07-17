@@ -4,6 +4,38 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.6.0] — 2026-07-18 (build 63)
+
+### Added
+- **Animated first-launch onboarding** — a four-step native tour for the shelf,
+  notch, customizable shortcuts, and privacy. Its SVG artwork is rendered by
+  AppKit and animated by SwiftUI without a browser or third-party runtime;
+  Reduce Motion is respected. Existing users can replay it from Settings or the
+  menu-bar right-click menu.
+- **Permission Health dashboard** — Accessibility, Screen Recording, Input
+  Monitoring, optional Full Disk Access, and unused Notifications are explained
+  in one honest status page with direct macOS controls.
+- **Complete shortcut customization** — the window switcher and all ten window
+  snapping zones now use the same recorder and conflict checks as FlowShelf's
+  five global actions.
+- **Settings search** — find features, permissions, and shortcut controls without
+  scrolling through the full preferences page.
+
+### Changed
+- **Native Liquid Glass dashboard on macOS 26** with a refined sidebar, backdrop,
+  pane headers, cards, empty states, and clearer visual hierarchy throughout
+  Shelf, Snippets, Notch, Peek, Clean, Permissions, and Settings.
+- The dashboard now restores its previous size, screen position, and selected
+  section.
+- The notch liquid lens is clearer and more focused, while retaining the legacy
+  renderer as a rollback option.
+
+### Fixed
+- Denying Screen Recording no longer causes the notch lens to retry and pressure
+  the system repeatedly during the same launch.
+- Shortcut recording now suspends every shortcut engine, preventing the key
+  combination being edited from firing another FlowShelf action.
+
 ## [1.5.0] — 2026-07-17 (build 61)
 
 ### Added

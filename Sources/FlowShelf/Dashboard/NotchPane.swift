@@ -64,11 +64,7 @@ struct EmblemRow<Control: View>: View {
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 11)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color.primary.opacity(0.05)))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .strokeBorder(LinearGradient(colors: [.white.opacity(0.10), .white.opacity(0.02)],
-                                         startPoint: .top, endPoint: .bottom), lineWidth: 0.8))
+        .raisedCard()
     }
 }
 

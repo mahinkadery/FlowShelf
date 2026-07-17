@@ -19,6 +19,17 @@ struct ShortcutSpec: Codable, Equatable, Hashable {
         return s
     }
 
+    /// Combo split into per-keycap symbols, e.g. ["⇧", "⌘", "V"].
+    var parts: [String] {
+        var p: [String] = []
+        if mods & UInt32(controlKey) != 0 { p.append("⌃") }
+        if mods & UInt32(optionKey) != 0 { p.append("⌥") }
+        if mods & UInt32(shiftKey) != 0 { p.append("⇧") }
+        if mods & UInt32(cmdKey) != 0 { p.append("⌘") }
+        p.append(Self.keyName(keyCode))
+        return p
+    }
+
     /// NSEvent modifier flags → Carbon mask.
     static func carbonMods(_ flags: NSEvent.ModifierFlags) -> UInt32 {
         var mods: UInt32 = 0
@@ -27,6 +38,20 @@ struct ShortcutSpec: Codable, Equatable, Hashable {
         if flags.contains(.option) { mods |= UInt32(optionKey) }
         if flags.contains(.control) { mods |= UInt32(controlKey) }
         return mods
+    }
+
+    /// CGEvent modifier flags → Carbon mask, used by the global window switcher.
+    static func carbonMods(_ flags: CGEventFlags) -> UInt32 {
+        var mods: UInt32 = 0
+        if flags.contains(.maskCommand) { mods |= UInt32(cmdKey) }
+        if flags.contains(.maskShift) { mods |= UInt32(shiftKey) }
+        if flags.contains(.maskAlternate) { mods |= UInt32(optionKey) }
+        if flags.contains(.maskControl) { mods |= UInt32(controlKey) }
+        return mods
+    }
+
+    static func isFunctionKey(_ keyCode: UInt32) -> Bool {
+        [122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111].contains(keyCode)
     }
 
     static func keyName(_ keyCode: UInt32) -> String {
@@ -58,52 +83,85 @@ struct ShortcutSpec: Codable, Equatable, Hashable {
     }
 }
 
-/// Click-to-record shortcut field: click, press any combo, done. Esc cancels,
-/// the ↺ button restores the default. Hotkeys are suspended while recording so
-/// the combo being tried never fires the action mid-capture.
-struct ShortcutRecorder: View {
-    let action: HotKeyManager.Action
-    @ObservedObject private var hotkeys = HotKeyManager.shared
+@MainActor
+private enum ShortcutCaptureCoordinator {
+    static func suspend() {
+        HotKeyManager.shared.suspend()
+        WindowSnapManager.shared.suspend()
+        AltTabController.shared.suspendForShortcutCapture()
+    }
+
+    static func resume() {
+        HotKeyManager.shared.resume()
+        WindowSnapManager.shared.resume()
+        AltTabController.shared.resumeAfterShortcutCapture()
+    }
+}
+
+/// Shared click-to-record field. Esc cancels, the reset button restores the
+/// default, and every shortcut engine is suspended during capture.
+private struct ShortcutRecorderField: View {
+    var spec: ShortcutSpec
+    var defaultSpec: ShortcutSpec
+    var isFailed: Bool = false
+    var requiresModifier = false
+    var onSet: (ShortcutSpec) -> Void
+    var onReset: () -> Void
+
     @State private var recording = false
     @State private var monitor: Any?
+    @State private var hovering = false
 
     var body: some View {
         HStack(spacing: 6) {
-            Button(action: { recording ? cancel() : begin() }) {
-                Text(recording ? "Type shortcut…" : hotkeys.spec(for: action).display)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(recording ? Color.accentColor : .primary)
-                    .frame(minWidth: 76)
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(RoundedRectangle(cornerRadius: 6)
-                        .fill(recording ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06)))
-                    .overlay(RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(recording ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1))
-            }
-            .buttonStyle(.plain)
-            .help(recording ? "Press the new shortcut (Esc to cancel)" : "Click, then press the new shortcut")
-
-            if hotkeys.spec(for: action) != HotKeyManager.defaultSpec(for: action) {
-                Button(action: { hotkeys.reset(action) }) {
-                    Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 9, weight: .semibold))
-                }
-                .buttonStyle(.plain).foregroundStyle(.secondary)
-                .help("Reset to default (\(HotKeyManager.defaultSpec(for: action).display))")
-            }
-
-            if hotkeys.failedActions.contains(action) {
+            if isFailed {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 10)).foregroundStyle(.yellow)
                     .help("macOS refused this shortcut — another app or a system shortcut may already use it. Pick a different combo.")
             }
+
+            if spec != defaultSpec, !recording {
+                Button(action: onReset) {
+                    Image(systemName: "arrow.uturn.backward")
+                        .font(.system(size: 9, weight: .semibold))
+                }
+                .buttonStyle(.plain).foregroundStyle(.secondary)
+                .help("Reset to default (\(defaultSpec.display))")
+            }
+
+            Button(action: { recording ? cancel() : begin() }) {
+                Group {
+                    if recording {
+                        Text("Press keys…")
+                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.accentColor)
+                            .padding(.horizontal, 10).padding(.vertical, 4.5)
+                            .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .fill(Color.accentColor.opacity(0.14)))
+                            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .strokeBorder(Color.accentColor.opacity(0.7), lineWidth: 1))
+                            .shadow(color: Color.accentColor.opacity(0.45), radius: 5)
+                    } else {
+                        HStack(spacing: 3) {
+                            ForEach(Array(spec.parts.enumerated()), id: \.offset) {
+                                KeyCap(symbol: $0.element,
+                                       tint: hovering ? Color.accentColor : .primary)
+                            }
+                        }
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .onHover { hovering = $0 }
+            .help(recording ? "Press the new shortcut (Esc to cancel)" : "Click, then press the new shortcut")
         }
+        .animation(FlowMotion.state, value: recording)
         .onDisappear { if recording { cancel() } }
     }
 
     private func begin() {
         recording = true
-        hotkeys.suspend()
+        ShortcutCaptureCoordinator.suspend()
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             MainActor.assumeIsolated {
                 if event.keyCode == UInt32(kVK_Escape), ShortcutSpec.carbonMods(event.modifierFlags) == 0 {
@@ -111,13 +169,13 @@ struct ShortcutRecorder: View {
                     return
                 }
                 let mods = ShortcutSpec.carbonMods(event.modifierFlags)
-                let isFKey = (96...122).contains(event.keyCode)
-                // Bare letters/digits would hijack normal typing system-wide.
-                guard mods != 0 || isFKey else { NSSound.beep(); return }
-                hotkeys.set(ShortcutSpec(keyCode: UInt32(event.keyCode), mods: mods), for: action)
+                let keyCode = UInt32(event.keyCode)
+                let valid = requiresModifier ? mods != 0 : (mods != 0 || ShortcutSpec.isFunctionKey(keyCode))
+                guard valid else { NSSound.beep(); return }
+                onSet(ShortcutSpec(keyCode: keyCode, mods: mods))
                 finish()
             }
-            return nil   // swallow the keystroke while recording
+            return nil
         }
     }
 
@@ -125,31 +183,107 @@ struct ShortcutRecorder: View {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
         recording = false
-        hotkeys.resume()
+        ShortcutCaptureCoordinator.resume()
     }
 
     private func cancel() { finish() }
 }
 
-/// The Settings block: one recorder row per action, plus duplicate detection
-/// inside FlowShelf and a warning when macOS refuses a combo.
-struct ShortcutsEditor: View {
+struct ShortcutRecorder: View {
+    let action: HotKeyManager.Action
     @ObservedObject private var hotkeys = HotKeyManager.shared
 
-    /// Combos used by more than one action right now.
+    var body: some View {
+        ShortcutRecorderField(
+            spec: hotkeys.spec(for: action),
+            defaultSpec: HotKeyManager.defaultSpec(for: action),
+            isFailed: hotkeys.failedActions.contains(action),
+            onSet: { hotkeys.set($0, for: action) },
+            onReset: { hotkeys.reset(action) }
+        )
+    }
+}
+
+struct WindowSnapShortcutRecorder: View {
+    let zone: WindowSnapManager.Zone
+    @ObservedObject private var manager = WindowSnapManager.shared
+
+    var body: some View {
+        ShortcutRecorderField(
+            spec: manager.spec(for: zone),
+            defaultSpec: WindowSnapManager.defaultSpec(for: zone),
+            isFailed: manager.failedZones.contains(zone),
+            onSet: { manager.set($0, for: zone) },
+            onReset: { manager.reset(zone) }
+        )
+    }
+}
+
+struct AltTabShortcutRecorder: View {
+    @ObservedObject private var controller = AltTabController.shared
+
+    var body: some View {
+        ShortcutRecorderField(
+            spec: controller.shortcut,
+            defaultSpec: AltTabController.defaultShortcut,
+            requiresModifier: true,
+            onSet: { controller.setShortcut($0) },
+            onReset: { controller.resetShortcut() }
+        )
+    }
+}
+
+struct WindowSnapShortcutsEditor: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(WindowSnapManager.Zone.allCases, id: \.self) { zone in
+                EmblemRow(icon: zone.symbol, tint: .teal, title: zone.label,
+                          caption: "Default \(WindowSnapManager.defaultSpec(for: zone).display)") {
+                    WindowSnapShortcutRecorder(zone: zone)
+                }
+            }
+        }
+    }
+}
+
+/// Main app shortcuts plus one conflict report spanning app, switcher, and snap
+/// bindings so a collision never looks like a broken feature.
+struct ShortcutsEditor: View {
+    @ObservedObject private var hotkeys = HotKeyManager.shared
+    @ObservedObject private var snap = WindowSnapManager.shared
+    @ObservedObject private var switcher = AltTabController.shared
+
     private var duplicates: [String] {
-        var seen: [ShortcutSpec: [HotKeyManager.Action]] = [:]
-        for a in HotKeyManager.Action.allCases { seen[hotkeys.spec(for: a), default: []].append(a) }
+        var seen: [ShortcutSpec: [String]] = [:]
+        for action in HotKeyManager.Action.allCases {
+            seen[hotkeys.spec(for: action), default: []].append(action.label)
+        }
+        for zone in WindowSnapManager.Zone.allCases {
+            seen[snap.spec(for: zone), default: []].append("Snap: \(zone.label)")
+        }
+        seen[switcher.shortcut, default: []].append("Window switcher")
         return seen.filter { $0.value.count > 1 }
-            .map { "\($0.key.display) → " + $0.value.map(\.label).joined(separator: " + ") }
+            .map { "\($0.key.display) → " + $0.value.joined(separator: " + ") }
+            .sorted()
+    }
+
+    /// Emblem icon + tint per action — each shortcut pops as its own module.
+    private func emblem(for action: HotKeyManager.Action) -> (icon: String, tint: Color) {
+        switch action {
+        case .toggleShelf: return ("tray.full.fill", .cyan)
+        case .openSearch: return ("magnifyingglass", .blue)
+        case .screenshot: return ("camera.viewfinder", .pink)
+        case .ocr: return ("text.viewfinder", .orange)
+        case .dashboard: return ("square.grid.2x2.fill", .indigo)
+        }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 6) {
             ForEach(HotKeyManager.Action.allCases, id: \.rawValue) { action in
-                HStack {
-                    Text(action.label).font(.system(size: 12))
-                    Spacer()
+                let e = emblem(for: action)
+                EmblemRow(icon: e.icon, tint: e.tint, title: action.label,
+                          caption: "Default \(HotKeyManager.defaultSpec(for: action).display) — click the keys to change") {
                     ShortcutRecorder(action: action)
                 }
             }
@@ -160,16 +294,16 @@ struct ShortcutsEditor: View {
                     systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 10.5)).foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 4)
             }
-            if !hotkeys.failedActions.isEmpty {
+            if !hotkeys.failedActions.isEmpty || !snap.failedZones.isEmpty {
                 Label(
                     "Shortcuts marked ⚠︎ were refused by macOS — the combo is likely taken by the system or another app.",
                     systemImage: "info.circle")
                     .font(.system(size: 10.5)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 4)
             }
-            Text("Click a shortcut, then press any key combination. Esc cancels, ↺ restores the default.")
-                .font(.system(size: 10.5)).foregroundStyle(.secondary)
         }
     }
 }

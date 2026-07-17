@@ -82,9 +82,8 @@ struct CleanView: View {
     @State private var dropTargeted = false
 
     var body: some View {
+        // No local header — the pane title lives in the big PaneHeader above.
         VStack(spacing: 0) {
-            header
-            Divider()
             switch model.phase {
             case .idle:                 dropZone
             case .scanning(let name):   scanning(name)
@@ -95,37 +94,24 @@ struct CleanView: View {
         }
     }
 
-    private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Clean").font(.system(size: 15, weight: .semibold))
-                Text("Uninstall an app and its leftover files")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            Spacer()
-            if model.result != nil {
-                Button("Start over") { model.reset() }.controlSize(.small)
-            }
-        }
-        .padding(14)
-    }
-
     // MARK: - Drop zone
 
     private var dropZone: some View {
         VStack(spacing: 14) {
             Spacer()
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8]))
-                .foregroundStyle(dropTargeted ? Color.accentColor : Color.secondary.opacity(0.4))
-                .frame(width: 320, height: 180)
+                .fill(Color.primary.opacity(dropTargeted ? 0.06 : 0.03))
+                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8]))
+                    .foregroundStyle(dropTargeted ? Color.accentColor : Color.secondary.opacity(0.4)))
+                .frame(width: 340, height: 210)
                 .overlay(
                     VStack(spacing: 10) {
-                        Image(systemName: "trash.square")
-                            .font(.system(size: 40))
-                            .foregroundStyle(dropTargeted ? Color.accentColor : .secondary)
+                        GlassCircleBadge(icon: "trash",
+                                         tint: dropTargeted ? .accentColor : .secondary,
+                                         size: 60)
                         Text("Drop an app here to uninstall")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: 13, weight: .semibold))
                         Text("or").font(.system(size: 11)).foregroundStyle(.secondary)
                         Button("Choose App…") { chooseApp() }
                     }
@@ -167,27 +153,33 @@ struct CleanView: View {
             VStack(spacing: 0) {
                 summaryBar(r)
                 if CleanerEngine.isProtected(r.appURL) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle.fill").foregroundStyle(.purple)
+                    HStack(spacing: 11) {
+                        EmblemChip(icon: "lock.shield.fill", tint: .purple)
                         Text("\(r.appName) is a built-in macOS app. Built-in apps live on the protected system volume and can’t be uninstalled — only their leftover files (if any) can be removed.")
                             .font(.system(size: 11)).foregroundStyle(.secondary)
-                        Spacer()
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .background(Color.purple.opacity(0.08))
+                    .padding(.horizontal, 13).padding(.vertical, 10)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.purple.opacity(0.09)))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(LinearGradient(colors: [Color.purple.opacity(0.25), Color.purple.opacity(0.06)],
+                                                     startPoint: .top, endPoint: .bottom), lineWidth: 0.8))
+                    .padding(.horizontal, 14).padding(.bottom, 10)
                 }
                 Divider()
                 if r.items.isEmpty {
-                    VStack(spacing: 8) {
+                    VStack(spacing: 10) {
                         Spacer()
-                        Image(systemName: "checkmark.seal").font(.system(size: 30)).foregroundStyle(.green)
+                        GlassCircleBadge(icon: "checkmark.seal", tint: .green)
                         Text("No leftover files found for \(r.appName).")
-                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                            .font(.system(size: 12.5)).foregroundStyle(.secondary)
                         Spacer()
                     }.frame(maxWidth: .infinity)
                 } else {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 10) {
                             ForEach(r.grouped(), id: \.0) { category, files in
                                 categorySection(category, files)
                             }
@@ -205,10 +197,10 @@ struct CleanView: View {
     }
 
     private func summaryBar(_ r: AppScanResult) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 11) {
             Image(nsImage: NSWorkspace.shared.icon(forFile: r.appURL.path))
-                .resizable().frame(width: 36, height: 36)
-            VStack(alignment: .leading, spacing: 1) {
+                .resizable().frame(width: 38, height: 38)
+            VStack(alignment: .leading, spacing: 1.5) {
                 Text(r.appName).font(.system(size: 13, weight: .semibold))
                 Text("\(r.items.count) related items · \(formatBytes(r.totalSize)) total")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
@@ -217,16 +209,19 @@ struct CleanView: View {
             HStack(spacing: 6) {
                 Button("All") { model.setAll(true) }
                 Button("None") { model.setAll(false) }
+                Button("Start over") { model.reset() }
             }.controlSize(.small)
         }
-        .padding(12)
+        .padding(.horizontal, 13).padding(.vertical, 10)
+        .raisedCard()
+        .padding(.horizontal, 14).padding(.vertical, 10)
     }
 
     private func categorySection(_ category: LeftoverCategory, _ files: [LeftoverFile]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: category.symbol).font(.system(size: 11)).foregroundStyle(.secondary)
-                Text(category.label).font(.system(size: 12, weight: .semibold))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                EmblemChip(icon: category.symbol, tint: .green, size: 22, iconSize: 10.5)
+                Text(category.label).font(.system(size: 12.5, weight: .semibold))
                 Spacer()
                 Text(formatBytes(files.reduce(0) { $0 + $1.size }))
                     .font(.system(size: 11)).foregroundStyle(.tertiary)
@@ -235,6 +230,9 @@ struct CleanView: View {
                 fileRow(file)
             }
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .raisedCard()
     }
 
     private func fileRow(_ file: LeftoverFile) -> some View {
@@ -294,10 +292,9 @@ struct CleanView: View {
 
     private func finished(trashed: Int, failed: [URL]) -> some View {
         VStack(spacing: 0) {
-            VStack(spacing: 8) {
-                Image(systemName: failed.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .font(.system(size: 36))
-                    .foregroundStyle(failed.isEmpty ? .green : .orange)
+            VStack(spacing: 10) {
+                GlassCircleBadge(icon: failed.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
+                                 tint: failed.isEmpty ? .green : .orange)
                 Text("Moved \(trashed) item(s) to Trash")
                     .font(.system(size: 14, weight: .semibold))
                 Text("Trashed items can be restored with “Put Back”. A cleanup report was added to your Shelf.")

@@ -145,6 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Occasional, honor-system "buy me a coffee" nudge (never for supporters).
+        OnboardingController.shared.showIfNeeded()
         SupporterPrompt.shared.maybeShowAtLaunch()
 
         #if DEBUG
@@ -207,6 +208,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.addItem(item("Open App (Dashboard)", #selector(menuOpenDashboard)))
         menu.addItem(item("Open Shelf", #selector(menuOpenShelf)))
+        menu.addItem(item("Show Welcome…", #selector(menuShowWelcome)))
 
         // Quick "Copy Snippet ▸" submenu — paste-ready text without opening the app.
         let snippets = SnippetStore.shared.snippets
@@ -233,6 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func menuOpenDashboard() { closePopover(); DashboardWindowController.shared.show() }
     @objc private func menuOpenShelf() { showPopover() }
+    @objc private func menuShowWelcome() { closePopover(); OnboardingController.shared.show() }
     @objc private func menuQuit() { NSApp.terminate(nil) }
 
     @objc private func menuCopySnippet(_ sender: NSMenuItem) {

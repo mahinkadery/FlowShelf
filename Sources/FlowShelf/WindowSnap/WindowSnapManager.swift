@@ -6,13 +6,43 @@ import Carbon.HIToolbox
 /// Opt-in (off by default) and needs Accessibility. Self-contained Carbon hotkey
 /// registration so it can start/stop independently of the app's other shortcuts.
 @MainActor
-final class WindowSnapManager {
+final class WindowSnapManager: ObservableObject {
     static let shared = WindowSnapManager()
 
-    enum Zone: UInt32, CaseIterable {
+    enum Zone: UInt32, CaseIterable, Codable, Hashable {
         case leftHalf = 1, rightHalf, topHalf, bottomHalf
         case topLeft, topRight, bottomLeft, bottomRight
         case maximize, center
+
+        var label: String {
+            switch self {
+            case .leftHalf: return "Left half"
+            case .rightHalf: return "Right half"
+            case .topHalf: return "Top half"
+            case .bottomHalf: return "Bottom half"
+            case .topLeft: return "Top-left quarter"
+            case .topRight: return "Top-right quarter"
+            case .bottomLeft: return "Bottom-left quarter"
+            case .bottomRight: return "Bottom-right quarter"
+            case .maximize: return "Maximize"
+            case .center: return "Center"
+            }
+        }
+
+        var symbol: String {
+            switch self {
+            case .leftHalf: return "rectangle.lefthalf.inset.filled"
+            case .rightHalf: return "rectangle.righthalf.inset.filled"
+            case .topHalf: return "rectangle.tophalf.inset.filled"
+            case .bottomHalf: return "rectangle.bottomhalf.inset.filled"
+            case .topLeft: return "rectangle.inset.topleft.filled"
+            case .topRight: return "rectangle.inset.topright.filled"
+            case .bottomLeft: return "rectangle.inset.bottomleft.filled"
+            case .bottomRight: return "rectangle.inset.bottomright.filled"
+            case .maximize: return "rectangle.inset.filled"
+            case .center: return "rectangle.center.inset.filled"
+            }
+        }
 
         /// Target frame in Cocoa coords (bottom-left origin) within a screen's
         /// visible area (which already excludes the menu bar and Dock).
@@ -38,36 +68,107 @@ final class WindowSnapManager {
     private var refs: [EventHotKeyRef?] = []
     private var handler: EventHandlerRef?
     private(set) var running = false
+    private var suspended = false
+    private var specs: [Zone: ShortcutSpec]
+
+    @Published private(set) var failedZones: Set<Zone> = []
+    @Published private(set) var revision = 0
 
     private let signature: OSType = {
         "FLSW".utf16.reduce(0) { ($0 << 8) + OSType($1) }
     }()
 
-    private init() {}
+    private static let defaultsKey = "windowSnapHotkeys"
+
+    private init() {
+        specs = Self.load()
+    }
+
+    static func defaultSpec(for zone: Zone) -> ShortcutSpec {
+        let mods = UInt32(controlKey | optionKey)
+        switch zone {
+        case .leftHalf: return ShortcutSpec(keyCode: UInt32(kVK_LeftArrow), mods: mods)
+        case .rightHalf: return ShortcutSpec(keyCode: UInt32(kVK_RightArrow), mods: mods)
+        case .topHalf: return ShortcutSpec(keyCode: UInt32(kVK_UpArrow), mods: mods)
+        case .bottomHalf: return ShortcutSpec(keyCode: UInt32(kVK_DownArrow), mods: mods)
+        case .topLeft: return ShortcutSpec(keyCode: UInt32(kVK_ANSI_U), mods: mods)
+        case .topRight: return ShortcutSpec(keyCode: UInt32(kVK_ANSI_I), mods: mods)
+        case .bottomLeft: return ShortcutSpec(keyCode: UInt32(kVK_ANSI_J), mods: mods)
+        case .bottomRight: return ShortcutSpec(keyCode: UInt32(kVK_ANSI_K), mods: mods)
+        case .maximize: return ShortcutSpec(keyCode: UInt32(kVK_Return), mods: mods)
+        case .center: return ShortcutSpec(keyCode: UInt32(kVK_ANSI_C), mods: mods)
+        }
+    }
+
+    func spec(for zone: Zone) -> ShortcutSpec {
+        specs[zone] ?? Self.defaultSpec(for: zone)
+    }
+
+    func set(_ spec: ShortcutSpec, for zone: Zone) {
+        specs[zone] = spec
+        persist()
+        if running { registerAll() }
+        revision += 1
+    }
+
+    func reset(_ zone: Zone) {
+        specs.removeValue(forKey: zone)
+        persist()
+        if running { registerAll() }
+        revision += 1
+    }
+
+    private func persist() {
+        if let data = try? JSONEncoder().encode(specs) {
+            UserDefaults.standard.set(data, forKey: Self.defaultsKey)
+        }
+    }
+
+    private static func load() -> [Zone: ShortcutSpec] {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let stored = try? JSONDecoder().decode([Zone: ShortcutSpec].self, from: data)
+        else { return [:] }
+        return stored
+    }
 
     // MARK: - Lifecycle
 
     func start() {
         guard !running else { return }
-        installHandler()
-        let mods = UInt32(controlKey | optionKey)
-        register(.leftHalf,    kVK_LeftArrow,  mods)
-        register(.rightHalf,   kVK_RightArrow, mods)
-        register(.topHalf,     kVK_UpArrow,    mods)
-        register(.bottomHalf,  kVK_DownArrow,  mods)
-        register(.topLeft,     kVK_ANSI_U,     mods)
-        register(.topRight,    kVK_ANSI_I,     mods)
-        register(.bottomLeft,  kVK_ANSI_J,     mods)
-        register(.bottomRight, kVK_ANSI_K,     mods)
-        register(.maximize,    kVK_Return,     mods)
-        register(.center,      kVK_ANSI_C,     mods)
         running = true
+        installHandler()
+        registerAll()
     }
 
     func stop() {
+        running = false
+        unregisterAll()
+        failedZones = []
+    }
+
+    func suspend() {
+        suspended = true
+        unregisterAll()
+    }
+
+    func resume() {
+        suspended = false
+        if running { registerAll() }
+    }
+
+    private func registerAll() {
+        unregisterAll()
+        guard running, !suspended else { return }
+        var failed: Set<Zone> = []
+        for zone in Zone.allCases where !register(zone, spec(for: zone)) {
+            failed.insert(zone)
+        }
+        failedZones = failed
+    }
+
+    private func unregisterAll() {
         for ref in refs where ref != nil { UnregisterEventHotKey(ref) }
         refs.removeAll()
-        running = false
     }
 
     // MARK: - Snapping
@@ -108,12 +209,16 @@ final class WindowSnapManager {
         }, 1, &spec, selfPtr, &handler)
     }
 
-    private func register(_ zone: Zone, _ keyCode: Int, _ mods: UInt32) {
+    private func register(_ zone: Zone, _ spec: ShortcutSpec) -> Bool {
         var ref: EventHotKeyRef?
         let hkID = EventHotKeyID(signature: signature, id: zone.rawValue)
-        let status = RegisterEventHotKey(UInt32(keyCode), mods, hkID,
+        let status = RegisterEventHotKey(spec.keyCode, spec.mods, hkID,
                                          GetApplicationEventTarget(), 0, &ref)
-        if status == noErr { refs.append(ref) }
-        else { NSLog("FlowShelf: window-snap hotkey \(zone.rawValue) failed (status \(status))") }
+        if status == noErr {
+            refs.append(ref)
+            return true
+        }
+        NSLog("FlowShelf: window-snap hotkey \(zone.rawValue) failed (status \(status))")
+        return false
     }
 }

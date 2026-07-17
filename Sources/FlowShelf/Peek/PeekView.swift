@@ -56,24 +56,22 @@ struct PeekView: View {
         .onDisappear { model.clear() }
     }
 
+    // Toolbar only — the pane title lives in the big PaneHeader above.
     private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Peek").font(.system(size: 15, weight: .semibold))
-                Text("Open windows across your apps")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            Spacer()
+        HStack(spacing: 10) {
             if let works = model.captureWorks {
                 Label(works ? "Capture working" : "No capture",
                       systemImage: works ? "checkmark.circle.fill" : "xmark.circle")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(works ? .green : .orange)
+                    .padding(.horizontal, 9).padding(.vertical, 5)
+                    .background(Capsule().fill((works ? Color.green : Color.orange).opacity(0.12)))
                     .help(works ? "FlowShelf can capture window previews."
                           : "FlowShelf can't capture yet — see the banner below.")
             }
+            Spacer()
             Toggle(isOn: $settings.dockPreviewsEnabled) {
-                Text("Dock hover previews").font(.system(size: 11))
+                Text("Dock hover previews").font(.system(size: 11.5))
             }
             .toggleStyle(.switch).controlSize(.small)
             .onChange(of: settings.dockPreviewsEnabled) { _, on in
@@ -83,7 +81,7 @@ struct PeekView: View {
                 Image(systemName: "arrow.clockwise")
             }.help("Refresh")
         }
-        .padding(14)
+        .padding(.horizontal, 18).padding(.vertical, 12)
     }
 
     @ViewBuilder private var content: some View {
@@ -91,34 +89,37 @@ struct PeekView: View {
             VStack { Spacer(); ProgressView("Capturing windows…").controlSize(.small); Spacer() }
                 .frame(maxWidth: .infinity)
         } else if model.apps.isEmpty {
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 Spacer()
-                Image(systemName: "macwindow.on.rectangle").font(.system(size: 30)).foregroundStyle(.tertiary)
+                GlassCircleBadge(icon: "macwindow.on.rectangle")
                 Text(Permissions.hasAccessibility ? "No open windows found"
                      : "Grant Accessibility above to see open windows")
-                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .font(.system(size: 12.5)).foregroundStyle(.secondary)
                 Spacer()
             }.frame(maxWidth: .infinity)
         } else {
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 12) {
                     ForEach(model.apps) { app in
                         appSection(app)
                     }
                 }
-                .padding(14)
+                .padding(.horizontal, 14).padding(.vertical, 12)
             }
         }
     }
 
     private func appSection(_ app: AppWindows) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
                 if let icon = app.icon {
-                    Image(nsImage: icon).resizable().frame(width: 18, height: 18)
+                    Image(nsImage: icon).resizable().frame(width: 22, height: 22)
                 }
-                Text(app.appName).font(.system(size: 13, weight: .medium))
-                Text("\(app.windows.count)").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(app.appName).font(.system(size: 13, weight: .semibold))
+                Text("\(app.windows.count)")
+                    .font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.secondary)
+                    .padding(.horizontal, 6).padding(.vertical, 1.5)
+                    .background(Capsule().fill(Color.primary.opacity(0.08)))
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 12)], alignment: .leading, spacing: 12) {
                 ForEach(app.windows) { w in
@@ -126,18 +127,21 @@ struct PeekView: View {
                 }
             }
         }
+        .padding(13)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .raisedCard()
     }
 
     private func permissionBanner(_ title: String, _ detail: String, pane: Permissions.Pane,
                                   showRelaunch: Bool = false) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "exclamationmark.shield").foregroundStyle(.orange)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.system(size: 12, weight: .medium))
+        HStack(spacing: 11) {
+            EmblemChip(icon: "exclamationmark.shield.fill", tint: .orange)
+            VStack(alignment: .leading, spacing: 1.5) {
+                Text(title).font(.system(size: 13, weight: .semibold))
                 Text(detail).font(.system(size: 11)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
+            Spacer(minLength: 10)
             VStack(spacing: 4) {
                 Button("Open Settings") {
                     if pane == .accessibility { Permissions.requestAccessibility() }
@@ -150,8 +154,13 @@ struct PeekView: View {
                 }
             }
         }
-        .padding(10)
-        .background(Color.orange.opacity(0.08))
+        .padding(.horizontal, 13).padding(.vertical, 11)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color.orange.opacity(0.09)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .strokeBorder(LinearGradient(colors: [Color.orange.opacity(0.25), Color.orange.opacity(0.06)],
+                                         startPoint: .top, endPoint: .bottom), lineWidth: 0.8))
+        .padding(.horizontal, 14).padding(.bottom, 8)
     }
 }
 

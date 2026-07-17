@@ -6,6 +6,7 @@ struct SettingsView: View {
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var store = ShelfStore.shared
     @State private var newExclude = ""
+    @State private var settingsQuery = ""
 
     /// Marketing version + build, read from the bundle (single source of truth).
     static var appVersion: String {
@@ -15,220 +16,360 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 6) {
                 if let onBack {
                     Button(action: onBack) {
-                        Image(systemName: "chevron.left").font(.system(size: 13, weight: .semibold))
+                        Label("Back", systemImage: "chevron.left")
+                            .font(.system(size: 12, weight: .semibold))
                     }
                     .buttonStyle(.plain).foregroundStyle(.secondary)
+                    .padding(.horizontal, 18).padding(.top, 12)
                 }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Settings").font(.system(size: 15, weight: .semibold))
-                    Text("Preferences").font(.system(size: 11.5)).foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(14)
-            Divider()
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    generalCard
-                    peekCard
-                    switcherCard
-                    snapCard
-                    notchCard
-                    screenshotCard
-                    aiCard
-                    clipboardCard
-                    excludedCard
-                    floatingShelfCard
-                    shortcutsCard
-                    storageCard
-                    supportCard
-                    Text("FlowShelf \(Self.appVersion) — a smarter temporary shelf for your Mac.")
-                        .font(.system(size: 10)).foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 2)
+                PaneHeader(icon: "gearshape.fill", tint: Color(white: 0.45),
+                           title: "Settings", subtitle: "Make FlowShelf yours")
+
+                settingsSearchField
+
+                Group {
+                    if matches("general launch login startup software updates version welcome onboarding setup tour") {
+                        section("General")
+                        EmblemRow(icon: "power", tint: .gray,
+                                  title: "Launch at login",
+                                  caption: "Start FlowShelf automatically when you sign in") {
+                            Toggle("", isOn: $settings.launchAtLogin).labelsHidden()
+                                .toggleStyle(.switch).controlSize(.small)
+                                .onChange(of: settings.launchAtLogin) { _, on in LoginItem.setEnabled(on) }
+                        }
+                        EmblemRow(icon: "arrow.triangle.2.circlepath", tint: .gray,
+                                  title: "Software updates",
+                                  caption: "You're on \(Self.appVersion)") {
+                            Button("Check for Updates…") { UpdaterManager.shared.checkForUpdates() }
+                                .controlSize(.small)
+                        }
+                        EmblemRow(icon: "sparkles.rectangle.stack", tint: .orange,
+                                  title: "Welcome & setup",
+                                  caption: "Replay the visual tour or review FlowShelf with someone new") {
+                            Button("Show Welcome…") { OnboardingController.shared.show() }
+                                .controlSize(.small)
+                        }
+                    }
+
+                    if matches("peek dock hover previews thumbnails accessibility screen recording size delay") {
+                        section("Peek — Dock previews")
+                        EmblemRow(icon: "rectangle.on.rectangle", tint: .blue,
+                                  title: "Dock hover previews",
+                                  caption: "Live window thumbnails when you hover Dock icons — needs Accessibility (and Screen Recording)") {
+                            Toggle("", isOn: $settings.dockPreviewsEnabled).labelsHidden()
+                                .toggleStyle(.switch).controlSize(.small)
+                                .onChange(of: settings.dockPreviewsEnabled) { _, on in
+                                    on ? DockPreviewsCoordinator.enable() : DockObserver.shared.stop()
+                                }
+                        }
+                        EmblemRow(icon: "arrow.up.left.and.arrow.down.right", tint: .blue,
+                                  title: "Preview size",
+                                  caption: "How big the hover thumbnails appear") {
+                            Picker("", selection: $settings.dockPreviewSize) {
+                                ForEach(DockPreviewSize.allCases) { Text($0.label).tag($0) }
+                            }
+                            .pickerStyle(.segmented).labelsHidden().frame(width: 190)
+                        }
+                        .disabled(!settings.dockPreviewsEnabled)
+                        .opacity(settings.dockPreviewsEnabled ? 1 : 0.55)
+                        EmblemRow(icon: "timer", tint: .blue,
+                                  title: "Hover delay",
+                                  caption: String(format: "%.2fs before a preview appears", settings.dockPreviewHoverDelay)) {
+                            Slider(value: $settings.dockPreviewHoverDelay, in: 0.05...0.8)
+                                .controlSize(.small).frame(width: 170)
+                        }
+                        .disabled(!settings.dockPreviewsEnabled)
+                        .opacity(settings.dockPreviewsEnabled ? 1 : 0.55)
+                    }
+
+                    if matches("window switcher alt option tab shortcut keyboard command control shift modifiers thumbnails list accessibility permission") {
+                        section("Window switcher")
+                        EmblemRow(icon: "rectangle.stack", tint: .indigo,
+                                  title: "Window switcher",
+                                  caption: "Press your shortcut to advance · add Shift to go back when available · release its modifiers to switch · Esc cancels") {
+                            Toggle("", isOn: $settings.altTabEnabled).labelsHidden()
+                                .toggleStyle(.switch).controlSize(.small)
+                                .onChange(of: settings.altTabEnabled) { _, on in
+                                    if on {
+                                        if !Permissions.hasAccessibility { Permissions.requestAccessibility() }
+                                        AltTabController.shared.start()
+                                    } else {
+                                        AltTabController.shared.stop()
+                                    }
+                                }
+                        }
+                        EmblemRow(icon: "keyboard", tint: .indigo,
+                                  title: "Switcher shortcut",
+                                  caption: "Choose any modifier-and-key combination") {
+                            AltTabShortcutRecorder()
+                        }
+                        EmblemRow(icon: "rectangle.grid.2x2", tint: .indigo,
+                                  title: "Switcher layout",
+                                  caption: "Big window thumbnails, or a compact list") {
+                            Picker("", selection: $settings.altTabLayout) {
+                                ForEach(AltTabLayout.allCases) { Text($0.label).tag($0) }
+                            }
+                            .pickerStyle(.segmented).labelsHidden().frame(width: 190)
+                        }
+                        .disabled(!settings.altTabEnabled)
+                        .opacity(settings.altTabEnabled ? 1 : 0.55)
+                    }
                 }
-                .padding(18)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 18)
+
+                Group {
+                    if matches("window snapping snap shortcuts keyboard command control option shift modifiers halves quarters maximize center accessibility permission") {
+                        section("Window snapping")
+                        EmblemRow(icon: "rectangle.split.2x2", tint: .teal,
+                                  title: "Window snapping",
+                                  caption: "Move the focused window into halves, quarters, maximize or center. Needs Accessibility") {
+                            Toggle("", isOn: $settings.windowSnapEnabled).labelsHidden()
+                                .toggleStyle(.switch).controlSize(.small)
+                                .onChange(of: settings.windowSnapEnabled) { _, on in
+                                    if on {
+                                        if !Permissions.hasAccessibility { Permissions.requestAccessibility() }
+                                        WindowSnapManager.shared.start()
+                                    } else {
+                                        WindowSnapManager.shared.stop()
+                                    }
+                                }
+                        }
+                        WindowSnapShortcutsEditor()
+                    }
+
+                    if matches("notch shelf island media now playing audio reactive bars volume brightness charging hud") {
+                        section("Notch")
+                        EmblemRow(icon: "tray.and.arrow.down.fill", tint: .orange,
+                              title: "Notch shelf",
+                              caption: "A Dynamic-Island shelf in the notch — drop files, images or text to shelve them") {
+                        Toggle("", isOn: $settings.notchEnabled).labelsHidden()
+                            .toggleStyle(.switch).controlSize(.small)
+                            .onChange(of: settings.notchEnabled) { _, on in
+                                on ? NotchController.shared.start() : NotchController.shared.stop()
+                            }
+                    }
+                        EmblemRow(icon: "music.note", tint: .pink,
+                              title: "Now-playing media",
+                              caption: "Album art + live activity when collapsed, compact player when open — fully on-device") {
+                        Toggle("", isOn: $settings.notchMediaEnabled).labelsHidden()
+                            .toggleStyle(.switch).controlSize(.small)
+                            .disabled(!settings.notchEnabled)
+                    }
+                        EmblemRow(icon: "waveform", tint: .purple,
+                              title: "Audio-reactive bars",
+                              caption: "Bars dance to the actual music (shows the macOS recording indicator)") {
+                        Toggle("", isOn: $settings.audioReactiveBars).labelsHidden()
+                            .toggleStyle(.switch).controlSize(.small)
+                            .disabled(!settings.notchEnabled || !settings.notchMediaEnabled)
+                    }
+                        EmblemRow(icon: "speaker.wave.2.fill", tint: .blue,
+                              title: "Volume, brightness & charging HUDs",
+                              caption: "Sleek notch HUDs instead of Apple's centre-screen overlay — volume/brightness need Input Monitoring") {
+                        Toggle("", isOn: $settings.notchHUDEnabled).labelsHidden()
+                            .toggleStyle(.switch).controlSize(.small)
+                            .disabled(!settings.notchEnabled)
+                            .onChange(of: settings.notchHUDEnabled) { _, on in
+                                on ? SystemHUDMonitor.shared.start() : SystemHUDMonitor.shared.stop()
+                            }
+                        }
+                    }
+
+                    if matches("screenshots screenshot capture annotate annotation arrows boxes highlight blur text editor") {
+                        section("Screenshots")
+                        EmblemRow(icon: "camera.viewfinder", tint: .pink,
+                              title: "Annotate after screenshot",
+                              caption: "Open the editor after capture — arrows, boxes, highlight, blur, text") {
+                        Toggle("", isOn: $settings.annotateAfterScreenshot).labelsHidden()
+                            .toggleStyle(.switch).controlSize(.small)
+                        }
+                    }
+
+                    if matches("on device ai apple intelligence summarize clean ask smart search auto title") {
+                        section("On-device AI")
+                        aiRows
+                    }
+                }
+                .padding(.horizontal, 18)
+
+                Group {
+                    if matches("clipboard history private mode retention keep items excluded apps bundle password") {
+                        section("Clipboard")
+                        EmblemRow(icon: "doc.on.clipboard", tint: .yellow,
+                              title: "Record clipboard history",
+                              caption: "Everything you copy lands on the shelf") {
+                        Toggle("", isOn: $settings.clipboardEnabled).labelsHidden()
+                            .toggleStyle(.switch).controlSize(.small)
+                    }
+                        EmblemRow(icon: "eye.slash", tint: .yellow,
+                              title: "Private mode",
+                              caption: "Pause capture — nothing is recorded while on") {
+                        Toggle("", isOn: $settings.privateMode).labelsHidden()
+                            .toggleStyle(.switch).controlSize(.small)
+                    }
+                        EmblemRow(icon: "clock.arrow.circlepath", tint: .yellow,
+                              title: "Keep items for",
+                              caption: settings.clipboardRetention.isForever
+                                ? "⚠️ Permanent keeps everything forever — it can get large; items never auto-clear"
+                                : "Items clear automatically after 24 hours unless pinned") {
+                        Picker("", selection: $settings.clipboardRetention) {
+                            ForEach(ClipboardRetention.allCases) { Text($0.label).tag($0) }
+                        }
+                        .pickerStyle(.segmented).labelsHidden().frame(width: 190)
+                        .onChange(of: settings.clipboardRetention) { _, _ in
+                            store.applyRetentionChange()
+                        }
+                    }
+                        excludedCard
+                    }
+
+                    if matches("floating shelf shake summon cursor mouse wiggle") {
+                        section("Floating shelf")
+                        EmblemRow(icon: "cursorarrow.motionlines", tint: .cyan,
+                              title: "Shake to summon",
+                              caption: "Quickly wiggle the pointer left-right to pop the shelf open at the cursor") {
+                        Toggle("", isOn: $settings.shakeToSummon).labelsHidden()
+                            .toggleStyle(.switch).controlSize(.small)
+                            .onChange(of: settings.shakeToSummon) { _, on in
+                                on ? ShakeDetector.shared.start() : ShakeDetector.shared.stop()
+                            }
+                        }
+                    }
+
+                    if matches("shortcuts hotkeys keyboard floating shelf search screenshot ocr dashboard conflicts") {
+                        section("Shortcuts")
+                        ShortcutsEditor()
+                    }
+
+                    if matches("storage items shelf clear all pinned disk") {
+                        section("Storage")
+                        EmblemRow(icon: "internaldrive", tint: .brown,
+                              title: "\(store.visibleItems.count) items on shelf",
+                              caption: "Everything currently stored, pinned items included") {
+                        Button("Clear all") { store.clearAll(includingPinned: true) }
+                            .controlSize(.small)
+                        }
+                    }
+
+                    if matches("support coffee donate developer") {
+                        section("Support")
+                        supportCard
+                    }
+
+                    if settingsQuery.isEmpty {
+                        Text("FlowShelf \(Self.appVersion) — a smarter temporary shelf for your Mac.")
+                            .font(.system(size: 10)).foregroundStyle(.tertiary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 6)
+                    } else if !hasSearchResults {
+                        VStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 24, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            Text("No settings found")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("Try a feature name, permission, or shortcut action.")
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 42)
+                    }
+                }
+                .padding(.horizontal, 18)
             }
-            .frame(maxHeight: .infinity)
+            .padding(.bottom, 18)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    // MARK: - Cards
+    // MARK: - Pieces
 
-    private var generalCard: some View {
-        card("General", icon: "gearshape", tint: .gray) {
-            Toggle("Launch FlowShelf at login", isOn: $settings.launchAtLogin)
-                .onChange(of: settings.launchAtLogin) { _, on in LoginItem.setEnabled(on) }
-            Divider().opacity(0.4)
-            HStack {
-                Text("Software updates").font(.system(size: 13))
-                Spacer()
-                Button("Check for Updates…") { UpdaterManager.shared.checkForUpdates() }
-                    .controlSize(.small)
+    private static let searchIndex = [
+        "general launch login startup software updates version welcome onboarding setup tour",
+        "peek dock hover previews thumbnails accessibility screen recording size delay",
+        "window switcher alt option tab shortcut keyboard command control shift modifiers thumbnails list accessibility permission",
+        "window snapping snap shortcuts keyboard command control option shift modifiers halves quarters maximize center accessibility permission",
+        "notch shelf island media now playing audio reactive bars volume brightness charging hud",
+        "screenshots screenshot capture annotate annotation arrows boxes highlight blur text editor",
+        "on device ai apple intelligence summarize clean ask smart search auto title",
+        "clipboard history private mode retention keep items excluded apps bundle password",
+        "floating shelf shake summon cursor mouse wiggle",
+        "shortcuts hotkeys keyboard floating shelf search screenshot ocr dashboard conflicts",
+        "storage items shelf clear all pinned disk",
+        "support coffee donate developer",
+    ]
+
+    private var settingsSearchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+            TextField("Search settings…", text: $settingsQuery)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12.5))
+            if !settingsQuery.isEmpty {
+                Button { settingsQuery = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Clear search")
             }
         }
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
+        .raisedCard(cornerRadius: 10)
+        .padding(.horizontal, 18)
+        .accessibilityLabel("Search settings")
     }
 
-    private var peekCard: some View {
-        card("Peek — Dock previews", icon: "rectangle.on.rectangle", tint: .blue) {
-            Toggle("Show window previews when hovering Dock icons", isOn: $settings.dockPreviewsEnabled)
-                .onChange(of: settings.dockPreviewsEnabled) { _, on in
-                    on ? DockPreviewsCoordinator.enable() : DockObserver.shared.stop()
-                }
-            Text("Needs Accessibility (and Screen Recording for live thumbnails).")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
+    private func matches(_ searchableText: String) -> Bool {
+        let tokens = settingsQuery
+            .split(whereSeparator: { $0.isWhitespace })
+            .map(String.init)
+        return tokens.isEmpty || tokens.allSatisfy {
+            searchableText.localizedCaseInsensitiveContains($0)
+        }
+    }
 
-            Divider().opacity(0.4)
+    private var hasSearchResults: Bool {
+        Self.searchIndex.contains { matches($0) }
+    }
 
-            HStack {
-                Text("Preview size").font(.system(size: 13))
-                Spacer()
-                Picker("", selection: $settings.dockPreviewSize) {
-                    ForEach(DockPreviewSize.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented).labelsHidden().frame(width: 200)
+    /// Slim uppercase section label between emblem-row groups.
+    private func section(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 10, weight: .semibold))
+            .kerning(0.7)
+            .foregroundStyle(.secondary)
+            .padding(.leading, 6).padding(.top, 10).padding(.bottom, 2)
+    }
+
+    @ViewBuilder private var aiRows: some View {
+        if AIService.isSupported {
+            EmblemRow(icon: "sparkles", tint: .purple,
+                      title: "AI actions",
+                      caption: "Summarize · clean up · ask · smart search — Apple Intelligence, fully on your Mac, runs only when you ask") {
+                Toggle("", isOn: $settings.aiEnabled).labelsHidden()
+                    .toggleStyle(.switch).controlSize(.small)
             }
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack {
-                    Text("Hover delay").font(.system(size: 13))
-                    Spacer()
-                    Text(String(format: "%.2fs", settings.dockPreviewHoverDelay))
-                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
-                }
-                Slider(value: $settings.dockPreviewHoverDelay, in: 0.05...0.8)
-            }
-            .disabled(!settings.dockPreviewsEnabled)
-            .opacity(settings.dockPreviewsEnabled ? 1 : 0.5)
-        }
-    }
-
-    private var switcherCard: some View {
-        card("Window switcher — ⌥Tab", icon: "rectangle.stack", tint: .indigo) {
-            Toggle("Hold ⌥ and press Tab to switch windows", isOn: $settings.altTabEnabled)
-                .onChange(of: settings.altTabEnabled) { _, on in
-                    if on {
-                        if !Permissions.hasAccessibility { Permissions.requestAccessibility() }
-                        AltTabController.shared.start()
-                    } else {
-                        AltTabController.shared.stop()
-                    }
-                }
-            Text("⌥Tab to advance · ⌥⇧Tab back · arrows to move · release ⌥ or Return to switch · Esc to cancel. Needs Accessibility.")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Divider().opacity(0.4)
-            HStack {
-                Text("Layout").font(.system(size: 13))
-                Spacer()
-                Picker("", selection: $settings.altTabLayout) {
-                    ForEach(AltTabLayout.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented).labelsHidden().frame(width: 200)
-            }
-            .disabled(!settings.altTabEnabled)
-            .opacity(settings.altTabEnabled ? 1 : 0.5)
-        }
-    }
-
-    private var notchCard: some View {
-        card("Notch shelf", icon: "macbook", tint: .orange) {
-            Toggle("Show a Dynamic-Island shelf in the notch", isOn: $settings.notchEnabled)
-                .onChange(of: settings.notchEnabled) { _, on in
-                    on ? NotchController.shared.start() : NotchController.shared.stop()
-                }
-            Text("Hover the notch (or top-center pill) to expand it; drop files, images, or text to add them to the shelf. On Macs without a notch it shows as a small pill at the top.")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Divider().padding(.vertical, 2)
-
-            Toggle("Show now-playing media in the notch", isOn: $settings.notchMediaEnabled)
-                .disabled(!settings.notchEnabled)
-            Toggle("Audio-reactive bars (shows the macOS recording indicator)", isOn: $settings.audioReactiveBars)
-                .disabled(!settings.notchEnabled || !settings.notchMediaEnabled)
-                .padding(.leading, 18)
-            Text("A live activity (album art + audio bars) when collapsed, and a compact player when open — for any app (Music, Spotify, browsers). Runs fully on-device.")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Toggle("Show volume, brightness & charging HUDs in the notch", isOn: $settings.notchHUDEnabled)
-                .disabled(!settings.notchEnabled)
-                .onChange(of: settings.notchHUDEnabled) { _, on in
-                    on ? SystemHUDMonitor.shared.start() : SystemHUDMonitor.shared.stop()
-                }
-            Text("Replaces macOS's centered overlay with a notch one. Volume & brightness need Input Monitoring permission to see the keys (you'll be asked once); charging works with no permission.")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var snapCard: some View {
-        card("Window snapping", icon: "rectangle.split.2x2", tint: .teal) {
-            Toggle("Snap windows with ⌃⌥ + keys", isOn: $settings.windowSnapEnabled)
-                .onChange(of: settings.windowSnapEnabled) { _, on in
-                    if on {
-                        if !Permissions.hasAccessibility { Permissions.requestAccessibility() }
-                        WindowSnapManager.shared.start()
-                    } else {
-                        WindowSnapManager.shared.stop()
-                    }
-                }
-            Text("Hold ⌃⌥ (Control-Option) and press a key to move the focused window. Needs Accessibility.")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if settings.windowSnapEnabled {
-                Divider().opacity(0.4)
-                VStack(alignment: .leading, spacing: 4) {
-                    snapHint("← / →", "Left / right half")
-                    snapHint("↑ / ↓", "Top / bottom half")
-                    snapHint("U I J K", "Corners (¼ screen)")
-                    snapHint("↩  /  C", "Maximize / center")
-                }
-            }
-        }
-    }
-
-    private func snapHint(_ keys: String, _ label: String) -> some View {
-        HStack {
-            Text("⌃⌥ \(keys)")
-                .font(.system(size: 11, design: .monospaced))
-                .padding(.horizontal, 6).padding(.vertical, 2)
-                .background(RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.08)))
-            Text(label).font(.system(size: 11.5)).foregroundStyle(.secondary)
-            Spacer()
-        }
-    }
-
-    private var aiCard: some View {
-        card("On-device AI", icon: "sparkles", tint: .purple) {
-            if AIService.isSupported {
-                Toggle("Show AI actions (summarize · clean up · ask · smart search)", isOn: $settings.aiEnabled)
-                Text("Runs entirely on your Mac with Apple Intelligence — no internet, no accounts, no cost. Right-click a text item on the shelf, or hit the ✨ button when searching. Runs only when you ask.")
-                    .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Divider().opacity(0.4)
-                Toggle("Auto-title new text items", isOn: $settings.aiAutoTitle)
+            EmblemRow(icon: "character.cursor.ibeam", tint: .purple,
+                      title: "Auto-title new text items",
+                      caption: "Names items as you copy them — off by default to save battery/RAM") {
+                Toggle("", isOn: $settings.aiAutoTitle).labelsHidden()
+                    .toggleStyle(.switch).controlSize(.small)
                     .disabled(!settings.aiEnabled)
-                Text("Names items for you as you copy them. Off by default — this runs the AI on capture, so leave it off to save battery/RAM.")
-                    .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Label("Not available yet", systemImage: "exclamationmark.circle")
-                    .font(.system(size: 13)).foregroundStyle(.orange)
-                Text(AIService.statusMessage)
-                    .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Button("Open Apple Intelligence settings") {
+            }
+        } else {
+            EmblemRow(icon: "sparkles", tint: .orange,
+                      title: "On-device AI not available yet",
+                      caption: AIService.statusMessage) {
+                Button("Open settings") {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preferences.intelligence") {
                         NSWorkspace.shared.open(url)
                     }
@@ -238,52 +379,17 @@ struct SettingsView: View {
         }
     }
 
-    private var screenshotCard: some View {
-        card("Screenshots", icon: "camera.viewfinder", tint: .pink) {
-            Toggle("Open the annotation editor after a screenshot", isOn: $settings.annotateAfterScreenshot)
-            Text("Mark up captures with arrows, boxes, highlight, blur (to hide sensitive info), and text — then copy, save, or add to the shelf. You can also right-click any image on the shelf and choose “Annotate…”.")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private var clipboardCard: some View {
-        card("Clipboard", icon: "doc.on.clipboard", tint: .yellow) {
-            Toggle("Record clipboard history", isOn: $settings.clipboardEnabled)
-            Toggle("Private mode (pause capture)", isOn: $settings.privateMode)
-
-            Divider().opacity(0.4)
-
-            HStack {
-                Text("Keep items for").font(.system(size: 13))
-                Spacer()
-                Picker("", selection: $settings.clipboardRetention) {
-                    ForEach(ClipboardRetention.allCases) { Text($0.label).tag($0) }
-                }
-                .pickerStyle(.segmented).labelsHidden().frame(width: 200)
-                .onChange(of: settings.clipboardRetention) { _, _ in
-                    store.applyRetentionChange()
-                }
-            }
-            if settings.clipboardRetention.isForever {
-                Label {
-                    Text("Permanent keeps everything you copy forever — it can get large and messy over time. Items won’t auto-clear; remove them by hand or switch back to 24 hours.")
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                }
-                .font(.system(size: 11)).foregroundStyle(.orange)
-                .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text("Items clear automatically after 24 hours unless pinned.")
-                    .font(.system(size: 11.5)).foregroundStyle(.secondary)
-            }
-        }
-    }
-
     private var excludedCard: some View {
-        card("Excluded apps", icon: "hand.raised", tint: .mint) {
-            Text("Copies from these apps are never recorded.")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 11) {
+                EmblemChip(icon: "hand.raised.fill", tint: .mint)
+                VStack(alignment: .leading, spacing: 1.5) {
+                    Text("Excluded apps").font(.system(size: 13, weight: .semibold))
+                    Text("Copies from these apps are never recorded")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
             ForEach(settings.excludedBundleIDs, id: \.self) { id in
                 HStack {
                     Text(id).font(.system(size: 11, design: .monospaced))
@@ -292,51 +398,40 @@ struct SettingsView: View {
                         Image(systemName: "minus.circle")
                     }.buttonStyle(.plain).foregroundStyle(.secondary)
                 }
+                .padding(.horizontal, 9).padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.primary.opacity(0.05)))
             }
             HStack {
                 TextField("com.example.app", text: $newExclude)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.plain)
                     .font(.system(size: 11, design: .monospaced))
+                    .padding(.horizontal, 9).padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.primary.opacity(0.06)))
                 Button("Add") {
                     let id = newExclude.trimmingCharacters(in: .whitespaces)
                     guard !id.isEmpty, !settings.excludedBundleIDs.contains(id) else { return }
                     settings.excludedBundleIDs.append(id); newExclude = ""
                 }
+                .controlSize(.small)
             }
         }
-    }
-
-    private var floatingShelfCard: some View {
-        card("Floating shelf", icon: "tray.full", tint: .cyan) {
-            Toggle("Shake the mouse to summon the shelf", isOn: $settings.shakeToSummon)
-                .onChange(of: settings.shakeToSummon) { _, on in
-                    on ? ShakeDetector.shared.start() : ShakeDetector.shared.stop()
-                }
-            Text("Quickly wiggle the pointer left-right to pop the shelf open at the cursor.")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
-        }
-    }
-
-    private var shortcutsCard: some View {
-        card("Shortcuts", icon: "command", tint: .indigo) {
-            ShortcutsEditor()
-        }
-    }
-
-    private var storageCard: some View {
-        card("Storage", icon: "internaldrive", tint: .brown) {
-            HStack {
-                Text("\(store.visibleItems.count) items on shelf").font(.system(size: 13))
-                Spacer()
-                Button("Clear all") { store.clearAll(includingPinned: true) }.controlSize(.small)
-            }
-        }
+        .padding(.horizontal, 13).padding(.vertical, 11)
+        .raisedCard()
     }
 
     private var supportCard: some View {
-        card("Support", icon: "heart", tint: .red) {
-            Text("FlowShelf is free. If it saves you time, you can buy me a coffee ☕️")
-                .font(.system(size: 11.5)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 11) {
+                EmblemChip(icon: "heart.fill", tint: .red)
+                VStack(alignment: .leading, spacing: 1.5) {
+                    Text("Support FlowShelf").font(.system(size: 13, weight: .semibold))
+                    Text("FlowShelf is free — if it saves you time, you can buy me a coffee ☕️")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
             Button {
                 if let url = URL(string: "https://buymeacoffee.com/mahinkadery") {
                     NSWorkspace.shared.open(url)
@@ -355,46 +450,8 @@ struct SettingsView: View {
                 }
             }
             .buttonStyle(.plain).help("buymeacoffee.com/mahinkadery")
-            .padding(.top, 2)
         }
-    }
-
-    // MARK: - Helpers
-
-    private func card<Content: View>(_ title: String, icon: String, tint: Color = .gray,
-                                     @ViewBuilder _ content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 9) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 6.5, style: .continuous)
-                        .fill(LinearGradient(colors: [tint.opacity(0.95), tint.opacity(0.7)],
-                                             startPoint: .top, endPoint: .bottom))
-                    Image(systemName: icon)
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 24, height: 24)
-                .shadow(color: tint.opacity(0.35), radius: 2, y: 1)
-                Text(title).font(.system(size: 13.5, weight: .semibold))
-            }
-            content()
-        }
-        .padding(.horizontal, 16).padding(.vertical, 15)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.045)))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .strokeBorder(LinearGradient(colors: [.white.opacity(0.10), .white.opacity(0.02)],
-                                         startPoint: .top, endPoint: .bottom), lineWidth: 0.8))
-    }
-
-    private func shortcutRow(_ label: String, _ keys: String) -> some View {
-        HStack {
-            Text(label).font(.system(size: 13))
-            Spacer()
-            Text(keys)
-                .font(.system(size: 11, design: .monospaced))
-                .padding(.horizontal, 6).padding(.vertical, 2)
-                .background(RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.08)))
-        }
+        .padding(.horizontal, 13).padding(.vertical, 11)
+        .raisedCard()
     }
 }
