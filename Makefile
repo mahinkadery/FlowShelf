@@ -205,7 +205,7 @@ release-check:
 # Publish a Developer-ID-signed, notarized DMG to GitHub Releases.
 # Run the clean-tree check before building so the artifact matches its source tag.
 release: release-check
-	@$(MAKE) dist
+	@/usr/bin/make dist
 	@sh scripts/release.sh
 
 # Bump the app version. Usage: make set-version VER=1.1.0 [BUILD=2]
