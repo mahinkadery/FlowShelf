@@ -73,13 +73,12 @@ final class NotchController {
             if case .lowBattery = hud { seconds = 3.5 }
             for u in self?.units ?? [] { u.model.showHUD(hud, for: seconds) }
         }
-        BatteryMonitor.shared.start()
         // Volume / brightness keys → notch HUD (and suppress Apple's overlay).
         SystemHUDMonitor.shared.onEvent = { [weak self] hud in
             guard AppSettings.shared.notchHUDEnabled else { return }
             for u in self?.units ?? [] { u.model.showHUD(hud, for: 1.3) }
         }
-        SystemHUDMonitor.shared.start()
+        setHUDEnabled(AppSettings.shared.notchHUDEnabled)
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main) { [weak self] _ in
@@ -88,6 +87,11 @@ final class NotchController {
     }
 
     func stop() {
+        guard running else {
+            BatteryMonitor.shared.stop()
+            SystemHUDMonitor.shared.stop()
+            return
+        }
         running = false
         mediaCancellable = nil
         BatteryMonitor.shared.stop()
@@ -97,6 +101,19 @@ final class NotchController {
         screenObserver = nil
         stopMouseMonitor()
         teardown()
+    }
+
+    /// HUD monitors are active only while both the Notch and HUD preference are
+    /// enabled. In particular, this avoids requesting Input Monitoring merely
+    /// because the shelf itself was enabled.
+    func setHUDEnabled(_ enabled: Bool) {
+        guard running, enabled else {
+            BatteryMonitor.shared.stop()
+            SystemHUDMonitor.shared.stop()
+            return
+        }
+        BatteryMonitor.shared.start()
+        SystemHUDMonitor.shared.start()
     }
 
     // MARK: - Global drag reactions

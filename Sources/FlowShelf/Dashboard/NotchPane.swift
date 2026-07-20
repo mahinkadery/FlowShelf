@@ -85,9 +85,6 @@ struct NotchPane: View {
                               caption: "Tap the notch to open; drop files, images or text to shelve them") {
                         Toggle("", isOn: $settings.notchEnabled).labelsHidden()
                             .toggleStyle(.switch).controlSize(.small)
-                            .onChange(of: settings.notchEnabled) { _, on in
-                                on ? NotchController.shared.start() : NotchController.shared.stop()
-                            }
                     }
 
                     EmblemRow(icon: "music.note", tint: .pink,
@@ -112,9 +109,6 @@ struct NotchPane: View {
                         Toggle("", isOn: $settings.notchHUDEnabled).labelsHidden()
                             .toggleStyle(.switch).controlSize(.small)
                             .disabled(!settings.notchEnabled)
-                            .onChange(of: settings.notchHUDEnabled) { _, on in
-                                on ? SystemHUDMonitor.shared.start() : SystemHUDMonitor.shared.stop()
-                            }
                     }
                 }
                 .padding(.horizontal, 18)

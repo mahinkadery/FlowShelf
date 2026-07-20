@@ -39,6 +39,28 @@ enum ClipboardRetention: String, CaseIterable, Identifiable {
     var isForever: Bool { self == .forever }
 }
 
+/// The single user-facing state for clipboard capture. Private mode is a
+/// temporary pause, while disabled turns capture off entirely.
+enum ClipboardCaptureState: String, CaseIterable, Identifiable {
+    case active, paused, disabled
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .active: return "Active"
+        case .paused: return "Paused by Private Mode"
+        case .disabled: return "Disabled"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .active: return "checkmark.circle.fill"
+        case .paused: return "eye.slash.fill"
+        case .disabled: return "pause.circle.fill"
+        }
+    }
+}
+
 /// User-facing preferences + the privacy controls for clipboard capture.
 @MainActor
 final class AppSettings: ObservableObject {
@@ -93,28 +115,33 @@ final class AppSettings: ObservableObject {
     }
     /// Dynamic-Island-style shelf living in the notch / top-center pill.
     @Published var notchEnabled: Bool {
-        didSet { defaults.set(notchEnabled, forKey: "notchEnabled") }
+        didSet {
+            defaults.set(notchEnabled, forKey: "notchEnabled")
+            NotchRuntimeCoordinator.shared.apply()
+        }
     }
     /// Audio-reactive notch bars (taps system audio; macOS shows its recording
     /// indicator while active — this switch exists for people who mind that).
     @Published var audioReactiveBars: Bool {
         didSet {
             defaults.set(audioReactiveBars, forKey: "audioReactiveBars")
-            if !audioReactiveBars { AudioSpectrum.shared.setActive(false) }
-            else if MediaManager.shared.now.isPlaying { AudioSpectrum.shared.setActive(true) }
+            NotchRuntimeCoordinator.shared.apply()
         }
     }
     /// Show now-playing media (live activity + compact player) in the notch.
     @Published var notchMediaEnabled: Bool {
         didSet {
             defaults.set(notchMediaEnabled, forKey: "notchMediaEnabled")
-            if notchMediaEnabled { MediaManager.shared.start() } else { MediaManager.shared.stop() }
+            NotchRuntimeCoordinator.shared.apply()
         }
     }
     /// Show transient system HUDs (charging / low battery / volume / brightness)
     /// in the notch.
     @Published var notchHUDEnabled: Bool {
-        didSet { defaults.set(notchHUDEnabled, forKey: "notchHUDEnabled") }
+        didSet {
+            defaults.set(notchHUDEnabled, forKey: "notchHUDEnabled")
+            NotchRuntimeCoordinator.shared.apply()
+        }
     }
     /// Open the annotation editor after a region screenshot.
     @Published var annotateAfterScreenshot: Bool {
@@ -149,6 +176,26 @@ final class AppSettings: ObservableObject {
 
     /// One-shot: skip recording the very next copy.
     var ignoreNextCopy = false
+
+    var clipboardCaptureState: ClipboardCaptureState {
+        get {
+            if !clipboardEnabled { return .disabled }
+            return privateMode ? .paused : .active
+        }
+        set {
+            switch newValue {
+            case .active:
+                clipboardEnabled = true
+                privateMode = false
+            case .paused:
+                clipboardEnabled = true
+                privateMode = true
+            case .disabled:
+                clipboardEnabled = false
+                privateMode = false
+            }
+        }
+    }
 
     private init() {
         clipboardEnabled = defaults.object(forKey: "clipboardEnabled") as? Bool ?? true

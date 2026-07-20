@@ -523,12 +523,14 @@ struct AnnotationEditorView: View {
     }
 
     private func addToShelf() {
-        guard let img = render(),
-              let (rel, thumb) = ShelfStore.shared.storeImage(img, prefix: "annot") else { return }
-        ShelfStore.shared.add(ShelfItem(kind: .screenshot, title: "Annotated",
-            preview: "Annotated \(Date().shortTime)", sourceApp: "Annotate",
-            imageRelPath: rel, thumbRelPath: thumb))
-        onClose()
+        guard let img = render() else { return }
+        ShelfStore.shared.storeImage(img, prefix: "annot") { result in
+            guard let (rel, thumb) = result else { return }
+            ShelfStore.shared.add(ShelfItem(kind: .screenshot, title: "Annotated",
+                preview: "Annotated \(Date().shortTime)", sourceApp: "Annotate",
+                imageRelPath: rel, thumbRelPath: thumb))
+            onClose()
+        }
     }
 
     private func saveToFile() {

@@ -4,6 +4,7 @@ FlowShelf.app/
 *.dmg
 Resources/AppIcon.icns
 dist/
+backups/
 *.xcuserstate
 Resources/dmg-background.jpg
 Resources/dmg-background.png

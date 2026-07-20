@@ -53,7 +53,7 @@ final class OnboardingController: NSObject, NSWindowDelegate {
         }
 
         let win = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 920, height: 610),
+            contentRect: NSRect(x: 0, y: 0, width: 1000, height: 660),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -66,7 +66,7 @@ final class OnboardingController: NSObject, NSWindowDelegate {
         win.isOpaque = false
         win.backgroundColor = .clear
         win.contentView = rootView
-        win.minSize = NSSize(width: 820, height: 560)
+        win.minSize = NSSize(width: 900, height: 600)
         win.isReleasedWhenClosed = false
         win.delegate = self
         win.center()
@@ -74,10 +74,44 @@ final class OnboardingController: NSObject, NSWindowDelegate {
     }
 
     private func finish(destination: OnboardingDestination) {
+        guard !isFinishing else { return }
         isFinishing = true
         UserDefaults.standard.set(true, forKey: completionKey)
-        window?.orderOut(nil)
+        guard let closingWindow = window else {
+            complete(destination: destination)
+            isFinishing = false
+            return
+        }
 
+        window = nil
+        closingWindow.delegate = nil
+        closingWindow.orderOut(nil)
+
+        DispatchQueue.main.async { [weak self] in
+            closingWindow.contentView = nil
+            closingWindow.close()
+            self?.complete(destination: destination)
+            self?.isFinishing = false
+        }
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard !isFinishing else { return }
+        if let closingWindow = notification.object as? NSWindow,
+           closingWindow === window {
+            window = nil
+            closingWindow.delegate = nil
+            DispatchQueue.main.async {
+                closingWindow.contentView = nil
+            }
+        }
+        UserDefaults.standard.set(true, forKey: completionKey)
+        if !DashboardWindowController.shared.isVisible {
+            NSApp.setActivationPolicy(.accessory)
+        }
+    }
+
+    private func complete(destination: OnboardingDestination) {
         switch destination {
         case .none:
             if !DashboardWindowController.shared.isVisible {
@@ -87,15 +121,6 @@ final class OnboardingController: NSObject, NSWindowDelegate {
             DashboardWindowController.shared.show(
                 section: destination == .permissions ? .permissions : .shelf
             )
-        }
-        isFinishing = false
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        guard !isFinishing else { return }
-        UserDefaults.standard.set(true, forKey: completionKey)
-        if !DashboardWindowController.shared.isVisible {
-            NSApp.setActivationPolicy(.accessory)
         }
     }
 }

@@ -417,18 +417,23 @@ private final class GlassStack: NSView {
     private var output: StreamOutput?
     private let lock = NSLock()
     private var band: CVPixelBuffer?
+    private var bandGeneration: UInt64 = 0
+    private var acceptedGeneration: UInt64 = 0
     private var displayLink: CADisplayLink?
     private let bandHeightPoints: CGFloat = 240
     private let maxCaptureWidthPoints: CGFloat = 1200
     private var captureRectPoints = CGRect.zero
     private var streaming = false
     private var startingStream = false
+    private var captureGeneration: UInt64 = 0
+    private var stopCaptureWorkItem: DispatchWorkItem?
     private var capturePermissionDenied = false
     private var nextCaptureAttempt: CFTimeInterval = 0
     private var lastCaptureErrorLog: CFTimeInterval = 0
-    /// Only capture/render once the card is tall enough to actually reveal glass —
-    /// below this it is collapsed/peeking and fully covered by the black card.
-    private let activeHeight: CGFloat = 90
+    /// Begin warming the lens as soon as the hover-peek appears, before the open
+    /// card's transparent lower half becomes visible. The physical notch remains
+    /// below this threshold, so the capture still sleeps while truly collapsed.
+    private let activeHeight: CGFloat = 40
 
     // Core Image displacement lens. Rendering to a CGImage (not a live CAMetal
     // layer) means this view composites BELOW the SwiftUI black card, so the
@@ -436,6 +441,8 @@ private final class GlassStack: NSView {
     // but now bending the real desktop instead of frosting it.
     private let ciContext = CIContext(options: [.cacheIntermediates: false])
     private let kernel: CIKernel?
+    private let renderQueue = DispatchQueue(label: "app.flowshelf.notch-lens", qos: .userInteractive)
+    private var renderInFlight = false
     private let clipMask = CAShapeLayer()
     private let bottomRadius: CGFloat = 26
     private var lastSize: CGSize = .zero
@@ -455,13 +462,10 @@ private final class GlassStack: NSView {
 
     override func layout() {
         super.layout()
-        // Warm the capture only while the card is open; stop (but keep the last
-        // frame) once it collapses, so we neither burn energy capturing behind a
-        // covered view nor cold-start on the next open. The render loop is paused
-        // outright when collapsed so there are no idle 60fps wakeups all day. The
-        // stale last frame is prevented from peeking through the notch's concave
-        // corners by clipping to the exact notch silhouette (`clipMask`), so no
-        // separate hide toggle is needed (that toggle popped mid-animation).
+        // Capture only while the card is open, with a short shutdown grace period
+        // so a quick close/reopen does not cold-start ScreenCaptureKit. The rendered
+        // frame is always cleared while collapsed; retaining it caused the previous
+        // desktop background to flash briefly on the next open.
         let active = window != nil && bounds.height >= activeHeight
         if bounds.size != lastSize {
             lastSize = bounds.size
@@ -471,7 +475,14 @@ private final class GlassStack: NSView {
             CATransaction.commit()
         }
         displayLink?.isPaused = !active
-        if active { startCapture() } else { stopCapture() }
+        if active {
+            stopCaptureWorkItem?.cancel()
+            stopCaptureWorkItem = nil
+            startCapture()
+        } else {
+            clearRenderedFrame()
+            scheduleCaptureStop()
+        }
     }
 
     /// The FULL Dynamic-Island silhouette — concave top corners + rounded bottom —
@@ -515,8 +526,8 @@ private final class GlassStack: NSView {
 
     func teardown() {
         displayLink?.invalidate(); displayLink = nil
+        stopCaptureWorkItem?.cancel(); stopCaptureWorkItem = nil
         stopCapture()
-        lock.lock(); band = nil; lock.unlock()
     }
 
     // MARK: Capture
@@ -526,11 +537,19 @@ private final class GlassStack: NSView {
         guard !streaming, !startingStream, !capturePermissionDenied,
               now >= nextCaptureAttempt,
               let screen = window?.screen ?? NSScreen.main else { return }
+        captureGeneration &+= 1
+        let generation = captureGeneration
         startingStream = true
-        if !CGPreflightScreenCaptureAccess(), !CGRequestScreenCaptureAccess() {
+        lock.lock()
+        acceptedGeneration = generation
+        bandGeneration = 0
+        band = nil
+        lock.unlock()
+        clearRenderedFrame()
+        if !CGPreflightScreenCaptureAccess() {
             capturePermissionDenied = true
             startingStream = false
-            NSLog("Notch glass: Screen Recording permission denied; live lens disabled until FlowShelf restarts")
+            NSLog("Notch glass: Screen Recording unavailable; live lens disabled without prompting")
             return
         }
         let displayID = (screen.deviceDescription[
@@ -563,23 +582,33 @@ private final class GlassStack: NSView {
                 cfg.minimumFrameInterval = CMTime(value: 1, timescale: 30)   // 30fps is plenty
                 cfg.scalesToFit = false
 
-                let out = StreamOutput { [weak self] pb in self?.ingest(pb) }
+                let out = StreamOutput { [weak self] pb in
+                    self?.ingest(pb, generation: generation)
+                }
                 let stream = SCStream(filter: filter, configuration: cfg, delegate: out)
                 try stream.addStreamOutput(out, type: .screen,
                                            sampleHandlerQueue: DispatchQueue(label: "flowshelf.notch.capture"))
                 try await stream.startCapture()
                 await MainActor.run {
+                    guard self.captureGeneration == generation else {
+                        stream.stopCapture { _ in }
+                        return
+                    }
                     self.startingStream = false
                     self.captureRectPoints = band
                     // Bail if we were asked to stop while starting up.
                     guard self.window != nil, self.bounds.height >= self.activeHeight else {
-                        stream.stopCapture { _ in }; return
+                        self.stopCapture()
+                        stream.stopCapture { _ in }
+                        return
                     }
                     self.stream = stream; self.output = out; self.streaming = true
                 }
             } catch {
                 await MainActor.run {
+                    guard self.captureGeneration == generation else { return }
                     self.startingStream = false
+                    self.clearBufferedFrame()
                     let now = CACurrentMediaTime()
                     self.nextCaptureAttempt = now + 30
                     if now - self.lastCaptureErrorLog >= 30 {
@@ -591,20 +620,55 @@ private final class GlassStack: NSView {
         }
     }
 
-    /// Stop the stream but keep the last frame, so re-opening shows the lens
-    /// instantly (very briefly stale) instead of flickering through an empty view.
-    private func stopCapture() {
-        guard streaming else { return }
-        streaming = false
-        stream?.stopCapture { _ in }
-        stream = nil; output = nil
+    private func scheduleCaptureStop() {
+        guard stopCaptureWorkItem == nil, streaming || startingStream else {
+            if !streaming && !startingStream { clearBufferedFrame() }
+            return
+        }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.stopCaptureWorkItem = nil
+            guard self.window == nil || self.bounds.height < self.activeHeight else { return }
+            self.stopCapture()
+        }
+        stopCaptureWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45, execute: work)
     }
 
-    private func ingest(_ pb: CVPixelBuffer) {
+    private func stopCapture() {
+        captureGeneration &+= 1
+        startingStream = false
+        streaming = false
+        let currentStream = stream
+        stream = nil; output = nil
+        clearBufferedFrame()
+        clearRenderedFrame()
+        currentStream?.stopCapture { _ in }
+    }
+
+    private func clearBufferedFrame() {
+        lock.lock()
+        acceptedGeneration = 0
+        bandGeneration = 0
+        band = nil
+        lock.unlock()
+    }
+
+    private func clearRenderedFrame() {
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        layer?.contents = nil
+        CATransaction.commit()
+    }
+
+    private func ingest(_ pb: CVPixelBuffer, generation: UInt64) {
         // Just retain the frame. Converting the WHOLE band to a CGImage here
         // (as this used to) read back ~35MB from the GPU 30×/s only for tick()
         // to crop out a sliver — that churn was the notch's main energy cost.
-        lock.lock(); band = pb; lock.unlock()
+        lock.lock()
+        guard acceptedGeneration == generation else { lock.unlock(); return }
+        band = pb
+        bandGeneration = generation
+        lock.unlock()
     }
 
     /// Crop the captured desktop to what sits behind this view, run it through the
@@ -612,15 +676,17 @@ private final class GlassStack: NSView {
     /// desktop is genuinely bent at the bottom edge.
     @objc private func tick() {
         guard let window, bounds.width > 2, bounds.height >= activeHeight else { return }
-        // Skip rendering while the card is actively springing (resized in the last
-        // ~60ms) — the per-frame Core Image work on the main thread is what made
-        // the open/close feel laggy; the lens settles in the moment motion stops.
+        // Rendering runs off-main and drops overlapping frames, so keep the lens
+        // attached during the spring instead of making it appear after the card
+        // settles. A lower in-motion rate protects the GPU while resizing.
         let now = CACurrentMediaTime()
-        if mode == .legacyLens, now - lastResize < 0.06 { return }
-        if now - lastRender < 1.0/30.0 { return }        // 30fps is plenty
+        let renderInterval = now - lastResize < 0.08 ? 1.0/20.0 : 1.0/30.0
+        if now - lastRender < renderInterval { return }
+        guard !renderInFlight else { return }             // drop, never queue frames
         lastRender = now
-        lock.lock(); let b = band; lock.unlock()
-        guard let b, let screen = window.screen ?? NSScreen.main else { return }
+        lock.lock(); let b = band; let generation = bandGeneration; lock.unlock()
+        guard let b, generation == captureGeneration,
+              let screen = window.screen ?? NSScreen.main else { return }
 
         let s = window.backingScaleFactor
         let scr = window.convertToScreen(convert(bounds, to: nil))   // AppKit, bottom-left
@@ -636,53 +702,83 @@ private final class GlassStack: NSView {
         guard cw > 1, ch > 1, cw <= bw, ch <= bh else { return }
         cx = max(0, min(cx, bw - cw)); cy = max(0, min(cy, bh - ch))
 
-        // Crop in Core Image space BEFORE any conversion, so only the card-sized
-        // sliver is ever rendered (the full band stays on the GPU). CI is y-up,
-        // our `cy` is measured from the display top — flip it.
         let ciY = bh - cy - ch
-        let src = CIImage(cvPixelBuffer: b)
-            .cropped(to: CGRect(x: cx, y: ciY, width: cw, height: ch))
-            .transformed(by: CGAffineTransform(translationX: -cx, y: -ciY))
-            // clampedToExtent so the displacement never samples past the crop edge
-            // (that produced the harsh corner fringe and the horizontal streak).
-            .clampedToExtent()
         let extent = CGRect(x: 0, y: 0, width: cw, height: ch)
-        let output: CIImage
-        switch mode {
-        case .liquidLens:
-            let w = Float(cw), h = Float(ch)
-            let radius = Float(bottomRadius * s)
-            let edge = Float(min(ch, 44 * s))
-            let strength = Float(18 * s)
-            let margin = CGFloat(strength + 2)
-            guard let kernel,
-                  let refracted = kernel.apply(
-                    extent: extent,
-                    roiCallback: { _, rect in rect.insetBy(dx: -margin, dy: -margin) },
-                    arguments: [src, w, h, radius, edge, strength, Float(0)]) else { return }
-            output = refracted
-        case .legacyLens:
-            let w = Float(cw), h = Float(ch)
-            let radius = Float(bottomRadius * s)
-            let edge = Float(min(ch, 80 * s))
-            let strength = Float(15 * s)
-            let chroma = Float(0.9 * s)
-            let margin = CGFloat(strength + chroma + 2)
-            guard let kernel,
-                  let refracted = kernel.apply(
-                    extent: extent,
-                    roiCallback: { _, rect in rect.insetBy(dx: -margin, dy: -margin) },
-                    arguments: [src, w, h, radius, edge, strength, chroma]) else { return }
-            output = refracted
+        let crop = CGRect(x: cx, y: ciY, width: cw, height: ch)
+        let mode = mode
+        let radius = bottomRadius
+        let kernel = kernel
+        let context = ciContext
+        renderInFlight = true
+
+        renderQueue.async { [weak self] in
+            let image = Self.render(
+                pixelBuffer: b,
+                crop: crop,
+                extent: extent,
+                scale: s,
+                bottomRadius: radius,
+                mode: mode,
+                kernel: kernel,
+                context: context
+            )
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.renderInFlight = false
+                guard self.window != nil,
+                      self.bounds.height >= self.activeHeight,
+                      self.captureGeneration == generation,
+                      let image else { return }
+                CATransaction.begin(); CATransaction.setDisableActions(true)
+                self.layer?.contents = image
+                self.layer?.contentsScale = s
+                CATransaction.commit()
+            }
         }
-        guard let cg = ciContext.createCGImage(output, from: extent) else { return }
-        CATransaction.begin(); CATransaction.setDisableActions(true)
-        layer?.contents = cg
-        layer?.contentsScale = s
-        CATransaction.commit()
     }
 
     // MARK: Lens kernel
+
+    private static func render(pixelBuffer: CVPixelBuffer,
+                               crop: CGRect,
+                               extent: CGRect,
+                               scale: CGFloat,
+                               bottomRadius: CGFloat,
+                               mode: GlassRenderMode,
+                               kernel: CIKernel?,
+                               context: CIContext) -> CGImage? {
+        // Crop in Core Image space before conversion, so only the card-sized
+        // sliver is rendered. Clamping prevents displacement edge streaks.
+        let source = CIImage(cvPixelBuffer: pixelBuffer)
+            .cropped(to: crop)
+            .transformed(by: CGAffineTransform(translationX: -crop.minX, y: -crop.minY))
+            .clampedToExtent()
+
+        let width = Float(extent.width)
+        let height = Float(extent.height)
+        let radius = Float(bottomRadius * scale)
+        let edge: Float
+        let strength: Float
+        let chroma: Float
+        switch mode {
+        case .liquidLens:
+            edge = Float(min(extent.height, 44 * scale))
+            strength = Float(18 * scale)
+            chroma = 0
+        case .legacyLens:
+            edge = Float(min(extent.height, 80 * scale))
+            strength = Float(15 * scale)
+            chroma = Float(0.9 * scale)
+        }
+        let margin = CGFloat(strength + chroma + 2)
+        guard let kernel,
+              let refracted = kernel.apply(
+                extent: extent,
+                roiCallback: { _, rect in rect.insetBy(dx: -margin, dy: -margin) },
+                arguments: [source, width, height, radius, edge, strength, chroma]
+              ) else { return nil }
+        return context.createCGImage(refracted, from: extent)
+    }
 
     /// Core Image general kernel: pulls the sample coordinate inward along the
     /// notch's edge field, strongest right at the rim → straight lines behind

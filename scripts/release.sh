@@ -12,8 +12,10 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resourc
 TAG="v$VERSION"
 VDMG="dist/FlowShelf-$VERSION.dmg"
 STABLE="dist/FlowShelf.dmg"          # constant name → permanent "latest" URL
+RELEASE_NOTES="RELEASE_NOTES.md"
 
 [ -f "$VDMG" ] || { echo "Build it first:  make dmg"; exit 1; }
+[ -f "$RELEASE_NOTES" ] || { echo "Missing $RELEASE_NOTES"; exit 1; }
 command -v gh >/dev/null || { echo "Install GitHub CLI: https://cli.github.com"; exit 1; }
 REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null)" \
   || { echo "Create & push the GitHub repo first (e.g. gh repo create)"; exit 1; }
@@ -25,19 +27,23 @@ cp "$VDMG" "$STABLE"
 
 # 1) Generate a SIGNED appcast whose enclosure points at the permanent latest URL.
 TMP="$(mktemp -d)"; cp "$STABLE" "$TMP/"
-"$GEN" "$TMP" --download-url-prefix "https://github.com/$REPO/releases/latest/download/"
+cp "$RELEASE_NOTES" "$TMP/FlowShelf.md"
+"$GEN" "$TMP" --embed-release-notes \
+  --download-url-prefix "https://github.com/$REPO/releases/latest/download/"
 cp "$TMP/appcast.xml" appcast.xml
 rm -rf "$TMP"
 
 # 2) Publish the appcast on the main branch (SUFeedURL serves it raw).
 git add appcast.xml
-git commit -q -m "Update appcast for $VERSION" 2>/dev/null || true
-git push origin HEAD 2>/dev/null || true
+if ! git diff --cached --quiet; then
+  git commit -m "Update appcast for $VERSION"
+fi
+git push origin HEAD
 
 # 3) Upload the DMGs to a GitHub Release (notes = changelog + SHA-256 checksums).
 SHA_V="$(shasum -a 256 "$VDMG" | awk '{print $1}')"
 NOTES="$(mktemp)"
-cat CHANGELOG.md > "$NOTES"
+cat "$RELEASE_NOTES" > "$NOTES"
 {
   echo
   echo "---"
@@ -56,8 +62,17 @@ if gh release view "$TAG" >/dev/null 2>&1; then
   gh release edit "$TAG" --notes-file "$NOTES"
   echo "Updated release $TAG"
 else
-  git tag "$TAG" 2>/dev/null || true
-  git push origin "$TAG" 2>/dev/null || true
+  if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+    TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
+    HEAD_COMMIT="$(git rev-parse HEAD)"
+    [ "$TAG_COMMIT" = "$HEAD_COMMIT" ] || {
+      echo "Release blocked: existing $TAG points to $TAG_COMMIT, not $HEAD_COMMIT."
+      exit 1
+    }
+  else
+    git tag "$TAG"
+  fi
+  git push origin "$TAG"
   gh release create "$TAG" "$STABLE" "$VDMG" --title "FlowShelf $VERSION" --notes-file "$NOTES"
   echo "Created release $TAG"
 fi

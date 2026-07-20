@@ -32,7 +32,9 @@ final class ShakeDetector {
         reversals.removeAll()
         monitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.mouseMoved, .leftMouseDragged]) { [weak self] _ in
-            Task { @MainActor in self?.handleMove() }
+            // Global mouse monitors are delivered on the main thread. Handle the
+            // sample synchronously instead of allocating a Task for every event.
+            MainActor.assumeIsolated { self?.handleMove() }
         }
     }
 

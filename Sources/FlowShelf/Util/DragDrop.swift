@@ -89,7 +89,8 @@ enum DragDrop {
                 _ = provider.loadObject(ofClass: NSImage.self) { obj, _ in
                     guard let img = obj as? NSImage else { return }
                     Task { @MainActor in
-                        if let (rel, thumb) = store.storeImage(img, prefix: "drop") {
+                        store.storeImage(img, prefix: "drop") { result in
+                            guard let (rel, thumb) = result else { return }
                             store.add(ShelfItem(kind: .image, title: "Image",
                                                 preview: "Dropped image", sourceApp: "Drop",
                                                 imageRelPath: rel, thumbRelPath: thumb))
@@ -140,7 +141,8 @@ enum DragDrop {
         }
         if let images = pasteboard.readObjects(forClasses: [NSImage.self], options: nil) as? [NSImage],
            let img = images.first {
-            if let (rel, thumb) = store.storeImage(img, prefix: "drop") {
+            store.storeImage(img, prefix: "drop") { result in
+                guard let (rel, thumb) = result else { return }
                 store.add(ShelfItem(kind: .image, title: "Image", preview: "Dropped image",
                                     sourceApp: "Drop", imageRelPath: rel, thumbRelPath: thumb))
             }

@@ -4,6 +4,37 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.6.1] — 2026-07-20 (build 64)
+
+### Improved
+- **A clearer, easier Settings screen** — settings are now grouped into General,
+  Shelf, Shortcuts, Capture & AI, Privacy & Permissions, and About.
+- **Simpler menu-bar controls** — screenshot actions now live in one Capture
+  menu, and clipboard capture has one clear status: Active, Paused by Private
+  Mode, or Disabled.
+- **More useful Permission Health** — it now separates access required by the
+  features you enabled from optional enhancements.
+- **Smoother everyday performance** — screenshot encoding, image writes, and
+  shelf-history saving now do less work on the main interface thread.
+
+### Fixed
+- The Notch no longer briefly shows an old desktop frame when reopened, and its
+  transparent lens appears sooner during the opening animation.
+- Music bars now move independently with bass, midrange, vocal presence, and
+  treble instead of every bar bouncing together.
+- Turning Notch features on or off now reliably starts and stops media, audio,
+  battery, and system-HUD services. Input Monitoring is no longer requested when
+  Notch HUDs are disabled.
+- The audio visualizer now stops when playback ends completely, avoiding needless
+  background capture.
+- FlowShelf no longer repeatedly asks for Screen Recording after access has
+  already been handled during the current launch.
+- The welcome tour now closes cleanly, stops its hidden animations, and no longer
+  crashes when **Open FlowShelf** is clicked.
+- Mouse-shake detection no longer creates background work for every pointer move.
+- **Clear Shelf** now asks first, offers a safer unpinned-only choice, and clearly
+  warns before deleting pinned items and stored images.
+
 ## [1.6.0] — 2026-07-18 (build 63)
 
 ### Added

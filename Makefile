@@ -14,7 +14,7 @@ INSTALL_DIR := /Applications
 # Create it once with `make cert-help`. Falls back to ad-hoc if it's missing.
 CODESIGN_ID ?= FlowShelf Self-Signed
 
-.PHONY: all build bundle embed-sparkle icon sign run clean install developer-id-bundle dist release notary-setup dmg set-version cert-help
+.PHONY: all build bundle embed-sparkle icon sign run clean install developer-id-bundle dist release release-check notary-setup dmg set-version cert-help
 
 all: bundle
 
@@ -91,11 +91,21 @@ cert-help:
 run: bundle
 	@open $(BUNDLE)
 
-# Copy into /Applications so the TCC identity + path stay stable.
-install: bundle
+# Copy a Developer ID build into /Applications so the TCC designated requirement
+# is identical to release builds. Never replace it with the legacy self-signed
+# bundle: doing so makes macOS treat FlowShelf as a different app and invalidates
+# Screen Recording / Accessibility grants.
+install: developer-id-bundle
+	@osascript -e 'tell application id "com.flowshelf.app" to quit' >/dev/null 2>&1 || true
+	@for i in 1 2 3 4 5; do \
+		pgrep -x "$(APP)" >/dev/null || break; \
+		sleep 0.2; \
+	done
+	@if pgrep -x "$(APP)" >/dev/null; then pkill -x "$(APP)"; sleep 0.3; fi
 	@rm -rf "$(INSTALL_DIR)/$(BUNDLE)"
-	@cp -R $(BUNDLE) "$(INSTALL_DIR)/"
-	@echo "Installed to $(INSTALL_DIR)/$(BUNDLE)"
+	@ditto $(BUNDLE) "$(INSTALL_DIR)/$(BUNDLE)"
+	@codesign --verify --deep --strict --verbose=2 "$(INSTALL_DIR)/$(BUNDLE)"
+	@echo "Installed Developer ID build to $(INSTALL_DIR)/$(BUNDLE)"
 	@open "$(INSTALL_DIR)/$(BUNDLE)"
 
 clean:
@@ -122,6 +132,14 @@ developer-id-bundle: build icon
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
 	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
 	@if [ -f Resources/MenuBarIcon.png ]; then cp Resources/MenuBarIcon.png $(CONTENTS)/Resources/MenuBarIcon.png; fi
+	@test -d Vendor/mediaremote-adapter/MediaRemoteAdapter.framework \
+		|| { echo "MediaRemoteAdapter.framework missing — refusing incomplete Developer ID build"; exit 1; }
+	@test -f Vendor/mediaremote-adapter/mediaremote-adapter.pl \
+		|| { echo "mediaremote-adapter.pl missing — refusing incomplete Developer ID build"; exit 1; }
+	@mkdir -p $(CONTENTS)/Frameworks
+	@ditto Vendor/mediaremote-adapter/MediaRemoteAdapter.framework $(CONTENTS)/Frameworks/MediaRemoteAdapter.framework
+	@cp Vendor/mediaremote-adapter/mediaremote-adapter.pl $(CONTENTS)/Resources/mediaremote-adapter.pl
+	@echo "Bundled mediaremote-adapter (now-playing)"
 	@SPK=$$(find .build/artifacts -name Sparkle.framework -type d -path '*macos*' | head -1); \
 	if [ -n "$$SPK" ]; then \
 		mkdir -p $(CONTENTS)/Frameworks; \
@@ -130,6 +148,8 @@ developer-id-bundle: build icon
 		echo "Embedded Sparkle.framework"; \
 	else echo "Sparkle.framework not found (run swift build first)"; exit 1; fi
 	@echo "Signing with hardened runtime (required for notarization)…"
+	@codesign --force --options runtime --timestamp \
+		--sign "$(DEVID)" "$(CONTENTS)/Frameworks/MediaRemoteAdapter.framework"
 	@SPK="$(CONTENTS)/Frameworks/Sparkle.framework/Versions/B"; \
 	if [ -d "$$SPK" ]; then \
 		codesign --force --options runtime --timestamp --sign "$(DEVID)" "$$SPK/XPCServices/Installer.xpc"; \
@@ -172,9 +192,20 @@ dmg: bundle
 	@sh scripts/build-dmg.sh $(BUNDLE) "$(DMG)"
 	@echo "Wrote $(DMG)  (stable-signed; first launch via System Settings ▸ Open Anyway)"
 
+# Publishing must start from committed source. Otherwise the binary can contain
+# working-tree changes that are absent from the Git tag users see on GitHub.
+release-check:
+	@if [ -n "$$(git status --porcelain --untracked-files=all)" ]; then \
+		echo "Release blocked: commit or remove every working-tree change first."; \
+		git status --short; \
+		exit 1; \
+	fi
+	@git rev-parse --verify HEAD >/dev/null
+
 # Publish a Developer-ID-signed, notarized DMG to GitHub Releases.
-# The non-notarized `dmg` target remains available for local/test builds.
-release: dist
+# Run the clean-tree check before building so the artifact matches its source tag.
+release: release-check
+	@$(MAKE) dist
 	@sh scripts/release.sh
 
 # Bump the app version. Usage: make set-version VER=1.1.0 [BUILD=2]

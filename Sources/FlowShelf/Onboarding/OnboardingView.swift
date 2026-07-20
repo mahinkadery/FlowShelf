@@ -4,6 +4,7 @@ import SwiftUI
 struct OnboardingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page = 0
+    @State private var direction = 1
     let onFinish: (OnboardingDestination) -> Void
 
     private let pages = OnboardingPage.allCases
@@ -11,106 +12,137 @@ struct OnboardingView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider().opacity(0.45)
+            Divider().opacity(0.4)
 
             ZStack {
                 ForEach(Array(pages.enumerated()), id: \.offset) { index, item in
                     if page == index {
                         pageContent(item)
-                            .transition(reduceMotion ? .opacity : .asymmetric(
-                                insertion: .move(edge: .trailing).combined(with: .opacity),
-                                removal: .move(edge: .leading).combined(with: .opacity)
-                            ))
+                            .id(item)
+                            .transition(pageTransition)
                     }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
 
-            Divider().opacity(0.45)
+            Divider().opacity(0.4)
             footer
         }
         .background {
             ZStack {
                 Color(nsColor: .windowBackgroundColor).opacity(0.18)
                 RadialGradient(
-                    colors: [pages[page].tint.opacity(0.18), .clear],
+                    colors: [pages[page].tint.opacity(0.19), .clear],
                     center: .topTrailing,
                     startRadius: 20,
-                    endRadius: 650
+                    endRadius: 680
+                )
+                RadialGradient(
+                    colors: [pages[page].tint.opacity(0.08), .clear],
+                    center: .bottomLeading,
+                    startRadius: 10,
+                    endRadius: 520
                 )
             }
             .ignoresSafeArea()
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.45), value: page)
         }
-        .frame(minWidth: 820, minHeight: 560)
+        .frame(minWidth: 900, minHeight: 600)
     }
 
     private var header: some View {
-        HStack(spacing: 9) {
-            FlowShelfGlyph(size: 23, color: .accentColor)
+        HStack(spacing: 10) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 27, height: 27)
             Text("Welcome to FlowShelf")
                 .font(.system(size: 14, weight: .semibold))
             Spacer()
-            Text("SETUP")
-                .font(.system(size: 9.5, weight: .bold))
-                .kerning(1.3)
+            Text("\(page + 1) OF \(pages.count)")
+                .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                .kerning(1.1)
                 .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
         }
         .padding(.horizontal, 22)
-        .padding(.top, 18)
+        .padding(.top, 17)
         .padding(.bottom, 13)
     }
 
     private func pageContent(_ item: OnboardingPage) -> some View {
-        HStack(spacing: 42) {
-            VStack(alignment: .leading, spacing: 18) {
-                EmblemChip(icon: item.symbol, tint: item.tint, size: 43, iconSize: 19)
+        HStack(alignment: .top, spacing: 44) {
+            VStack(alignment: .leading, spacing: 17) {
+                OnboardingFeatureEmblem(page: item)
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text(item.eyebrow.uppercased())
                         .font(.system(size: 10.5, weight: .bold))
-                        .kerning(1.1)
+                        .kerning(1.15)
                         .foregroundStyle(item.tint)
                     Text(item.title)
                         .font(.system(size: 34, weight: .bold, design: .rounded))
                         .tracking(-1.1)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(item.detail)
-                        .font(.system(size: 14.5))
+                        .font(.system(size: 14.2))
                         .foregroundStyle(.secondary)
-                        .lineSpacing(4)
+                        .lineSpacing(3.5)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                if item == .permissions {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(item.highlights, id: \.self) { highlight in
+                        Label(highlight, systemImage: "checkmark.circle.fill")
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .symbolRenderingMode(.hierarchical)
+                            .tint(item.tint)
+                    }
+                }
+
+                if item == .privacy {
                     Button("Review permission health") {
                         onFinish(.permissions)
                     }
                     .buttonStyle(.bordered)
                     .controlSize(.large)
                 }
-                Spacer()
+                Spacer(minLength: 0)
             }
-            .frame(width: 310, alignment: .leading)
+            .frame(width: 315, alignment: .leading)
 
             OnboardingArt(page: item)
-                .id(item)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, alignment: .top)
         }
-        .padding(.horizontal, 54)
-        .padding(.vertical, 38)
+        .padding(.horizontal, 50)
+        .padding(.vertical, 31)
     }
 
     private var footer: some View {
         HStack {
             HStack(spacing: 7) {
                 ForEach(pages.indices, id: \.self) { index in
-                    Capsule()
-                        .fill(index == page ? pages[page].tint : Color.primary.opacity(0.14))
-                        .frame(width: index == page ? 24 : 7, height: 7)
-                        .animation(FlowMotion.state, value: page)
+                    Button {
+                        move(to: index)
+                    } label: {
+                        Capsule()
+                            .fill(index == page ? pages[page].tint : Color.primary.opacity(0.14))
+                            .frame(width: index == page ? 25 : 7, height: 7)
+                    }
+                    .buttonStyle(.plain)
+                    .help(pages[index].shortLabel)
+                    .accessibilityLabel("Go to \(pages[index].shortLabel)")
+                    .animation(FlowMotion.state, value: page)
                 }
             }
+
+            Text(pages[page].shortLabel)
+                .font(.system(size: 10.5, weight: .medium))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 7)
+                .contentTransition(.opacity)
 
             Spacer()
 
@@ -136,10 +168,27 @@ struct OnboardingView: View {
             .keyboardShortcut(.defaultAction)
         }
         .padding(.horizontal, 22)
-        .padding(.vertical, 16)
+        .padding(.vertical, 15)
+    }
+
+    private var pageTransition: AnyTransition {
+        guard !reduceMotion else { return .opacity }
+        let sign = CGFloat(direction >= 0 ? 1 : -1)
+        return .asymmetric(
+            insertion: .modifier(
+                active: OnboardingPageMotion(offset: 76 * sign, angle: -7 * Double(sign), opacity: 0, blur: 8),
+                identity: OnboardingPageMotion(offset: 0, angle: 0, opacity: 1, blur: 0)
+            ),
+            removal: .modifier(
+                active: OnboardingPageMotion(offset: -56 * sign, angle: 5 * Double(sign), opacity: 0, blur: 5),
+                identity: OnboardingPageMotion(offset: 0, angle: 0, opacity: 1, blur: 0)
+            )
+        )
     }
 
     private func move(to newPage: Int) {
+        guard pages.indices.contains(newPage), newPage != page else { return }
+        direction = newPage > page ? 1 : -1
         withAnimation(reduceMotion ? .easeOut(duration: 0.15) : FlowMotion.transition) {
             page = newPage
         }
@@ -147,206 +196,902 @@ struct OnboardingView: View {
 }
 
 private enum OnboardingPage: Int, CaseIterable, Identifiable {
-    case shelf, notch, shortcuts, permissions
+    case shelf, notch, capture, windows, intelligence, privacy
     var id: Int { rawValue }
+
+    var shortLabel: String {
+        switch self {
+        case .shelf: return "Shelf"
+        case .notch: return "Notch"
+        case .capture: return "Capture"
+        case .windows: return "Window tools"
+        case .intelligence: return "Snippets & AI"
+        case .privacy: return "Privacy & Cleaner"
+        }
+    }
 
     var eyebrow: String {
         switch self {
-        case .shelf: return "Collect"
+        case .shelf: return "Collect anything"
         case .notch: return "Stay in flow"
-        case .shortcuts: return "Move faster"
-        case .permissions: return "You stay in control"
+        case .capture: return "Capture and explain"
+        case .windows: return "Own your workspace"
+        case .intelligence: return "Reuse and understand"
+        case .privacy: return "Private by design"
         }
     }
+
     var title: String {
         switch self {
         case .shelf: return "One shelf for everything."
         case .notch: return "Your notch becomes useful."
-        case .shortcuts: return "Work at keyboard speed."
-        case .permissions: return "Only grant what you need."
+        case .capture: return "Screenshots that do more."
+        case .windows: return "Every window, exactly where you want it."
+        case .intelligence: return "Write less. Find more."
+        case .privacy: return "Powerful without giving up control."
         }
     }
+
     var detail: String {
         switch self {
         case .shelf:
-            return "Copies, screenshots, files, links, and reusable snippets land in one temporary shelf. Pin what matters; the rest can clean itself up."
+            return "Copies, files, links, images, and screenshots arrive in one temporary shelf. Search instantly, pin the important things, and let the rest clear itself."
         case .notch:
-            return "Drop items into the notch, control media, and see quiet system HUDs without leaving the app you are working in."
-        case .shortcuts:
-            return "Every global shortcut can be changed. Open the shelf, search, capture, snap windows, or switch apps with combinations that fit your hands."
-        case .permissions:
-            return "FlowShelf stays on your Mac and asks for system access only when a feature needs it. You can inspect every permission from one dashboard page."
+            return "Drop items into the notch, control media, and see quiet volume, brightness, charging, and battery HUDs without leaving your current app."
+        case .capture:
+            return "Capture a region or window, extract text with OCR, scan QR codes, pin images, and annotate with arrows, highlights, blur, crop, text, and numbered steps."
+        case .windows:
+            return "Preview windows from the Dock, switch with thumbnails, and snap focused windows into halves, quarters, maximize, or center using your own shortcuts."
+        case .intelligence:
+            return "Save reusable snippets and use Apple Intelligence on-device to title, search, summarize, clean up, and answer questions from your shelf."
+        case .privacy:
+            return "Clipboard history stays on your Mac. Private Mode pauses capture instantly, permissions follow enabled features, and Cleaner reveals app leftovers before removal."
         }
     }
+
+    var highlights: [String] {
+        switch self {
+        case .shelf: return ["24-hour or permanent history", "Search, pin, drag and paste", "Floating shelf at your cursor"]
+        case .notch: return ["Drop shelf on every display", "Now-playing media controls", "Optional system HUDs"]
+        case .capture: return ["Region, window and OCR capture", "Professional annotation tools", "Pin, QR scan and image tools"]
+        case .windows: return ["Dock hover previews", "Thumbnail window switcher", "Customizable snap shortcuts"]
+        case .intelligence: return ["Reusable text snippets", "Smart search and auto-titles", "Fully on-device AI actions"]
+        case .privacy: return ["Private Mode and excluded apps", "Feature-aware permissions", "App cleaner with leftover review"]
+        }
+    }
+
     var symbol: String {
         switch self {
         case .shelf: return "tray.full.fill"
         case .notch: return "macbook"
-        case .shortcuts: return "keyboard.fill"
-        case .permissions: return "checkmark.shield.fill"
+        case .capture: return "camera.viewfinder"
+        case .windows: return "rectangle.stack.fill"
+        case .intelligence: return "sparkles"
+        case .privacy: return "checkmark.shield.fill"
         }
     }
+
     var tint: Color {
         switch self {
         case .shelf: return .orange
         case .notch: return .pink
-        case .shortcuts: return .blue
-        case .permissions: return .teal
+        case .capture: return .purple
+        case .windows: return .blue
+        case .intelligence: return .indigo
+        case .privacy: return .teal
         }
+    }
+}
+
+private struct OnboardingPageMotion: ViewModifier {
+    let offset: CGFloat
+    let angle: Double
+    let opacity: Double
+    let blur: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(opacity)
+            .offset(x: offset)
+            .scaleEffect(opacity == 1 ? 1 : 0.965)
+            .rotation3DEffect(
+                .degrees(angle),
+                axis: (x: 0, y: 1, z: 0),
+                anchor: offset >= 0 ? .leading : .trailing,
+                perspective: 0.72
+            )
+            .blur(radius: blur)
+    }
+}
+
+private struct OnboardingFeatureEmblem: View {
+    let page: OnboardingPage
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(page.tint.opacity(0.18), lineWidth: 1)
+                .frame(width: 58, height: 58)
+            Circle()
+                .trim(from: 0.08, to: 0.72)
+                .stroke(
+                    AngularGradient(colors: [.clear, page.tint.opacity(0.85), .clear], center: .center),
+                    style: StrokeStyle(lineWidth: 2, lineCap: .round)
+                )
+                .rotationEffect(.degrees(Double(page.rawValue * 38) - 55))
+                .frame(width: 54, height: 54)
+            EmblemChip(icon: page.symbol, tint: page.tint, size: 44, iconSize: 19)
+                .shadow(color: page.tint.opacity(0.34), radius: 12, y: 5)
+            Circle()
+                .fill(.white)
+                .frame(width: 4, height: 4)
+                .shadow(color: page.tint, radius: 5)
+                .offset(x: 24, y: -10)
+        }
+        .frame(width: 58, height: 58)
+    }
+}
+
+private struct MotionBackdrop: View {
+    let tint: Color
+    let phase: Int
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .trim(from: 0.06, to: phase >= 2 ? 0.78 : 0.18)
+                .stroke(tint.opacity(0.12), style: StrokeStyle(lineWidth: 1, dash: [5, 8]))
+                .frame(width: 320, height: 320)
+                .rotationEffect(.degrees(phase >= 3 ? 24 : -14))
+            Circle()
+                .trim(from: 0.32, to: phase >= 3 ? 0.94 : 0.48)
+                .stroke(.white.opacity(0.07), lineWidth: 1)
+                .frame(width: 250, height: 250)
+                .rotationEffect(.degrees(phase >= 3 ? -32 : 12))
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(tint.opacity(0.38 - Double(index) * 0.08))
+                    .frame(width: CGFloat(5 + index * 2), height: CGFloat(5 + index * 2))
+                    .offset(
+                        x: phase >= 3 ? CGFloat([138, -112, 86][index]) : 0,
+                        y: phase >= 3 ? CGFloat([-82, 104, 128][index]) : 0
+                    )
+                    .opacity(phase >= 2 ? 1 : 0)
+            }
+        }
+        .animation(.spring(response: 0.9, dampingFraction: 0.88), value: phase)
+        .allowsHitTesting(false)
+    }
+}
+
+private struct DemoCursor: View {
+    let tint: Color
+    let label: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "cursorarrow")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.7), radius: 2, y: 1)
+            Text(label)
+                .font(.system(size: 8.5, weight: .bold))
+                .padding(.horizontal, 7)
+                .frame(height: 21)
+                .background(Capsule().fill(tint.gradient))
+                .foregroundStyle(.white)
+        }
+    }
+}
+
+private struct DrawnArrow: View {
+    let progress: CGFloat
+
+    var body: some View {
+        Path { path in
+            path.move(to: CGPoint(x: 10, y: 71))
+            path.addCurve(
+                to: CGPoint(x: 72, y: 18),
+                control1: CGPoint(x: 31, y: 73),
+                control2: CGPoint(x: 61, y: 49)
+            )
+            path.move(to: CGPoint(x: 48, y: 19))
+            path.addLine(to: CGPoint(x: 72, y: 18))
+            path.addLine(to: CGPoint(x: 67, y: 42))
+        }
+        .trim(from: 0, to: progress)
+        .stroke(
+            LinearGradient(colors: [.pink, .orange], startPoint: .bottomLeading, endPoint: .topTrailing),
+            style: StrokeStyle(lineWidth: 7, lineCap: .round, lineJoin: .round)
+        )
+        .frame(width: 82, height: 82)
+        .shadow(color: .pink.opacity(0.42), radius: 8)
+    }
+}
+
+private struct TypingDots: View {
+    let phase: Int
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(Color.indigo.opacity(0.85))
+                    .frame(width: 5, height: 5)
+                    .scaleEffect(phase >= index + 2 ? 1 : 0.45)
+                    .opacity(phase >= index + 2 ? 1 : 0.25)
+            }
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 22)
+        .background(Capsule().fill(Color.indigo.opacity(0.12)))
     }
 }
 
 private struct OnboardingArt: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let page: OnboardingPage
-    @State private var animated = false
+    @State private var phase = 0
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 32, style: .continuous)
                 .fill(.ultraThinMaterial)
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .strokeBorder(LinearGradient(
-                    colors: [.white.opacity(0.32), .white.opacity(0.04)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ), lineWidth: 1)
-            page.tint.opacity(0.13).blur(radius: 48).padding(38)
-
-            switch page {
-            case .shelf: shelfArt
-            case .notch: notchArt
-            case .shortcuts: shortcutsArt
-            case .permissions: permissionsArt
-            }
-        }
-        .frame(width: 390, height: 370)
-        .shadow(color: page.tint.opacity(0.2), radius: 24, y: 14)
-        .onAppear {
-            guard !reduceMotion else { animated = true; return }
-            withAnimation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true)) {
-                animated = true
-            }
-        }
-    }
-
-    private var shelfArt: some View {
-        ZStack {
-            SVGImage(image: OnboardingSVG.shelf)
-                .frame(width: 300, height: 160)
-                .offset(y: 72)
-
-            SVGImage(image: OnboardingSVG.document)
-                .frame(width: 88, height: 104)
-                .rotationEffect(.degrees(animated ? -4 : -12))
-                .offset(x: animated ? -103 : -145, y: animated ? -35 : -95)
-            SVGImage(image: OnboardingSVG.imageCard)
-                .frame(width: 88, height: 104)
-                .rotationEffect(.degrees(animated ? 3 : 11))
-                .offset(x: animated ? 0 : 18, y: animated ? -52 : -112)
-            SVGImage(image: OnboardingSVG.linkCard)
-                .frame(width: 88, height: 104)
-                .rotationEffect(.degrees(animated ? 5 : 14))
-                .offset(x: animated ? 103 : 145, y: animated ? -28 : -92)
-        }
-    }
-
-    private var notchArt: some View {
-        ZStack {
-            SVGImage(image: OnboardingSVG.display)
-                .frame(width: 330, height: 238)
-                .offset(y: 22)
-            SVGImage(image: OnboardingSVG.notch)
-                .frame(width: animated ? 248 : 204, height: animated ? 104 : 74)
-                .offset(y: animated ? -69 : -82)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [.white.opacity(0.34), .white.opacity(0.045)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
             Circle()
-                .fill(.pink.opacity(0.85))
-                .frame(width: 18, height: 18)
-                .blur(radius: animated ? 7 : 2)
-                .offset(x: animated ? 92 : -70, y: -91)
-        }
-    }
+                .fill(page.tint.opacity(0.2))
+                .frame(width: 260, height: 260)
+                .blur(radius: 62)
+                .offset(x: 110, y: -105)
 
-    private var shortcutsArt: some View {
-        ZStack {
-            SVGImage(image: OnboardingSVG.keyboard)
-                .frame(width: 320, height: 214)
-                .rotation3DEffect(.degrees(animated ? 4 : 10), axis: (x: 1, y: 0, z: 0))
-            HStack(spacing: 12) {
-                KeyCap(symbol: "⌘", tint: .blue)
-                KeyCap(symbol: "⇧", tint: .blue)
-                KeyCap(symbol: "S", tint: .blue)
+            MotionBackdrop(tint: page.tint, phase: phase)
+
+            scene
+                .frame(width: 360, height: 300)
+                .padding(22)
+
+            LinearGradient(
+                colors: [.clear, .white.opacity(0.03), .white.opacity(0.24), .white.opacity(0.03), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(width: 120, height: 540)
+            .rotationEffect(.degrees(18))
+            .offset(x: phase >= 5 ? 330 : -330)
+            .opacity(phase == 4 ? 0.8 : 0)
+            .blendMode(.screen)
+            .allowsHitTesting(false)
+        }
+        .frame(width: 420, height: 390)
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .shadow(color: page.tint.opacity(0.2), radius: 24, y: 14)
+        .task(id: page) {
+            phase = 0
+            if reduceMotion {
+                phase = 5
+                return
             }
-            .scaleEffect(animated ? 1.15 : 0.95)
-            .offset(y: -18)
-            .shadow(color: .blue.opacity(0.35), radius: animated ? 16 : 5)
+            await advance(to: 1, after: 70)
+            await advance(to: 2, after: 190)
+            await advance(to: 3, after: 230)
+            await advance(to: 4, after: 260)
+            await advance(to: 5, after: 420)
         }
     }
 
-    private var permissionsArt: some View {
-        ZStack {
-            SVGImage(image: OnboardingSVG.shield)
-                .frame(width: 180, height: 210)
-                .scaleEffect(animated ? 1.05 : 0.94)
-                .shadow(color: .teal.opacity(0.3), radius: animated ? 22 : 8)
-            permissionOrb("figure.wave", color: .blue, angle: -42)
-            permissionOrb("rectangle.inset.filled.and.person.filled", color: .purple, angle: 42)
-            permissionOrb("keyboard.badge.eye", color: .orange, angle: 180)
+    @ViewBuilder private var scene: some View {
+        switch page {
+        case .shelf: ShelfDemo(phase: phase, reduceMotion: reduceMotion)
+        case .notch: NotchDemo(phase: phase, reduceMotion: reduceMotion)
+        case .capture: CaptureDemo(phase: phase, reduceMotion: reduceMotion)
+        case .windows: WindowsDemo(phase: phase, reduceMotion: reduceMotion)
+        case .intelligence: IntelligenceDemo(phase: phase, reduceMotion: reduceMotion)
+        case .privacy: PrivacyDemo(phase: phase, reduceMotion: reduceMotion)
         }
     }
 
-    private func permissionOrb(_ symbol: String, color: Color, angle: Double) -> some View {
-        let radians = angle * .pi / 180
-        let radius: CGFloat = animated ? 133 : 112
-        return ZStack {
-            Circle().fill(.ultraThinMaterial)
-            Circle().strokeBorder(color.opacity(0.55), lineWidth: 1)
-            Image(systemName: symbol).foregroundStyle(color)
+    @MainActor private func advance(to next: Int, after milliseconds: UInt64) async {
+        try? await Task.sleep(nanoseconds: milliseconds * 1_000_000)
+        guard !Task.isCancelled else { return }
+        withAnimation(.spring(response: 0.68, dampingFraction: 0.84)) {
+            phase = next
         }
-        .frame(width: 48, height: 48)
-        .offset(x: CGFloat(cos(radians)) * radius, y: CGFloat(sin(radians)) * radius)
     }
 }
 
-private struct SVGImage: View {
-    let image: NSImage
+private struct DemoWindow<Content: View>: View {
+    let title: String
+    let tint: Color
+    @ViewBuilder let content: Content
+
+    init(title: String, tint: Color, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.tint = tint
+        self.content = content()
+    }
 
     var body: some View {
-        Image(nsImage: image)
-            .resizable()
-            .interpolation(.high)
-            .scaledToFit()
-            .accessibilityHidden(true)
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Circle().fill(.red).frame(width: 7, height: 7)
+                Circle().fill(.yellow).frame(width: 7, height: 7)
+                Circle().fill(.green).frame(width: 7, height: 7)
+                Spacer()
+                Text(title)
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Circle().fill(tint.opacity(0.35)).frame(width: 7, height: 7)
+            }
+            .padding(.horizontal, 13)
+            .frame(height: 34)
+            Divider().opacity(0.35)
+            content
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor).opacity(0.88))
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(.white.opacity(0.18), lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: .black.opacity(0.24), radius: 16, y: 9)
     }
 }
 
-private enum OnboardingSVG {
-    static let shelf = decode("""
-    <svg xmlns="http://www.w3.org/2000/svg" width="600" height="300" viewBox="0 0 600 300"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffb32e"/><stop offset="1" stop-color="#d76500"/></linearGradient></defs><rect x="40" y="66" width="520" height="190" rx="42" fill="#121212" fill-opacity=".88" stroke="#fff" stroke-opacity=".22" stroke-width="3"/><path d="M80 106h440v102c0 18-14 32-32 32H112c-18 0-32-14-32-32z" fill="url(#g)" fill-opacity=".2"/><path d="M190 144h220" stroke="#ffad22" stroke-width="8" stroke-linecap="round"/><circle cx="113" cy="99" r="9" fill="#ff5f57"/><circle cx="141" cy="99" r="9" fill="#febc2e"/><circle cx="169" cy="99" r="9" fill="#28c840"/></svg>
-    """)
-    static let document = decode(cardSVG(color: "#ff9f0a", glyph: "M40 30h40l22 22v68H40z M80 30v24h22 M55 76h32 M55 92h32"))
-    static let imageCard = decode(cardSVG(color: "#bf5af2", glyph: "M40 36h62v78H40z M46 101l18-22 13 14 9-10 10 18 M57 58a7 7 0 1 0 0-14 7 7 0 0 0 0 14"))
-    static let linkCard = decode(cardSVG(color: "#0a84ff", glyph: "M57 88l-8 8a17 17 0 0 1-24-24l14-14a17 17 0 0 1 24 0 M85 62l8-8a17 17 0 0 1 24 24l-14 14a17 17 0 0 1-24 0 M55 82l34-34"))
-    static let display = decode("""
-    <svg xmlns="http://www.w3.org/2000/svg" width="700" height="500" viewBox="0 0 700 500"><defs><linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1a1c24"/><stop offset="1" stop-color="#050506"/></linearGradient></defs><rect x="45" y="30" width="610" height="390" rx="36" fill="#0b0b0d" stroke="#fff" stroke-opacity=".3" stroke-width="5"/><rect x="67" y="53" width="566" height="344" rx="17" fill="url(#s)"/><path d="M12 426h676l-54 38H66z" fill="#b7bac2" fill-opacity=".58"/><path d="M280 426h140l-18 13H298z" fill="#08080a" fill-opacity=".75"/></svg>
-    """)
-    static let notch = decode("""
-    <svg xmlns="http://www.w3.org/2000/svg" width="500" height="210" viewBox="0 0 500 210"><defs><linearGradient id="n" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#101012"/><stop offset=".65" stop-color="#17171a" stop-opacity=".92"/><stop offset="1" stop-color="#fff" stop-opacity=".14"/></linearGradient></defs><path d="M0 0h500v92c0 65-30 112-96 112H96C30 204 0 157 0 92z" fill="url(#n)" stroke="#fff" stroke-opacity=".3" stroke-width="3"/><rect x="76" y="53" width="348" height="64" rx="23" fill="#fff" fill-opacity=".075" stroke="#fff" stroke-opacity=".16"/><circle cx="115" cy="85" r="17" fill="#ff375f"/><path d="M153 76h152M153 96h108" stroke="#fff" stroke-opacity=".72" stroke-width="10" stroke-linecap="round"/><circle cx="381" cy="85" r="21" fill="#fff" fill-opacity=".1"/><path d="M375 75l18 10-18 10z" fill="#fff" fill-opacity=".85"/></svg>
-    """)
-    static let keyboard = decode("""
-    <svg xmlns="http://www.w3.org/2000/svg" width="700" height="450" viewBox="0 0 700 450"><defs><linearGradient id="k" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#454956"/><stop offset="1" stop-color="#17181d"/></linearGradient></defs><rect x="35" y="45" width="630" height="350" rx="38" fill="url(#k)" stroke="#fff" stroke-opacity=".3" stroke-width="4"/><g fill="#111217" stroke="#fff" stroke-opacity=".16" stroke-width="2"><rect x="72" y="82" width="72" height="62" rx="12"/><rect x="160" y="82" width="72" height="62" rx="12"/><rect x="248" y="82" width="72" height="62" rx="12"/><rect x="336" y="82" width="72" height="62" rx="12"/><rect x="424" y="82" width="72" height="62" rx="12"/><rect x="512" y="82" width="110" height="62" rx="12"/><rect x="72" y="160" width="92" height="62" rx="12"/><rect x="180" y="160" width="72" height="62" rx="12"/><rect x="268" y="160" width="72" height="62" rx="12"/><rect x="356" y="160" width="72" height="62" rx="12"/><rect x="444" y="160" width="72" height="62" rx="12"/><rect x="532" y="160" width="90" height="62" rx="12"/><rect x="72" y="238" width="112" height="62" rx="12"/><rect x="200" y="238" width="72" height="62" rx="12"/><rect x="288" y="238" width="72" height="62" rx="12"/><rect x="376" y="238" width="72" height="62" rx="12"/><rect x="464" y="238" width="158" height="62" rx="12"/><rect x="72" y="316" width="158" height="46" rx="11"/><rect x="246" y="316" width="280" height="46" rx="11"/><rect x="542" y="316" width="80" height="46" rx="11"/></g></svg>
-    """)
-    static let shield = decode("""
-    <svg xmlns="http://www.w3.org/2000/svg" width="360" height="420" viewBox="0 0 360 420"><defs><linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#64d2ff"/><stop offset="1" stop-color="#00a58b"/></linearGradient></defs><path d="M180 20c51 36 101 48 148 54v116c0 96-56 167-148 207C88 357 32 286 32 190V74c47-6 97-18 148-54z" fill="url(#a)" fill-opacity=".86" stroke="#fff" stroke-opacity=".58" stroke-width="6"/><path d="M113 202l43 43 94-104" fill="none" stroke="#fff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    """)
+private struct ShelfDemo: View {
+    let phase: Int
+    let reduceMotion: Bool
 
-    private static func cardSVG(color: String, glyph: String) -> String {
-        """
-        <svg xmlns="http://www.w3.org/2000/svg" width="140" height="170" viewBox="0 0 140 170"><defs><linearGradient id="c" x1="0" y1="0" x2="1" y2="1"><stop stop-color="\(color)"/><stop offset="1" stop-color="#111"/></linearGradient></defs><rect x="4" y="4" width="132" height="162" rx="28" fill="url(#c)" stroke="#fff" stroke-opacity=".42" stroke-width="3"/><path d="\(glyph)" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        """
+    private let items: [(String, Color, String, String)] = [
+        ("doc.text.fill", .orange, "Launch notes", "Copied from Notes"),
+        ("photo.fill", .purple, "Screenshot", "Captured just now"),
+        ("link", .blue, "flowshelf.app", "Link from Safari"),
+    ]
+
+    var body: some View {
+        ZStack {
+            DemoWindow(title: "Today’s Shelf", tint: .orange) {
+                VStack(spacing: 9) {
+                    HStack(spacing: 7) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        Text("Search today’s shelf…")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text("3 items")
+                            .font(.system(size: 9.5, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 11)
+                    .frame(height: 34)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(Color.primary.opacity(0.045)))
+
+                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                        HStack(spacing: 10) {
+                            EmblemChip(icon: item.0, tint: item.1, size: 30, iconSize: 13)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.2).font(.system(size: 11.5, weight: .semibold))
+                                Text(item.3).font(.system(size: 9.5)).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if index == 0, phase >= 5 {
+                                Image(systemName: "pin.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.orange)
+                                    .symbolEffect(.bounce, value: phase)
+                                    .symbolEffectsRemoved(reduceMotion)
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(height: 56)
+                        .background(RoundedRectangle(cornerRadius: 11).fill(Color.primary.opacity(0.045)))
+                        .offset(y: phase >= 2 ? 0 : CGFloat(28 + index * 12))
+                        .opacity(phase >= 2 ? 1 : 0)
+                        .animation(
+                            reduceMotion ? nil :
+                                .spring(response: 0.58, dampingFraction: 0.85)
+                                .delay(Double(index) * 0.07),
+                            value: phase
+                        )
+                    }
+                }
+                .padding(12)
+            }
+
+            DemoCursor(tint: .orange, label: "Pin")
+                .offset(x: phase >= 4 ? 119 : 154, y: phase >= 4 ? -54 : 118)
+                .opacity(phase >= 3 && phase < 5 ? 1 : 0)
+                .animation(reduceMotion ? nil : .spring(response: 0.62, dampingFraction: 0.82), value: phase)
+        }
+        .frame(width: 342, height: 274)
+        .scaleEffect(phase >= 1 ? 1 : 0.93)
+        .opacity(phase >= 1 ? 1 : 0)
+    }
+}
+
+private struct NotchDemo: View {
+    let phase: Int
+    let reduceMotion: Bool
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(red: 0.11, green: 0.12, blue: 0.17),
+                                 Color(red: 0.025, green: 0.028, blue: 0.04)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 348, height: 260)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 25)
+                        .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                }
+                .overlay(alignment: .bottom) {
+                    HStack(spacing: 8) {
+                        ForEach(["doc.fill", "photo.fill", "link"], id: \.self) { symbol in
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(.white.opacity(0.07))
+                                .frame(width: 72, height: 56)
+                                .overlay {
+                                    Image(systemName: symbol).foregroundStyle(.white.opacity(0.7))
+                                }
+                        }
+                    }
+                    .padding(.bottom, 20)
+                    .opacity(phase >= 5 ? 1 : 0)
+                    .offset(y: phase >= 5 ? 0 : 18)
+                }
+                .offset(y: 38)
+                .scaleEffect(phase >= 1 ? 1 : 0.96)
+                .opacity(phase >= 1 ? 1 : 0)
+
+            VStack(spacing: 9) {
+                Capsule().fill(.black).frame(width: 96, height: 25)
+
+                HStack(spacing: 10) {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(LinearGradient(colors: [.pink, .purple],
+                                             startPoint: .topLeading,
+                                             endPoint: .bottomTrailing))
+                        .frame(width: 38, height: 38)
+                        .overlay { Image(systemName: "music.note").foregroundStyle(.white) }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Now Playing").font(.system(size: 11.5, weight: .semibold))
+                        Text("On-device media controls")
+                            .font(.system(size: 9.3)).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "pause.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .frame(width: 29, height: 29)
+                        .background(Circle().fill(.white.opacity(0.1)))
+                }
+                .padding(.horizontal, 15)
+                .opacity(phase >= 2 ? 1 : 0)
+            }
+            .padding(.bottom, 14)
+            .frame(width: phase >= 2 ? 272 : 118, height: phase >= 2 ? 102 : 31,
+                   alignment: .top)
+            .background(
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 0,
+                    bottomLeadingRadius: 24,
+                    bottomTrailingRadius: 24,
+                    topTrailingRadius: 0
+                )
+                .fill(.black.opacity(0.96))
+            )
+            .overlay(alignment: .bottom) {
+                LinearGradient(colors: [.clear, .white.opacity(0.16)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: 26)
+                    .clipShape(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 0,
+                            bottomLeadingRadius: 24,
+                            bottomTrailingRadius: 24,
+                            topTrailingRadius: 0
+                        )
+                    )
+            }
+            .shadow(color: .pink.opacity(phase >= 2 ? 0.22 : 0), radius: 18, y: 7)
+
+            HStack(spacing: 7) {
+                Image(systemName: "doc.fill")
+                    .foregroundStyle(.pink)
+                Text("Launch notes.pdf")
+                    .font(.system(size: 9.5, weight: .semibold))
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .background(Capsule().fill(.regularMaterial))
+            .overlay { Capsule().strokeBorder(.white.opacity(0.22), lineWidth: 1) }
+            .offset(x: phase >= 4 ? 0 : -118, y: phase >= 4 ? 34 : 132)
+            .scaleEffect(phase >= 5 ? 0.35 : 1)
+            .opacity(phase >= 3 && phase < 5 ? 1 : 0)
+            .shadow(color: .pink.opacity(0.25), radius: 10, y: 5)
+
+            Label("Drop to Shelf", systemImage: "arrow.up")
+                .font(.system(size: 10.5, weight: .semibold))
+                .padding(.horizontal, 11)
+                .frame(height: 31)
+                .background(Capsule().fill(.regularMaterial))
+                .offset(y: phase >= 4 ? 184 : 260)
+                .opacity(phase >= 4 ? 1 : 0)
+        }
+        .frame(width: 360, height: 300, alignment: .top)
+        .animation(reduceMotion ? nil : .spring(response: 0.76, dampingFraction: 0.84),
+                   value: phase)
+    }
+}
+
+private struct CaptureDemo: View {
+    let phase: Int
+    let reduceMotion: Bool
+
+    private let tools = ["arrow.up.right", "rectangle", "highlighter", "drop.halffull",
+                         "textformat", "crop"]
+
+    var body: some View {
+        DemoWindow(title: "Screenshot Editor", tint: .purple) {
+            ZStack {
+                LinearGradient(
+                    colors: [Color.blue.opacity(0.25), Color.purple.opacity(0.18),
+                             Color.orange.opacity(0.13)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Capsule().fill(.white.opacity(0.24)).frame(width: 150, height: 8)
+                    Capsule().fill(.white.opacity(0.13)).frame(width: 220, height: 6)
+                    Capsule().fill(.white.opacity(0.13)).frame(width: 188, height: 6)
+                    Spacer()
+                }
+                .padding(28)
+
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(.white.opacity(0.75), style: StrokeStyle(lineWidth: 1.4, dash: [7, 4]))
+                    .frame(width: phase >= 2 ? 244 : 80, height: phase >= 2 ? 150 : 50)
+                    .overlay(alignment: .topTrailing) {
+                        Text("1240 × 760")
+                            .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                            .padding(.horizontal, 7).frame(height: 22)
+                            .background(Capsule().fill(.black.opacity(0.62)))
+                            .offset(y: -29)
+                            .opacity(phase >= 2 ? 1 : 0)
+                    }
+
+                LinearGradient(
+                    colors: [.clear, .white.opacity(0.85), .purple.opacity(0.65), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(width: 5, height: 142)
+                .blur(radius: 1)
+                .offset(x: phase >= 4 ? 116 : -116)
+                .opacity((phase == 3 || phase == 4) ? 1 : 0)
+
+                DrawnArrow(progress: phase >= 5 ? 1 : 0)
+                    .rotationEffect(.degrees(-8))
+                    .offset(x: 38, y: -7)
+                    .opacity(phase >= 5 ? 1 : 0)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.46), value: phase)
+
+                HStack(spacing: 8) {
+                    ForEach(tools, id: \.self) { tool in
+                        Image(systemName: tool)
+                            .font(.system(size: 12, weight: .semibold))
+                            .frame(width: 30, height: 30)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(tool == "arrow.up.right"
+                                          ? Color.purple.opacity(0.28)
+                                          : Color.white.opacity(0.07))
+                            )
+                    }
+                }
+                .padding(.horizontal, 9)
+                .frame(height: 44)
+                .background(Capsule().fill(.black.opacity(0.68)))
+                .offset(y: 102)
+                .opacity(phase >= 2 ? 1 : 0)
+            }
+        }
+        .frame(width: 350, height: 282)
+        .scaleEffect(phase >= 1 ? 1 : 0.94)
+        .opacity(phase >= 1 ? 1 : 0)
+        .animation(reduceMotion ? nil : .spring(response: 0.7, dampingFraction: 0.84),
+                   value: phase)
+    }
+}
+
+private struct WindowsDemo: View {
+    let phase: Int
+    let reduceMotion: Bool
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 25)
+                .fill(Color.black.opacity(0.72))
+                .frame(width: 350, height: 265)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 25)
+                        .strokeBorder(.white.opacity(0.2), lineWidth: 1)
+                }
+
+            ZStack {
+                Rectangle()
+                    .fill(.blue.opacity(0.18))
+                    .frame(width: 1, height: 226)
+                Rectangle()
+                    .fill(.blue.opacity(0.18))
+                    .frame(width: 312, height: 1)
+            }
+            .opacity(phase >= 2 && phase < 5 ? 1 : 0)
+            .scaleEffect(phase >= 3 ? 1 : 0.65)
+
+            WindowCard(title: "Safari", color: .blue, symbol: "safari.fill")
+                .frame(width: phase >= 4 ? 150 : 215, height: phase >= 4 ? 180 : 150)
+                .offset(x: phase >= 4 ? -82 : -25, y: phase >= 4 ? -17 : -28)
+                .rotationEffect(.degrees(phase >= 4 ? 0 : -5))
+
+            WindowCard(title: "Notes", color: .yellow, symbol: "note.text")
+                .frame(width: phase >= 4 ? 150 : 215, height: phase >= 4 ? 180 : 150)
+                .offset(x: phase >= 4 ? 82 : 28, y: phase >= 4 ? -17 : 20)
+                .rotationEffect(.degrees(phase >= 4 ? 0 : 4))
+
+            HStack(spacing: 9) {
+                ForEach([("safari.fill", Color.blue), ("note.text", Color.yellow),
+                         ("folder.fill", Color.cyan)], id: \.0) { app in
+                    EmblemChip(icon: app.0, tint: app.1, size: 33, iconSize: 14)
+                }
+            }
+            .padding(.horizontal, 13)
+            .frame(height: 49)
+            .background(Capsule().fill(.regularMaterial))
+            .overlay { Capsule().strokeBorder(.white.opacity(0.2), lineWidth: 1) }
+            .offset(y: phase >= 5 ? 111 : 155)
+            .opacity(phase >= 5 ? 1 : 0)
+            .shadow(color: .blue.opacity(0.2), radius: 12, y: 7)
+
+            Label("Dock preview", systemImage: "rectangle.on.rectangle")
+                .font(.system(size: 9.5, weight: .semibold))
+                .padding(.horizontal, 9)
+                .frame(height: 27)
+                .background(Capsule().fill(.blue.opacity(0.22)))
+                .offset(x: 104, y: 82)
+                .opacity(phase >= 5 ? 1 : 0)
+        }
+        .scaleEffect(phase >= 1 ? 1 : 0.93)
+        .opacity(phase >= 1 ? 1 : 0)
+        .animation(reduceMotion ? nil : .spring(response: 0.72, dampingFraction: 0.82),
+                   value: phase)
+    }
+}
+
+private struct WindowCard: View {
+    let title: String
+    let color: Color
+    let symbol: String
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol).foregroundStyle(color)
+                Text(title).font(.system(size: 9.5, weight: .semibold))
+                Spacer()
+            }
+            .padding(.horizontal, 9)
+            .frame(height: 27)
+            Divider().opacity(0.3)
+            VStack(alignment: .leading, spacing: 7) {
+                Capsule().fill(color.opacity(0.26)).frame(width: 68, height: 7)
+                Capsule().fill(.white.opacity(0.12)).frame(maxWidth: .infinity).frame(height: 6)
+                Capsule().fill(.white.opacity(0.08)).frame(width: 78, height: 6)
+                Spacer()
+            }
+            .padding(11)
+        }
+        .background(RoundedRectangle(cornerRadius: 14).fill(Color(white: 0.11)))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14).strokeBorder(.white.opacity(0.16), lineWidth: 1)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: .black.opacity(0.3), radius: 10, y: 6)
+    }
+}
+
+private struct IntelligenceDemo: View {
+    let phase: Int
+    let reduceMotion: Bool
+
+    var body: some View {
+        DemoWindow(title: "Snippets & AI", tint: .indigo) {
+            HStack(spacing: 0) {
+                VStack(spacing: 7) {
+                    snippet("Customer reply", icon: "text.bubble.fill", selected: phase >= 2)
+                    snippet("Meeting link", icon: "video.fill", selected: false)
+                    snippet("Shipping update", icon: "shippingbox.fill", selected: false)
+                    Spacer()
+                }
+                .padding(10)
+                .frame(width: 137)
+                .background(Color.primary.opacity(0.035))
+
+                Divider().opacity(0.35)
+
+                VStack(alignment: .leading, spacing: 9) {
+                    Label("On-device answer", systemImage: "sparkles")
+                        .font(.system(size: 11.5, weight: .semibold))
+                        .foregroundStyle(.indigo)
+                        .symbolEffect(.pulse, value: phase)
+                        .symbolEffectsRemoved(reduceMotion)
+                    Text("Here’s a polished reply using your saved context:")
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    TypingDots(phase: phase)
+                        .opacity(phase >= 2 && phase < 5 ? 1 : 0)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Capsule().fill(.white.opacity(0.18)).frame(maxWidth: .infinity).frame(height: 6)
+                        Capsule().fill(.white.opacity(0.15)).frame(width: 150, height: 6)
+                        Capsule().fill(.white.opacity(0.12)).frame(width: 116, height: 6)
+                    }
+                    .opacity(phase >= 5 ? 1 : 0)
+                    .offset(y: phase >= 5 ? 0 : 12)
+                    Spacer()
+                    HStack {
+                        Label("Private", systemImage: "lock.fill")
+                        Spacer()
+                        Text("Apple Intelligence")
+                    }
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.secondary)
+                }
+                .padding(13)
+            }
+        }
+        .frame(width: 352, height: 270)
+        .scaleEffect(phase >= 1 ? 1 : 0.94)
+        .opacity(phase >= 1 ? 1 : 0)
+        .animation(reduceMotion ? nil : .spring(response: 0.68, dampingFraction: 0.84),
+                   value: phase)
     }
 
-    private static func decode(_ source: String) -> NSImage {
-        NSImage(data: Data(source.utf8)) ?? NSImage(size: NSSize(width: 1, height: 1))
+    private func snippet(_ title: String, icon: String, selected: Bool) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(selected ? .indigo : .secondary)
+            Text(title).font(.system(size: 9.7, weight: .medium)).lineLimit(1)
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 35)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(selected ? Color.indigo.opacity(0.17) : Color.primary.opacity(0.045))
+        )
+    }
+}
+
+private struct PrivacyDemo: View {
+    let phase: Int
+    let reduceMotion: Bool
+
+    private let permissions: [(String, String, Color)] = [
+        ("Screen Recording", "Required", .purple),
+        ("Accessibility", "Optional", .blue),
+        ("Input Monitoring", "Optional", .orange),
+    ]
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(spacing: 8) {
+                Label("Permission Health", systemImage: "checkmark.shield.fill")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundStyle(.teal)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                ForEach(Array(permissions.enumerated()), id: \.offset) { index, permission in
+                    HStack {
+                        Image(systemName: phase >= index + 2 ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(permission.2)
+                            .contentTransition(.symbolEffect(.replace))
+                        Text(permission.0).font(.system(size: 9.7, weight: .medium))
+                        Spacer()
+                        Text(permission.1)
+                            .font(.system(size: 8.5, weight: .semibold))
+                            .foregroundStyle(permission.1 == "Required" ? .orange : .secondary)
+                    }
+                    .padding(.horizontal, 9)
+                    .frame(height: 36)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(Color.primary.opacity(0.05)))
+                    .offset(x: phase >= 2 ? 0 : -25)
+                    .opacity(phase >= 2 ? 1 : 0)
+                    .animation(
+                        reduceMotion ? nil :
+                            .spring(response: 0.58, dampingFraction: 0.86)
+                            .delay(Double(index) * 0.06),
+                        value: phase
+                    )
+                }
+
+                Label("Everything stays on this Mac", systemImage: "lock.fill")
+                    .font(.system(size: 9.2, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+            }
+            .padding(13)
+            .frame(width: 194, height: 255)
+            .background(RoundedRectangle(cornerRadius: 18).fill(.regularMaterial))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18).strokeBorder(.white.opacity(0.18), lineWidth: 1)
+            }
+
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle().stroke(.green.opacity(0.16), lineWidth: 10)
+                    Circle()
+                        .trim(from: 0, to: phase >= 5 ? 0.78 : 0.08)
+                        .stroke(.green, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    VStack(spacing: 2) {
+                        Text(phase >= 5 ? "12" : "0")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .contentTransition(.numericText())
+                        Text("leftovers")
+                            .font(.system(size: 8.5, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 105, height: 105)
+
+                VStack(spacing: 4) {
+                    Label("App Cleaner", systemImage: "trash.fill")
+                        .font(.system(size: 11.5, weight: .semibold))
+                    Text("Review every file before removal")
+                        .font(.system(size: 9.2))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                Label("Private Mode", systemImage: "eye.slash.fill")
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .padding(.horizontal, 10)
+                    .frame(height: 27)
+                    .background(Capsule().fill(.orange.opacity(0.18)))
+                    .foregroundStyle(.orange)
+                    .opacity(phase >= 4 ? 1 : 0)
+                    .offset(y: phase >= 4 ? 0 : 12)
+            }
+            .frame(width: 145, height: 255)
+            .background(RoundedRectangle(cornerRadius: 18).fill(.regularMaterial))
+            .overlay {
+                RoundedRectangle(cornerRadius: 18).strokeBorder(.white.opacity(0.18), lineWidth: 1)
+            }
+        }
+        .scaleEffect(phase >= 1 ? 1 : 0.93)
+        .opacity(phase >= 1 ? 1 : 0)
+        .animation(reduceMotion ? nil : .spring(response: 0.72, dampingFraction: 0.84),
+                   value: phase)
     }
 }

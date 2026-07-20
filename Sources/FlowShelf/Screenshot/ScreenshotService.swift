@@ -10,18 +10,29 @@ import AppKit
 final class ScreenshotService {
     static let shared = ScreenshotService()
     private let store = ShelfStore.shared
+    private var requestedScreenRecordingThisLaunch = false
     private init() {}
 
     /// Capture a user-selected region and add it to the Shelf.
     /// - Parameter ocr: also run OCR and add the recognized text as a separate item.
     func captureRegion(runOCR ocr: Bool) {
+        guard prepareScreenRecording() else { return }
         runCapture(extraArgs: ["-i"], runOCR: ocr)
     }
 
     /// Capture a single window cleanly. `-w` is window-pick mode; combined with the
     /// shared `-o` it drops the OS window shadow so backdrops look right.
     func captureWindow(runOCR ocr: Bool = false) {
+        guard prepareScreenRecording() else { return }
         runCapture(extraArgs: ["-w"], runOCR: ocr)
+    }
+
+    private func prepareScreenRecording() -> Bool {
+        if Permissions.hasScreenRecording { return true }
+        guard !requestedScreenRecordingThisLaunch else { return false }
+        requestedScreenRecordingThisLaunch = true
+        Permissions.requestScreenRecording()
+        return false
     }
 
     private func runCapture(extraArgs: [String], runOCR ocr: Bool) {
@@ -56,15 +67,18 @@ final class ScreenshotService {
         // (it adds the result to the Shelf itself). Otherwise shelf it directly.
         if AppSettings.shared.annotateAfterScreenshot {
             AnnotationEditorController.shared.open(image: image)
-        } else if let (rel, thumb) = store.storeImage(image, prefix: "shot") {
-            store.add(ShelfItem(
-                kind: .screenshot,
-                title: "Screenshot",
-                preview: "Captured \(Date().shortTime)",
-                sourceApp: "FlowShelf",
-                imageRelPath: rel,
-                thumbRelPath: thumb
-            ))
+        } else {
+            store.storeImage(image, prefix: "shot") { [weak self] result in
+                guard let self, let (rel, thumb) = result else { return }
+                store.add(ShelfItem(
+                    kind: .screenshot,
+                    title: "Screenshot",
+                    preview: "Captured \(Date().shortTime)",
+                    sourceApp: "FlowShelf",
+                    imageRelPath: rel,
+                    thumbRelPath: thumb
+                ))
+            }
         }
 
         if ocr { recognizeText(in: image) }

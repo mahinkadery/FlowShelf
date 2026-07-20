@@ -126,7 +126,9 @@ final class MediaManager: ObservableObject {
         running = false
         stream = nil
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            guard let self, AppSettings.shared.notchMediaEnabled else { return }
+            guard let self,
+                  AppSettings.shared.notchEnabled,
+                  AppSettings.shared.notchMediaEnabled else { return }
             self.start()
         }
     }
@@ -167,6 +169,7 @@ final class MediaManager: ObservableObject {
         // An empty payload = no media (the adapter's `null`).
         if up.payload.isEmpty {
             if now != NowPlaying() { now = NowPlaying(); Self.crumb("cleared") }
+            AudioSpectrum.shared.setActive(false)
             return
         }
 
@@ -187,7 +190,12 @@ final class MediaManager: ObservableObject {
         if next != now {
             now = next
             // Tap system audio for the reactive bars only while music plays.
-            AudioSpectrum.shared.setActive(next.hasMedia && next.isPlaying && AppSettings.shared.audioReactiveBars)
+            AudioSpectrum.shared.setActive(
+                AppSettings.shared.notchEnabled &&
+                AppSettings.shared.notchMediaEnabled &&
+                next.hasMedia && next.isPlaying &&
+                AppSettings.shared.audioReactiveBars
+            )
             Self.crumb("now: '\(next.title)' — '\(next.artist)' playing=\(next.isPlaying) art=\(next.artwork != nil)")
         }
     }

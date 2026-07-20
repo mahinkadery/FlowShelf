@@ -108,10 +108,12 @@ enum ItemActions {
     }
 
     private static func shelf(_ image: NSImage, title: String, prefix: String) {
-        guard let (rel, thumb) = ShelfStore.shared.storeImage(image, prefix: prefix) else { return }
-        ShelfStore.shared.add(ShelfItem(kind: .screenshot, title: title,
-            preview: "\(title) \(Date().shortTime)", sourceApp: "Image Tools",
-            imageRelPath: rel, thumbRelPath: thumb))
+        ShelfStore.shared.storeImage(image, prefix: prefix) { result in
+            guard let (rel, thumb) = result else { return }
+            ShelfStore.shared.add(ShelfItem(kind: .screenshot, title: title,
+                preview: "\(title) \(Date().shortTime)", sourceApp: "Image Tools",
+                imageRelPath: rel, thumbRelPath: thumb))
+        }
     }
 
     /// Decode a QR / barcode in the image; result is shelfed + copied.

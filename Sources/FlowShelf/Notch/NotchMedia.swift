@@ -1,8 +1,8 @@
 import SwiftUI
+import Combine
 
-/// A small stylised audio visualiser — a few bars that undulate while playing and
-/// rest low when paused. Not real FFT (macOS doesn't hand us the samples); it's a
-/// phase-offset sine motion, the same trick the Dynamic Island uses.
+/// A compact audio visualiser driven by FlowShelf's live system-audio envelope,
+/// with a low-rate decorative fallback when the audio tap is unavailable.
 struct AudioBars: View {
     var playing: Bool
     var color: Color = .white
@@ -10,50 +10,193 @@ struct AudioBars: View {
     /// playing content's own color (bright top → deeper base), Dynamic-Island
     /// style, instead of plain white.
     var accent: NSColor?
-    var count: Int = 4
-    var barWidth: CGFloat = 2.5
+    var count: Int = 6
+    var barWidth: CGFloat = 2.4
+    var spacing: CGFloat = 1.6
     var height: CGFloat = 14
 
-    private var fill: AnyShapeStyle {
-        guard let accent else { return AnyShapeStyle(color) }
-        return AnyShapeStyle(LinearGradient(
-            colors: [Color(nsColor: accent.vibrant(saturation: 0.65, brightness: 1.0)),
-                     Color(nsColor: accent.vibrant(saturation: 0.9, brightness: 0.75))],
-            startPoint: .top, endPoint: .bottom))
-    }
-
-    @ObservedObject private var spectrum = AudioSpectrum.shared
-
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !playing)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            HStack(alignment: .center, spacing: barWidth) {
-                ForEach(0..<count, id: \.self) { i in
-                    Capsule()
-                        .fill(fill)
-                        .frame(width: barWidth, height: barHeight(i, t))
-                }
-            }
-            .frame(height: height, alignment: .center)
-            .animation(.easeInOut(duration: 0.12), value: playing)
+        let totalWidth = CGFloat(count) * barWidth + CGFloat(max(0, count - 1)) * spacing
+        SpectrumBarsRepresentable(playing: playing,
+                                  color: NSColor(color),
+                                  accent: accent,
+                                  count: count,
+                                  barWidth: barWidth,
+                                  spacing: spacing,
+                                  height: height)
+        .frame(width: totalWidth, height: height)
+    }
+}
+
+private struct SpectrumBarsRepresentable: NSViewRepresentable {
+    let playing: Bool
+    let color: NSColor
+    let accent: NSColor?
+    let count: Int
+    let barWidth: CGFloat
+    let spacing: CGFloat
+    let height: CGFloat
+
+    func makeNSView(context: Context) -> SpectrumBarsView {
+        SpectrumBarsView(count: count, barWidth: barWidth, spacing: spacing, height: height)
+    }
+
+    func updateNSView(_ nsView: SpectrumBarsView, context: Context) {
+        nsView.update(playing: playing, color: color, accent: accent)
+    }
+}
+
+private final class SpectrumBarsView: NSView {
+    private let count: Int
+    private let barWidth: CGFloat
+    private let spacing: CGFloat
+    private let maximumHeight: CGFloat
+    private let gradientLayer = CAGradientLayer()
+    private let barsMask = CAShapeLayer()
+    private var levels: [CGFloat]
+    private var playing = false
+    private var fallbackTimer: Timer?
+    private var cancellables: Set<AnyCancellable> = []
+
+    init(count: Int, barWidth: CGFloat, spacing: CGFloat, height: CGFloat) {
+        self.count = count
+        self.barWidth = barWidth
+        self.spacing = spacing
+        self.maximumHeight = height
+        self.levels = Array(repeating: barWidth / height, count: count)
+        super.init(frame: .zero)
+        wantsLayer = true
+        gradientLayer.startPoint = CGPoint(x: 0, y: 0)
+        gradientLayer.endPoint = CGPoint(x: 1, y: 1)
+        gradientLayer.locations = [0, 0.52, 1]
+        gradientLayer.mask = barsMask
+        layer?.addSublayer(gradientLayer)
+        AudioSpectrum.shared.$bands
+            .combineLatest(AudioSpectrum.shared.$active)
+            .throttle(for: .milliseconds(100), scheduler: RunLoop.main, latest: true)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] bands, active in self?.spectrumChanged(bands: bands, active: active) }
+            .store(in: &cancellables)
+    }
+
+    @available(*, unavailable) required init?(coder: NSCoder) { fatalError() }
+
+    deinit { fallbackTimer?.invalidate() }
+
+    func update(playing: Bool, color: NSColor, accent: NSColor?) {
+        self.playing = playing
+        updateColors(color: color, accent: accent)
+        if !playing {
+            stopFallback()
+            setLevels(Array(repeating: barWidth / maximumHeight, count: count), animated: true)
+        } else if AudioSpectrum.shared.active {
+            stopFallback()
+            updateLive(bands: AudioSpectrum.shared.bands)
+        } else {
+            startFallback()
         }
     }
 
-    private func barHeight(_ i: Int, _ t: Double) -> CGFloat {
-        guard playing else { return barWidth }          // resting dots when paused
-        let phase = Double(i) * 1.7
-        let s = (sin(t * 6.0 + phase) + 1) / 2           // 0…1
-        let s2 = (sin(t * 9.3 + phase * 0.5) + 1) / 2
-        let organic = 0.6 * s + 0.4 * s2                // per-bar shimmer
-        if spectrum.active {
-            // Real loudness drives the amplitude; the phase-offset shimmer keeps
-            // each bar distinct so it reads as a spectrum, not a VU needle.
-            let live = Double(spectrum.level)
-            let level = 0.12 + 0.88 * live * (0.55 + 0.45 * organic)
-            return max(barWidth, height * CGFloat(level))
+    override func layout() {
+        super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        gradientLayer.frame = bounds
+        barsMask.frame = bounds
+        CATransaction.commit()
+        applyFrames(animated: false)
+    }
+
+    private func spectrumChanged(bands: [Float], active: Bool) {
+        guard playing else { return }
+        if active {
+            stopFallback()
+            updateLive(bands: bands)
+        } else {
+            startFallback()
         }
-        let level = 0.35 + 0.65 * organic
-        return max(barWidth, height * CGFloat(level))
+    }
+
+    private func updateLive(bands: [Float]) {
+        setLevels((0..<count).map { index in
+            let value = index < bands.count ? bands[index] : 0
+            return 0.10 + 0.90 * CGFloat(value)
+        }, animated: true)
+    }
+
+    private func startFallback() {
+        guard fallbackTimer == nil else { return }
+        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.fallbackTick() }
+        }
+        fallbackTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+        fallbackTick()
+    }
+
+    private func stopFallback() {
+        fallbackTimer?.invalidate()
+        fallbackTimer = nil
+    }
+
+    private func fallbackTick() {
+        let time = Date.timeIntervalSinceReferenceDate
+        setLevels((0..<count).map { index in
+            let phase = Double(index) * 1.7
+            let first = (sin(time * 6.0 + phase) + 1) / 2
+            let second = (sin(time * 9.3 + phase * 0.5) + 1) / 2
+            return CGFloat(0.35 + 0.65 * (0.6 * first + 0.4 * second))
+        }, animated: true)
+    }
+
+    private func setLevels(_ levels: [CGFloat], animated: Bool) {
+        self.levels = levels
+        applyFrames(animated: animated)
+    }
+
+    private func applyFrames(animated: Bool) {
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        let path = CGMutablePath()
+        for index in 0..<count {
+            let height = max(barWidth, maximumHeight * levels[index])
+            let rect = CGRect(x: CGFloat(index) * (barWidth + spacing),
+                              y: (bounds.height - height) / 2,
+                              width: barWidth,
+                              height: height)
+            path.addRoundedRect(in: rect, cornerWidth: barWidth / 2, cornerHeight: barWidth / 2)
+        }
+        let previousPath = barsMask.presentation()?.path ?? barsMask.path
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        barsMask.path = path
+        CATransaction.commit()
+        guard animated, let previousPath else { return }
+        let animation = CABasicAnimation(keyPath: "path")
+        animation.fromValue = previousPath
+        animation.toValue = path
+        animation.duration = 0.11
+        animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        barsMask.add(animation, forKey: "beatPath")
+    }
+
+    private func updateColors(color: NSColor, accent: NSColor?) {
+        guard let rgb = (accent ?? color).usingColorSpace(.deviceRGB) else { return }
+        var hue: CGFloat = 0
+        var saturation: CGFloat = 0
+        var brightness: CGFloat = 0
+        var alpha: CGFloat = 0
+        rgb.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        let saturationValue = accent == nil ? 0 : min(max(saturation, 0.48), 0.92)
+        let brightnessValue = min(max(brightness, 0.72), 1)
+        let left = NSColor(deviceHue: (hue + 0.95).truncatingRemainder(dividingBy: 1),
+                           saturation: saturationValue, brightness: brightnessValue, alpha: alpha)
+        let centre = NSColor(deviceHue: hue,
+                             saturation: saturationValue, brightness: brightnessValue, alpha: alpha)
+        let right = NSColor(deviceHue: (hue + 0.05).truncatingRemainder(dividingBy: 1),
+                            saturation: saturationValue, brightness: brightnessValue, alpha: alpha)
+        let highlight = left.blended(withFraction: 0.38, of: NSColor.white) ?? left
+        let deep = right.blended(withFraction: 0.20, of: NSColor.black) ?? right
+        gradientLayer.colors = [highlight.cgColor, centre.cgColor, deep.withAlphaComponent(0.84).cgColor]
     }
 }
 

@@ -125,24 +125,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if AppSettings.shared.windowSnapEnabled, Permissions.hasAccessibility {
             WindowSnapManager.shared.start()
         }
-        // Resume the notch shelf if enabled.
-        if AppSettings.shared.notchEnabled {
-            NotchController.shared.start()
-        }
-        // Start the now-playing media stream for the notch (any app, on-device).
-        if AppSettings.shared.notchEnabled, AppSettings.shared.notchMediaEnabled {
-            MediaManager.shared.start()
-        }
-
-        // If Dock previews are on but we genuinely can't capture other apps'
-        // windows (ground-truth test, not the lying preflight flag), surface the
-        // system Screen Recording prompt so the user can grant it against the
-        // current signing identity. Harmless if already granted.
-        if AppSettings.shared.dockPreviewsEnabled, !WindowService.shared.canCaptureNow() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                Permissions.requestScreenRecording()
-            }
-        }
+        // Restore the complete Notch runtime from its four related preferences.
+        NotchRuntimeCoordinator.shared.apply()
 
         // Occasional, honor-system "buy me a coffee" nudge (never for supporters).
         OnboardingController.shared.showIfNeeded()

@@ -191,19 +191,45 @@ struct MenuBarView: View {
 
     private var footer: some View {
         HStack(spacing: 14) {
-            footerButton("camera.viewfinder", "Screenshot · ⌘⇧7") {
-                ScreenshotService.shared.captureRegion(runOCR: false)
+            Menu {
+                Button("Capture Region", systemImage: "camera.viewfinder") {
+                    ScreenshotService.shared.captureRegion(runOCR: false)
+                }
+                .keyboardShortcut("7", modifiers: [.command, .shift])
+                Button("Capture Region + OCR", systemImage: "text.viewfinder") {
+                    ScreenshotService.shared.captureRegion(runOCR: true)
+                }
+                .keyboardShortcut("o", modifiers: [.command, .shift])
+                Divider()
+                Button("Capture Window", systemImage: "macwindow.and.cursorarrow") {
+                    ScreenshotService.shared.captureWindow()
+                }
+            } label: {
+                Image(systemName: "camera.viewfinder").font(.system(size: 13))
             }
-            footerButton("text.viewfinder", "Screenshot + OCR · ⌘⇧O") {
-                ScreenshotService.shared.captureRegion(runOCR: true)
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .foregroundStyle(.secondary)
+            .help("Capture")
+
+            Menu {
+                ForEach(ClipboardCaptureState.allCases) { state in
+                    Button {
+                        settings.clipboardCaptureState = state
+                    } label: {
+                        Label(state.label, systemImage: state == settings.clipboardCaptureState
+                              ? "checkmark" : state.symbol)
+                    }
+                }
+            } label: {
+                Image(systemName: settings.clipboardCaptureState.symbol)
+                    .font(.system(size: 13))
             }
-            footerButton("macwindow.and.cursorarrow", "Capture a window (no shadow)") {
-                ScreenshotService.shared.captureWindow()
-            }
-            footerButton(settings.privateMode ? "eye.slash" : "eye",
-                         settings.privateMode ? "Resume clipboard" : "Private mode") {
-                settings.privateMode.toggle()
-            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .foregroundStyle(settings.clipboardCaptureState == .paused ? .orange : .secondary)
+            .help("Clipboard capture: \(settings.clipboardCaptureState.label)")
+
             Button { DashboardWindowController.shared.show() } label: {
                 Label("App", systemImage: "macwindow")
                     .font(.system(size: 11, weight: .semibold))

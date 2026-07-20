@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import ImageIO
 import UniformTypeIdentifiers
 
 /// The single source of truth for everything on the Shelf.
@@ -14,6 +15,12 @@ final class ShelfStore: ObservableObject {
     private let filesDir: URL
     private let dbURL: URL
     private var sweepTimer: Timer?
+    private var terminationObserver: NSObjectProtocol?
+
+    private let thumbnailCache = NSCache<NSString, NSImage>()
+    private let imageIOQueue = DispatchQueue(label: "app.flowshelf.image-io", qos: .userInitiated)
+    private let persistenceQueue = DispatchQueue(label: "app.flowshelf.persistence", qos: .utility)
+    private var persistWork: DispatchWorkItem?
 
     private let maxImageDimension: CGFloat = 2200      // cap stored screenshots
     private let thumbDimension: CGFloat = 220
@@ -25,10 +32,18 @@ final class ShelfStore: ObservableObject {
         dbURL = baseDir.appendingPathComponent("shelf.json")
 
         try? FileManager.default.createDirectory(at: filesDir, withIntermediateDirectories: true)
+        thumbnailCache.countLimit = 256
         hardenStorage()
         load()
         sweepExpired()
         startSweepTimer()
+        terminationObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.flushPersistence() }
+        }
     }
 
     /// Clipboard history can contain sensitive copied text, so keep it private:
@@ -144,38 +159,50 @@ final class ShelfStore: ObservableObject {
     }
 
     func thumbnail(for item: ShelfItem) -> NSImage? {
-        if let rel = item.thumbRelPath,
-           let img = NSImage(contentsOf: fileURL(forRel: rel)) {
-            return img
+        let rel = item.thumbRelPath ?? item.imageRelPath
+        guard let rel else { return nil }
+        let key = rel as NSString
+        if let cached = thumbnailCache.object(forKey: key) { return cached }
+        if let image = NSImage(contentsOf: fileURL(forRel: rel)) {
+            thumbnailCache.setObject(image, forKey: key)
+            return image
         }
-        if let url = imageURL(for: item) { return NSImage(contentsOf: url) }
         return nil
     }
 
     // MARK: - Convenience constructors
 
-    /// Persist an image (NSImage) to disk and return relative paths.
-    /// Returns (imageRelPath, thumbRelPath).
-    func storeImage(_ image: NSImage, prefix: String) -> (String, String?)? {
+    /// Convert, resize, and persist an image away from the main actor. Completion
+    /// returns on the main actor with (imageRelPath, thumbRelPath).
+    func storeImage(_ image: NSImage, prefix: String,
+                    completion: @escaping (((String, String?))?) -> Void) {
+        guard let source = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+            completion(nil)
+            return
+        }
         let id = UUID().uuidString
         let imageRel = "\(prefix)-\(id).png"
         let thumbRel = "\(prefix)-\(id)-thumb.png"
+        let imageURL = fileURL(forRel: imageRel)
+        let thumbURL = fileURL(forRel: thumbRel)
+        let maxDimension = maxImageDimension
+        let thumbnailDimension = thumbDimension
 
-        let capped = image.resized(maxDimension: maxImageDimension)
-        guard let pngData = capped.pngData() else { return nil }
-        do {
-            try pngData.write(to: fileURL(forRel: imageRel))
-        } catch {
-            return nil
-        }
+        imageIOQueue.async {
+            guard let capped = Self.resized(source, maxDimension: maxDimension),
+                  Self.writePNG(capped, to: imageURL) else {
+                DispatchQueue.main.async { completion(nil) }
+                return
+            }
 
-        var savedThumb: String? = nil
-        if let thumb = image.resized(maxDimension: thumbDimension).pngData() {
-            if (try? thumb.write(to: fileURL(forRel: thumbRel))) != nil {
+            var savedThumb: String?
+            if let thumbnail = Self.resized(source, maxDimension: thumbnailDimension),
+               Self.writePNG(thumbnail, to: thumbURL) {
                 savedThumb = thumbRel
             }
+            let result = (imageRel, savedThumb)
+            DispatchQueue.main.async { completion(result) }
         }
-        return (imageRel, savedThumb)
     }
 
     // MARK: - Persistence
@@ -190,13 +217,14 @@ final class ShelfStore: ObservableObject {
     }
 
     private func persist() {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted]
-        if let data = try? encoder.encode(items) {
-            try? data.write(to: dbURL, options: .atomic)
-            try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: dbURL.path)
+        let snapshot = items
+        let destination = dbURL
+        persistWork?.cancel()
+        let work = DispatchWorkItem {
+            Self.writeSnapshot(snapshot, to: destination)
         }
+        persistWork = work
+        persistenceQueue.asyncAfter(deadline: .now() + 0.12, execute: work)
     }
 
     // MARK: - Expiry
@@ -218,8 +246,73 @@ final class ShelfStore: ObservableObject {
     }
 
     private func deleteFiles(for item: ShelfItem) {
-        for rel in [item.imageRelPath, item.thumbRelPath].compactMap({ $0 }) {
-            try? FileManager.default.removeItem(at: fileURL(forRel: rel))
+        let relatives = [item.imageRelPath, item.thumbRelPath].compactMap { $0 }
+        let urls = relatives.map(fileURL(forRel:))
+        for relative in relatives {
+            thumbnailCache.removeObject(forKey: relative as NSString)
+        }
+        imageIOQueue.async {
+            for url in urls { try? FileManager.default.removeItem(at: url) }
+        }
+    }
+
+    private func flushPersistence() {
+        persistWork?.cancel()
+        let snapshot = items
+        let destination = dbURL
+        persistenceQueue.sync {
+            Self.writeSnapshot(snapshot, to: destination)
+        }
+    }
+
+    nonisolated private static func writeSnapshot(_ snapshot: [ShelfItem], to url: URL) {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        guard let data = try? encoder.encode(snapshot) else { return }
+        try? data.write(to: url, options: .atomic)
+        try? FileManager.default.setAttributes(
+            [.posixPermissions: 0o600],
+            ofItemAtPath: url.path
+        )
+    }
+
+    nonisolated private static func resized(_ image: CGImage, maxDimension: CGFloat) -> CGImage? {
+        let width = CGFloat(image.width)
+        let height = CGFloat(image.height)
+        guard width > 0, height > 0 else { return nil }
+        let scale = min(1, maxDimension / max(width, height))
+        let targetWidth = max(1, Int((width * scale).rounded()))
+        let targetHeight = max(1, Int((height * scale).rounded()))
+        if targetWidth == image.width, targetHeight == image.height { return image }
+
+        guard let context = CGContext(
+            data: nil,
+            width: targetWidth,
+            height: targetHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: 0,
+            space: image.colorSpace ?? CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+        return context.makeImage()
+    }
+
+    nonisolated private static func writePNG(_ image: CGImage, to url: URL) -> Bool {
+        guard let destination = CGImageDestinationCreateWithURL(
+            url as CFURL,
+            UTType.png.identifier as CFString,
+            1,
+            nil
+        ) else { return false }
+        CGImageDestinationAddImage(destination, image, nil)
+        return CGImageDestinationFinalize(destination)
+    }
+
+    deinit {
+        if let terminationObserver {
+            NotificationCenter.default.removeObserver(terminationObserver)
         }
     }
 }

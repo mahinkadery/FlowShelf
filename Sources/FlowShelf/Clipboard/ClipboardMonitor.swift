@@ -67,7 +67,8 @@ final class ClipboardMonitor {
 
         // 2. Image data.
         if let img = NSImage(pasteboard: pb), pb.data(forType: .tiff) != nil || pb.data(forType: .png) != nil {
-            if let (rel, thumb) = store.storeImage(img, prefix: "clip") {
+            store.storeImage(img, prefix: "clip") { [weak self] result in
+                guard let self, let (rel, thumb) = result else { return }
                 store.add(ShelfItem(
                     kind: .image,
                     title: "Image",
