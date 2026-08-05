@@ -29,7 +29,13 @@ final class DockObserver {
     private var currentPID: pid_t?
     private var currentIconFrameCG: CGRect?         // CoreGraphics top-left
     private var leftRegionSince: Date?
-    private var hideDelay: TimeInterval { AppSettings.shared.dockPreviewHoverDelay }
+    private var showTimer: Timer?
+
+    /// The Settings "hover delay" is the APPEAR delay — how long you must rest
+    /// on an icon before the preview shows (skimming the Dock stays quiet).
+    private var appearDelay: TimeInterval { AppSettings.shared.dockPreviewHoverDelay }
+    /// Fixed grace period before hiding — long enough to travel icon → panel.
+    private let hideGrace: TimeInterval = 0.40
 
     private(set) var isRunning = false
     private init() {}
@@ -51,13 +57,14 @@ final class DockObserver {
     func stop() {
         isRunning = false
         hideTimer?.invalidate(); hideTimer = nil
+        showTimer?.invalidate(); showTimer = nil
         if let axObserver {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(),
                                   AXObserverGetRunLoopSource(axObserver), .commonModes)
         }
         axObserver = nil
         subscribedList = nil
-        preview.hide()
+        preview.hide(animated: false)
         currentPID = nil
         currentIconFrameCG = nil
     }
@@ -86,7 +93,9 @@ final class DockObserver {
         guard isRunning, let dockPID,
               let item = AX.selectedDockItem(dockPID: dockPID),
               AX.subrole(of: item) == "AXApplicationDockItem" else {
-            // Hovered off any app icon — let the hide timer take it down.
+            // Hovered off any app icon — cancel a pending show and let the
+            // hide timer take the visible panel down after the grace period.
+            showTimer?.invalidate(); showTimer = nil
             leftRegionSince = leftRegionSince ?? Date()
             return
         }
@@ -96,13 +105,31 @@ final class DockObserver {
         currentPID = app.processIdentifier
         currentIconFrameCG = frame
         leftRegionSince = nil
+        showTimer?.invalidate(); showTimer = nil
 
-        preview.present(pid: app.processIdentifier,
-                        appName: app.localizedName ?? "App",
-                        icon: app.icon,
-                        bundleID: app.bundleIdentifier,
-                        iconFrameCG: frame ?? .zero,
-                        dockPosition: DockPosition.current)
+        let show = { [weak self] in
+            self?.preview.present(pid: app.processIdentifier,
+                                  appName: app.localizedName ?? "App",
+                                  icon: app.icon,
+                                  bundleID: app.bundleIdentifier,
+                                  iconFrameCG: frame ?? .zero,
+                                  dockPosition: DockPosition.current)
+        }
+
+        if preview.isVisible {
+            // Already open — glide to the next icon immediately, no re-delay.
+            show()
+        } else {
+            // First appearance: rest on the icon for the configured delay so
+            // skimming across the Dock doesn't flash panels.
+            showTimer = Timer.scheduledTimer(withTimeInterval: max(appearDelay, 0.05),
+                                             repeats: false) { _ in
+                Task { @MainActor in
+                    guard self.isRunning, self.currentPID == app.processIdentifier else { return }
+                    show()
+                }
+            }
+        }
     }
 
     /// Resolve the running app behind a Dock item via its file URL → bundle id,
@@ -137,7 +164,7 @@ final class DockObserver {
         // Outside both — start/continue the grace period, then hide.
         let since = leftRegionSince ?? Date()
         leftRegionSince = since
-        if Date().timeIntervalSince(since) >= hideDelay {
+        if Date().timeIntervalSince(since) >= hideGrace {
             preview.hide()
             currentPID = nil
             currentIconFrameCG = nil

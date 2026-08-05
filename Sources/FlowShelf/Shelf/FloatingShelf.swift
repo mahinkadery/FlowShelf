@@ -86,7 +86,7 @@ struct FloatingShelfView: View {
             }
         }
         .frame(width: 300, height: 360)
-        .glassPanel(cornerRadius: 16, style: .frosted,   // foggy, see-through
+        .glassPanel(cornerRadius: 16, style: .liquid,   // real Liquid Glass: clear, refractive
                     stroke: targeted ? Color.accentColor : nil,
                     strokeWidth: targeted ? 2 : 1)
         .onDrop(of: [.fileURL, .image, .text], isTargeted: $targeted) { providers in

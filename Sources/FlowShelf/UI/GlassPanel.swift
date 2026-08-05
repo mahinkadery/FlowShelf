@@ -37,6 +37,9 @@ struct GlassPanel: NSViewRepresentable {
 
     var cornerRadius: CGFloat = 16
     var style: Style = .liquid
+    /// 0…1 strength of the frost. 1 = full material; lower values fade the
+    /// blur/fog so the surface reads as thin, mostly-clear glass.
+    var frost: CGFloat = 1.0
 
     func makeNSView(context: Context) -> NSView {
         if style == .liquid, #available(macOS 26.0, *) {
@@ -52,6 +55,7 @@ struct GlassPanel: NSViewRepresentable {
             v.wantsLayer = true
             v.layer?.cornerRadius = cornerRadius
             v.layer?.masksToBounds = true
+            v.alphaValue = frost
             return v
         }
     }
@@ -61,6 +65,7 @@ struct GlassPanel: NSViewRepresentable {
             g.cornerRadius = cornerRadius
         } else {
             nsView.layer?.cornerRadius = cornerRadius
+            nsView.alphaValue = frost
         }
     }
 }
@@ -74,6 +79,7 @@ private struct GlassPanelModifier: ViewModifier {
     var style: GlassPanel.Style
     var stroke: Color?
     var strokeWidth: CGFloat
+    var frost: CGFloat = 1.0
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -82,7 +88,12 @@ private struct GlassPanelModifier: ViewModifier {
                 if a11y.reduceTransparency {
                     shape.fill(Color(nsColor: .windowBackgroundColor))
                 } else {
-                    GlassPanel(cornerRadius: cornerRadius, style: style)
+                    GlassPanel(cornerRadius: cornerRadius, style: style, frost: frost)
+                    // A whisper of dark scrim keeps text readable on bright
+                    // desktops when the frost is dialed way down.
+                    if frost < 0.5 {
+                        shape.fill(Color.black.opacity(0.10))
+                    }
                 }
             }
             .clipShape(shape)
@@ -124,9 +135,11 @@ private struct LiquidGlassSurface: ViewModifier {
 
 extension View {
     func glassPanel(cornerRadius: CGFloat = 16, style: GlassPanel.Style = .liquid,
-                    stroke: Color? = nil, strokeWidth: CGFloat = 1) -> some View {
+                    stroke: Color? = nil, strokeWidth: CGFloat = 1,
+                    frost: CGFloat = 1.0) -> some View {
         modifier(GlassPanelModifier(cornerRadius: cornerRadius, style: style,
-                                    stroke: stroke, strokeWidth: strokeWidth))
+                                    stroke: stroke, strokeWidth: strokeWidth,
+                                    frost: frost))
     }
 
     /// Apple-native liquid glass surface (dark, CC-style) with graceful fallbacks.

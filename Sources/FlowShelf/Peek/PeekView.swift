@@ -4,22 +4,60 @@ import AppKit
 @MainActor
 final class PeekViewModel: ObservableObject {
     @Published var apps: [AppWindows] = []
-    @Published var loading = false
+    @Published var loading = false          // first load only — content stays put on later refreshes
+    @Published var refreshing = false       // any in-flight capture (spins the refresh button)
+    @Published var live = false             // auto-refresh heartbeat is running
     /// Ground-truth: nil = not yet checked, true/false = actual capture result.
     @Published var captureWorks: Bool?
 
+    private var generation = 0              // stale-result guard
+    private var heartbeat: Timer?
+
+    /// Capture all windows. Existing tiles stay on screen while the new set is
+    /// captured — no blank-out, no flicker; results from superseded refreshes
+    /// are dropped so rapid clicks can't land out of order.
     func refresh() {
         captureWorks = WindowService.shared.canCaptureNow()
-        loading = true
+        generation += 1
+        let gen = generation
+        if apps.isEmpty { loading = true }
+        refreshing = true
         Task {
             let result = await WindowService.shared.allAppWindows(thumbnails: true)
-            self.apps = result
+            guard gen == self.generation else { return }   // a newer refresh superseded us
+            withAnimation(FlowMotion.listChange) { self.apps = result }
             self.loading = false
+            self.refreshing = false
         }
     }
 
+    /// Gentle auto-refresh while the pane is visible, so previews stay current
+    /// without hammering the capture pipeline.
+    func startHeartbeat() {
+        stopHeartbeat()
+        guard captureWorks != false else { return }
+        live = true
+        heartbeat = Timer.scheduledTimer(withTimeInterval: 6, repeats: true) { _ in
+            Task { @MainActor in
+                guard !self.refreshing else { return }     // never stack captures
+                self.refresh()
+            }
+        }
+    }
+
+    func stopHeartbeat() {
+        heartbeat?.invalidate()
+        heartbeat = nil
+        live = false
+    }
+
     /// Release captured thumbnails from memory when the tab isn't visible.
-    func clear() { apps = [] }
+    func clear() {
+        stopHeartbeat()
+        generation += 1        // orphan any in-flight capture
+        apps = []
+        refreshing = false
+    }
 }
 
 /// The "Peek" dashboard tab: every app with open windows, live thumbnails,
@@ -52,7 +90,7 @@ struct PeekView: View {
             }
             content
         }
-        .onAppear { model.refresh() }
+        .onAppear { model.refresh(); model.startHeartbeat() }
         .onDisappear { model.clear() }
     }
 
@@ -60,14 +98,21 @@ struct PeekView: View {
     private var header: some View {
         HStack(spacing: 10) {
             if let works = model.captureWorks {
-                Label(works ? "Capture working" : "No capture",
-                      systemImage: works ? "checkmark.circle.fill" : "xmark.circle")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(works ? .green : .orange)
-                    .padding(.horizontal, 9).padding(.vertical, 5)
-                    .background(Capsule().fill((works ? Color.green : Color.orange).opacity(0.12)))
-                    .help(works ? "FlowShelf can capture window previews."
-                          : "FlowShelf can't capture yet — see the banner below.")
+                HStack(spacing: 6) {
+                    if works && model.live {
+                        PulseDot()
+                        Text("Live previews")
+                    } else {
+                        Image(systemName: works ? "checkmark.circle.fill" : "xmark.circle")
+                        Text(works ? "Capture working" : "No capture")
+                    }
+                }
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(works ? .green : .orange)
+                .padding(.horizontal, 9).padding(.vertical, 5)
+                .background(Capsule().fill((works ? Color.green : Color.orange).opacity(0.12)))
+                .help(works ? "Window previews refresh automatically while this tab is open."
+                      : "FlowShelf can't capture yet — see the banner below.")
             }
             Spacer()
             Toggle(isOn: $settings.dockPreviewsEnabled) {
@@ -79,7 +124,12 @@ struct PeekView: View {
             }
             Button { model.refresh() } label: {
                 Image(systemName: "arrow.clockwise")
-            }.help("Refresh")
+                    .rotationEffect(.degrees(model.refreshing ? 360 : 0))
+                    .animation(model.refreshing
+                               ? .linear(duration: 0.9).repeatForever(autoreverses: false)
+                               : .default,
+                               value: model.refreshing)
+            }.help("Refresh now")
         }
         .padding(.horizontal, 18).padding(.vertical, 12)
     }
@@ -102,9 +152,13 @@ struct PeekView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(model.apps) { app in
                         appSection(app)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.97, anchor: .top)),
+                                removal: .opacity))
                     }
                 }
                 .padding(.horizontal, 14).padding(.vertical, 12)
+                .animation(FlowMotion.listChange, value: model.apps.map(\.id))
             }
         }
     }
@@ -113,19 +167,23 @@ struct PeekView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 if let icon = app.icon {
-                    Image(nsImage: icon).resizable().frame(width: 22, height: 22)
+                    Image(nsImage: icon).resizable().frame(width: 24, height: 24)
+                        .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                 }
                 Text(app.appName).font(.system(size: 13, weight: .semibold))
                 Text("\(app.windows.count)")
                     .font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.secondary)
                     .padding(.horizontal, 6).padding(.vertical, 1.5)
                     .background(Capsule().fill(Color.primary.opacity(0.08)))
+                    .contentTransition(.numericText())
             }
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 180), spacing: 12)], alignment: .leading, spacing: 12) {
                 ForEach(app.windows) { w in
                     PeekTile(window: w)
+                        .transition(.opacity.combined(with: .scale(scale: 0.94)))
                 }
             }
+            .animation(FlowMotion.listChange, value: app.windows)
         }
         .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -167,43 +225,119 @@ struct PeekView: View {
 private struct PeekTile: View {
     let window: WindowInfo
     @State private var hovering = false
+    @State private var pressing = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 5) {
             ZStack(alignment: .topTrailing) {
                 Group {
                     if let t = window.thumbnail {
                         Image(nsImage: t).resizable().aspectRatio(contentMode: .fit)
                     } else {
-                        RoundedRectangle(cornerRadius: 8).fill(Color.primary.opacity(0.08))
-                            .overlay(Image(systemName: "macwindow").foregroundStyle(.secondary))
-                            .frame(height: 110)
+                        PeekPlaceholder()
                     }
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 110)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.white.opacity(0.08)))
+                .background(Color.black.opacity(0.18))
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                // Glass sheen along the top edge, brighter on hover.
+                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(LinearGradient(colors: [.white.opacity(hovering ? 0.10 : 0.05), .clear],
+                                         startPoint: .top, endPoint: .center))
+                    .allowsHitTesting(false))
+                .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .strokeBorder(hovering ? Color.accentColor.opacity(0.65) : .white.opacity(0.10),
+                                  lineWidth: hovering ? 1.2 : 1))
 
                 if hovering {
                     HStack(spacing: 4) {
-                        tileBtn("minus") { AX.minimizeWindow(pid: window.pid, windowID: window.id) }
-                        tileBtn("xmark") { AX.closeWindow(pid: window.pid, windowID: window.id) }
-                    }.padding(5)
+                        tileBtn("minus", help: "Minimize") { AX.minimizeWindow(pid: window.pid, windowID: window.id) }
+                        tileBtn("xmark", help: "Close") { AX.closeWindow(pid: window.pid, windowID: window.id) }
+                    }
+                    .padding(5)
+                    .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .topTrailing)))
                 }
             }
-            Text(window.title).font(.system(size: 11)).lineLimit(1)
+            Text(window.title.isEmpty ? "Untitled window" : window.title)
+                .font(.system(size: 11, weight: hovering ? .medium : .regular))
+                .foregroundStyle(hovering ? Color.primary : Color.secondary)
+                .lineLimit(1)
+                .padding(.horizontal, 2)
         }
         .contentShape(Rectangle())
+        .scaleEffect(pressing ? 0.965 : (hovering ? 1.03 : 1.0))
+        .offset(y: hovering && !pressing ? -2 : 0)
+        .shadow(color: .black.opacity(hovering ? 0.35 : 0), radius: hovering ? 10 : 0, y: 4)
+        .zIndex(hovering ? 1 : 0)
+        .animation(FlowMotion.hoverScale, value: hovering)
+        .animation(FlowMotion.press, value: pressing)
         .onHover { hovering = $0 }
-        .onTapGesture { AX.raiseWindow(pid: window.pid, windowID: window.id) }
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in pressing = true }
+                .onEnded { _ in
+                    pressing = false
+                    AX.raiseWindow(pid: window.pid, windowID: window.id)
+                }
+        )
+        .help("Click to bring this window to front")
     }
 
-    private func tileBtn(_ symbol: String, _ action: @escaping () -> Void) -> some View {
+    private func tileBtn(_ symbol: String, help: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 9, weight: .bold))
-                .frame(width: 18, height: 18).background(Circle().fill(.ultraThinMaterial))
-        }.buttonStyle(.plain)
+                .frame(width: 19, height: 19)
+                .background(Circle().fill(.ultraThinMaterial))
+                .overlay(Circle().strokeBorder(.white.opacity(0.15), lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+        .help(help)
+    }
+}
+
+/// Small breathing green dot — the "previews are live" heartbeat.
+private struct PulseDot: View {
+    @State private var on = false
+
+    var body: some View {
+        Circle()
+            .fill(Color.green)
+            .frame(width: 7, height: 7)
+            .overlay(
+                Circle().stroke(Color.green.opacity(0.5), lineWidth: 1.5)
+                    .scaleEffect(on ? 2.0 : 1.0)
+                    .opacity(on ? 0 : 0.8)
+            )
+            .onAppear {
+                guard !FlowMotion.reduceMotion else { return }
+                withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) {
+                    on = true
+                }
+            }
+    }
+}
+
+/// Placeholder for windows we couldn't thumbnail — softly pulsing so the grid
+/// still feels alive rather than broken.
+private struct PeekPlaceholder: View {
+    @State private var pulse = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .fill(Color.primary.opacity(0.07))
+            .overlay(
+                Image(systemName: "macwindow")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.secondary)
+                    .opacity(pulse ? 0.35 : 0.8)
+            )
+            .onAppear {
+                guard !FlowMotion.reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                    pulse = true
+                }
+            }
     }
 }
 

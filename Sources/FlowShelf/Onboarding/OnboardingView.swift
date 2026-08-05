@@ -196,11 +196,12 @@ struct OnboardingView: View {
 }
 
 private enum OnboardingPage: Int, CaseIterable, Identifiable {
-    case shelf, notch, capture, windows, intelligence, privacy
+    case welcome, shelf, notch, capture, windows, intelligence, privacy
     var id: Int { rawValue }
 
     var shortLabel: String {
         switch self {
+        case .welcome: return "Welcome"
         case .shelf: return "Shelf"
         case .notch: return "Notch"
         case .capture: return "Capture"
@@ -212,6 +213,7 @@ private enum OnboardingPage: Int, CaseIterable, Identifiable {
 
     var eyebrow: String {
         switch self {
+        case .welcome: return "Welcome to FlowShelf"
         case .shelf: return "Collect anything"
         case .notch: return "Stay in flow"
         case .capture: return "Capture and explain"
@@ -223,6 +225,7 @@ private enum OnboardingPage: Int, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .welcome: return "Everything temporary finally has a home."
         case .shelf: return "One shelf for everything."
         case .notch: return "Your notch becomes useful."
         case .capture: return "Screenshots that do more."
@@ -234,6 +237,8 @@ private enum OnboardingPage: Int, CaseIterable, Identifiable {
 
     var detail: String {
         switch self {
+        case .welcome:
+            return "FlowShelf catches what you copy, drop, and capture — and keeps it ready until you need it. This short tour shows the highlights; everything runs free and fully on your Mac."
         case .shelf:
             return "Copies, files, links, images, and screenshots arrive in one temporary shelf. Search instantly, pin the important things, and let the rest clear itself."
         case .notch:
@@ -251,6 +256,7 @@ private enum OnboardingPage: Int, CaseIterable, Identifiable {
 
     var highlights: [String] {
         switch self {
+        case .welcome: return ["Free, notarized, no account", "100% on-device — nothing leaves your Mac", "Two-minute tour, skip any time"]
         case .shelf: return ["24-hour or permanent history", "Search, pin, drag and paste", "Floating shelf at your cursor"]
         case .notch: return ["Drop shelf on every display", "Now-playing media controls", "Optional system HUDs"]
         case .capture: return ["Region, window and OCR capture", "Professional annotation tools", "Pin, QR scan and image tools"]
@@ -262,6 +268,7 @@ private enum OnboardingPage: Int, CaseIterable, Identifiable {
 
     var symbol: String {
         switch self {
+        case .welcome: return "hand.wave.fill"
         case .shelf: return "tray.full.fill"
         case .notch: return "macbook"
         case .capture: return "camera.viewfinder"
@@ -273,6 +280,7 @@ private enum OnboardingPage: Int, CaseIterable, Identifiable {
 
     var tint: Color {
         switch self {
+        case .welcome: return .yellow
         case .shelf: return .orange
         case .notch: return .pink
         case .capture: return .purple
@@ -489,6 +497,7 @@ private struct OnboardingArt: View {
 
     @ViewBuilder private var scene: some View {
         switch page {
+        case .welcome: WelcomeDemo(phase: phase, reduceMotion: reduceMotion)
         case .shelf: ShelfDemo(phase: phase, reduceMotion: reduceMotion)
         case .notch: NotchDemo(phase: phase, reduceMotion: reduceMotion)
         case .capture: CaptureDemo(phase: phase, reduceMotion: reduceMotion)
@@ -503,6 +512,42 @@ private struct OnboardingArt: View {
         guard !Task.isCancelled else { return }
         withAnimation(.spring(response: 0.68, dampingFraction: 0.84)) {
             phase = next
+        }
+    }
+}
+
+/// The welcome page's hero: the FlowShelf organizer-tray artwork settling in
+/// with a soft drop, then floating gently. Artwork lives in WelcomeTile.png
+/// (rendered from svg-assets/image-organizer-icon.svg).
+private struct WelcomeDemo: View {
+    let phase: Int
+    let reduceMotion: Bool
+    @State private var floating = false
+
+    var body: some View {
+        ZStack {
+            if let tile = Bundle.main.loadImage("WelcomeTile") {
+                Image(nsImage: tile)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 285)
+                    .shadow(color: .black.opacity(0.45), radius: 26, y: 16)
+                    .scaleEffect(phase >= 1 ? 1 : 0.86)
+                    .opacity(phase >= 1 ? 1 : 0)
+                    .offset(y: floating ? -6 : 4)
+                    .rotation3DEffect(.degrees(floating ? 1.6 : -1.2), axis: (x: 1, y: 0, z: 0))
+            } else {
+                // Artwork missing from the bundle — fall back to the app icon.
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable().scaledToFit().frame(width: 200)
+                    .opacity(phase >= 1 ? 1 : 0)
+            }
+        }
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 3.4).repeatForever(autoreverses: true)) {
+                floating = true
+            }
         }
     }
 }

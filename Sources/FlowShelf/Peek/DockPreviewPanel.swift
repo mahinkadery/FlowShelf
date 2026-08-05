@@ -22,8 +22,10 @@ final class DockPreviewModel: ObservableObject {
             let result = await WindowService.shared.loadWindows(
                 pid: pid, appName: appName, bundleID: bundleID, thumbnails: true)
             guard token == loadToken else { return }
-            self.windows = result
-            self.loading = false
+            withAnimation(FlowMotion.listChange) {
+                self.windows = result
+                self.loading = false
+            }
         }
     }
 }
@@ -67,9 +69,11 @@ struct DockPreviewView: View {
                                         onActivate: { onActivate(w) },
                                         onClose: { onClose(w) },
                                         onMinimize: { onMinimize(w) })
+                                .transition(.opacity.combined(with: .scale(scale: 0.92)))
                         }
                     }
                     .padding(.bottom, 2)
+                    .animation(FlowMotion.listChange, value: model.windows)
                 }
 
                 if !model.loading && model.windows.allSatisfy({ $0.thumbnail == nil }) {
@@ -84,9 +88,13 @@ struct DockPreviewView: View {
         }
         .padding(16)
         .frame(maxWidth: 1040)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-            .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1))
+        // FlowShelf's own glass — the same dark Control-Centre surface as the
+        // notch card and output picker, not a generic system material.
+        .liquidGlassSurface(cornerRadius: 20, tint: .black.opacity(0.42))
+        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
+            .strokeBorder(LinearGradient(
+                colors: [.white.opacity(0.30), .white.opacity(0.06), .white.opacity(0.12)],
+                startPoint: .top, endPoint: .bottom), lineWidth: 1))
     }
 
     private var thumbW: CGFloat { AppSettings.shared.dockPreviewSize.thumb.width }
@@ -103,6 +111,8 @@ private struct WindowThumb: View {
     var onMinimize: () -> Void
     @State private var hovering = false
 
+    @State private var pressing = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .topTrailing) {
@@ -114,27 +124,45 @@ private struct WindowThumb: View {
                     }
                 }
                 .frame(width: width, height: height)
+                .background(Color.black.opacity(0.2))
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                // Glass sheen along the top, brighter on hover.
                 .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(hovering ? Color.accentColor.opacity(0.8) : Color.primary.opacity(0.08),
-                                  lineWidth: hovering ? 2 : 1))
+                    .fill(LinearGradient(colors: [.white.opacity(hovering ? 0.10 : 0.04), .clear],
+                                         startPoint: .top, endPoint: .center))
+                    .allowsHitTesting(false))
+                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(hovering ? Color.accentColor.opacity(0.75) : .white.opacity(0.10),
+                                  lineWidth: hovering ? 1.5 : 1))
 
                 if hovering {
                     HStack(spacing: 5) {
                         circleButton("minus") { onMinimize() }
                         circleButton("xmark") { onClose() }
-                    }.padding(6)
+                    }
+                    .padding(6)
+                    .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .topTrailing)))
                 }
             }
-            Text(window.title)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+            Text(window.title.isEmpty ? "Untitled window" : window.title)
+                .font(.system(size: 11, weight: hovering ? .medium : .regular))
+                .foregroundStyle(hovering ? Color.primary : Color.secondary)
                 .lineLimit(1)
                 .frame(width: width, alignment: .leading)
         }
         .contentShape(Rectangle())
+        .scaleEffect(pressing ? 0.96 : (hovering ? 1.035 : 1.0))
+        .offset(y: hovering && !pressing ? -2 : 0)
+        .shadow(color: .black.opacity(hovering ? 0.4 : 0), radius: hovering ? 9 : 0, y: 4)
+        .zIndex(hovering ? 1 : 0)
+        .animation(FlowMotion.hoverScale, value: hovering)
+        .animation(FlowMotion.press, value: pressing)
         .onHover { hovering = $0 }
-        .onTapGesture { onActivate() }
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in pressing = true }
+                .onEnded { _ in pressing = false; onActivate() }
+        )
     }
 
     private var placeholder: some View {
@@ -168,9 +196,10 @@ final class DockPreviewController {
     private var panel: NSPanel?
     private let model = DockPreviewModel()
     private var currentPID: pid_t?
+    private var hiding = false
     private let gap: CGFloat = 10
 
-    var isVisible: Bool { panel?.isVisible ?? false }
+    var isVisible: Bool { (panel?.isVisible ?? false) && !hiding }
 
     var containsMouse: Bool {
         guard let panel, panel.isVisible else { return false }
@@ -180,6 +209,7 @@ final class DockPreviewController {
     func present(pid: pid_t, appName: String, icon: NSImage?, bundleID: String?,
                  iconFrameCG: CGRect, dockPosition: DockPosition) {
         if panel == nil { makePanel() }
+        hiding = false
         // Same app already shown — just refresh content, keep position.
         if currentPID != pid {
             currentPID = pid
@@ -188,22 +218,82 @@ final class DockPreviewController {
 
         // Let SwiftUI size itself, then anchor to the icon.
         DispatchQueue.main.async { [weak self] in
-            guard let self, let panel = self.panel else { return }
+            guard let self, let panel = self.panel, !self.hiding else { return }
             panel.layoutIfNeeded()
             let fitting = panel.contentView?.fittingSize ?? NSSize(width: 420, height: 260)
             let w = min(max(fitting.width, 260), 1040)
             let h = min(max(fitting.height, 240), 520)
             let origin = self.anchorOrigin(iconFrameCG: iconFrameCG, panel: NSSize(width: w, height: h),
                                            dockPosition: dockPosition)
-            panel.setFrame(NSRect(origin: origin, size: NSSize(width: w, height: h)), display: true)
-            panel.orderFrontRegardless()
+            let final = NSRect(origin: origin, size: NSSize(width: w, height: h))
+            let reduce = FlowMotion.reduceMotion
+
+            if panel.isVisible {
+                // Gliding along the Dock — smoothly follow the hovered icon.
+                // (Also restores alpha if a fade-out was cancelled mid-flight.)
+                if reduce {
+                    panel.alphaValue = 1
+                    panel.setFrame(final, display: true)
+                } else {
+                    NSAnimationContext.runAnimationGroup { ctx in
+                        ctx.duration = 0.22
+                        ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                        panel.animator().alphaValue = 1
+                        panel.animator().setFrame(final, display: true)
+                    }
+                }
+            } else {
+                // First appearance: rise from the Dock edge while fading in.
+                var start = final
+                if !reduce {
+                    switch dockPosition {
+                    case .left:   start.origin.x -= 10
+                    case .right:  start.origin.x += 10
+                    case .top:    start.origin.y += 10
+                    case .bottom, .unknown: start.origin.y -= 10
+                    }
+                }
+                panel.alphaValue = 0
+                panel.setFrame(start, display: false)
+                panel.orderFrontRegardless()
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = reduce ? 0.15 : 0.26
+                    ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    panel.animator().alphaValue = 1
+                    panel.animator().setFrame(final, display: true)
+                }
+            }
         }
     }
 
-    func hide() {
-        panel?.orderOut(nil)
+    func hide(animated: Bool = true) {
+        guard let panel, panel.isVisible, !hiding else {
+            currentPID = nil
+            return
+        }
         currentPID = nil
-        model.windows = []     // release thumbnails from memory
+        if !animated || FlowMotion.reduceMotion {
+            panel.orderOut(nil)
+            model.windows = []
+            return
+        }
+        hiding = true
+        var down = panel.frame
+        down.origin.y -= 8
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.18
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().alphaValue = 0
+            panel.animator().setFrame(down, display: true)
+        }, completionHandler: {
+            Task { @MainActor in
+                guard self.hiding else { return }      // a new present() cancelled the hide
+                self.hiding = false
+                panel.orderOut(nil)
+                panel.alphaValue = 1
+                self.model.windows = []                // release thumbnails from memory
+            }
+        })
     }
 
     /// Convert the icon's CoreGraphics (top-left) frame to a Cocoa origin for the
@@ -262,6 +352,7 @@ final class DockPreviewController {
         p.isOpaque = false
         p.hasShadow = true
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        p.animationBehavior = .none        // we drive appear/dismiss ourselves
         p.contentView = host
         panel = p
     }

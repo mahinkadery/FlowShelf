@@ -37,6 +37,7 @@ bundle: build icon
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
 	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
 	@if [ -f Resources/MenuBarIcon.png ]; then cp Resources/MenuBarIcon.png $(CONTENTS)/Resources/MenuBarIcon.png; fi
+	@if [ -f Resources/WelcomeTile.png ]; then cp Resources/WelcomeTile.png $(CONTENTS)/Resources/WelcomeTile.png; fi
 	@SPK=$$(find .build/artifacts -name Sparkle.framework -type d -path '*macos*' | head -1); \
 	if [ -n "$$SPK" ]; then \
 		mkdir -p $(CONTENTS)/Frameworks; \
@@ -132,6 +133,7 @@ developer-id-bundle: build icon
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
 	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
 	@if [ -f Resources/MenuBarIcon.png ]; then cp Resources/MenuBarIcon.png $(CONTENTS)/Resources/MenuBarIcon.png; fi
+	@if [ -f Resources/WelcomeTile.png ]; then cp Resources/WelcomeTile.png $(CONTENTS)/Resources/WelcomeTile.png; fi
 	@test -d Vendor/mediaremote-adapter/MediaRemoteAdapter.framework \
 		|| { echo "MediaRemoteAdapter.framework missing — refusing incomplete Developer ID build"; exit 1; }
 	@test -f Vendor/mediaremote-adapter/mediaremote-adapter.pl \
