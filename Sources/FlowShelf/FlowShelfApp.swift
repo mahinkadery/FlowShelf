@@ -95,11 +95,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         #endif
 
+        // Before anything else: if we're running translocated (from the DMG or
+        // Downloads), offer to move to /Applications so permissions actually
+        // stick. If the user accepts, this relaunches and terminates us here.
+        AppRelocator.offerToMoveIfNeeded()
+
         setupStatusItem()
         setupPopover()
 
         ClipboardMonitor.shared.start()
         UpdaterManager.shared.start()   // Sparkle: background update checks
+
+        // Confirm Screen Recording by a real capture shortly after launch, so the
+        // UI never sits on CGPreflight's stale cached "false" after a grant.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            Permissions.warmScreenRecording()
+        }
 
         // Reflect the real login-item state (the user may have changed it elsewhere).
         AppSettings.shared.launchAtLogin = LoginItem.isEnabled
@@ -158,6 +169,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         #endif
+    }
+
+    /// Returning to the foreground is usually the moment right after the user
+    /// toggled a permission in System Settings — re-confirm capture so Peek and
+    /// Permission Health update without a manual refresh.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        Permissions.warmScreenRecording()
     }
 
     // MARK: - Status item

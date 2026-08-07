@@ -113,6 +113,9 @@ final class WindowService {
         let options: CGSWindowCaptureOptions = [.ignoreGlobalClipShape, .bestResolution]
         guard let array = CGSHWCaptureWindowList(CGSMainConnectionID(), &wid, 1, options) as? [CGImage],
               let cg = array.first else { return nil }
+        // A real capture came back — Screen Recording is genuinely granted, even
+        // if CGPreflightScreenCaptureAccess() is still serving its cached false.
+        Permissions.noteScreenCaptureSucceeded()
         let image = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
         return image.resized(maxDimension: maxDimension)
     }

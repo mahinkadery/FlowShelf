@@ -75,7 +75,7 @@ struct PeekView: View {
             if !Permissions.hasAccessibility {
                 permissionBanner(
                     "Accessibility required",
-                    "Peek needs this to list each app’s windows, switch to them, and power Dock hover previews. ① Open Settings and turn FlowShelf ON. ② Then Quit & Reopen (the grant only applies on next launch).",
+                    "Peek needs this to list each app’s windows and switch to them. ① Open FlowShelf.app first from your Applications folder (not the disk image). ② Turn FlowShelf ON in the list. ③ Quit & Reopen — the grant only applies on the next launch.",
                     pane: .accessibility,
                     showRelaunch: true)
             }
@@ -83,12 +83,18 @@ struct PeekView: View {
             // CGPreflightScreenCaptureAccess flag.
             if Permissions.hasAccessibility && model.captureWorks == false {
                 permissionBanner(
-                    "Preview capture isn’t working yet",
-                    "FlowShelf may already be listed under Screen Recording, but this running build still can’t capture. ① Quit & Reopen. ② If still blank, remove FlowShelf from Screen & System Audio Recording, re-add /Applications/FlowShelf.app, turn it ON, then Quit & Reopen.",
+                    "Turn on Screen Recording, then Quit & Reopen",
+                    "① Make sure you’re running FlowShelf from your Applications folder — not the disk image or Downloads (that’s the usual cause). ② Turn FlowShelf ON under Screen Recording. ③ Quit & Reopen — the grant only applies on the next launch. Only if it still won’t capture, remove FlowShelf with “–”, then restart your Mac and turn it on again (removing without a restart can stop the prompt from reappearing).",
                     pane: .screenRecording,
                     showRelaunch: true)
             }
             content
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSApplication.didBecomeActiveNotification)) { _ in
+            // Coming back from System Settings — re-check so a fresh grant shows
+            // immediately instead of waiting for a manual refresh.
+            model.refresh()
         }
         .onAppear { model.refresh(); model.startHeartbeat() }
         .onDisappear { model.clear() }

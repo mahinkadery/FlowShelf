@@ -24,8 +24,30 @@ enum Permissions {
 
     // MARK: Screen Recording (needed for window thumbnails)
 
+    /// `CGPreflightScreenCaptureAccess()` caches its answer for the whole life of
+    /// the process — after the user grants access it keeps returning `false`
+    /// until the app is fully relaunched (a well-known macOS quirk, confirmed by
+    /// Apple DTS). That stale `false` is what makes users think the toggle didn't
+    /// work and start removing/re-adding FlowShelf. So once a real capture
+    /// actually succeeds we KNOW access is granted, and we latch that — the UI
+    /// never reports "not granted" again for this run once anything has been
+    /// captured.
+    private static var captureConfirmed = false
+
+    /// Called by the capture pipeline whenever a window capture actually works.
+    static func noteScreenCaptureSucceeded() { captureConfirmed = true }
+
     static var hasScreenRecording: Bool {
-        CGPreflightScreenCaptureAccess()
+        captureConfirmed || CGPreflightScreenCaptureAccess()
+    }
+
+    /// Actively confirm Screen Recording by attempting one real (tiny) capture,
+    /// then latch the result. Cheap; no-ops once confirmed. Call at launch and
+    /// whenever the app returns to the foreground, so the first read after the
+    /// user grants access in System Settings isn't the stale cached `false`.
+    static func warmScreenRecording() {
+        guard !captureConfirmed else { return }
+        if WindowService.shared.canCaptureNow() { captureConfirmed = true }
     }
 
     @discardableResult
