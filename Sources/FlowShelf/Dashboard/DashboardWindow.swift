@@ -12,6 +12,8 @@ final class DashboardWindowController: NSObject, NSWindowDelegate {
     var isVisible: Bool { window?.isVisible ?? false }
 
     func show(section: DashboardSection? = nil) {
+        // Any path into the dashboard retires the menu-bar "full app →" hint.
+        UserDefaults.standard.set(true, forKey: "hasOpenedDashboard")
         if window == nil { makeWindow() }
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)

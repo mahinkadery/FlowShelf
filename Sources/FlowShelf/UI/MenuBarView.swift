@@ -47,6 +47,13 @@ struct MenuBarView: View {
     @State private var showSettings = false
     @State private var aiResultIDs: [UUID]? = nil   // non-nil = showing AI search results
     @State private var aiSearching = false
+    /// First-time hint: point new users at the full app until they open it once.
+    @AppStorage("hasOpenedDashboard") private var hasOpenedDashboard = false
+
+    private func openDashboard() {
+        hasOpenedDashboard = true
+        DashboardWindowController.shared.show()
+    }
 
     private var aiActive: Bool { aiResultIDs != nil }
     private var canSmartSearch: Bool {
@@ -83,6 +90,8 @@ struct MenuBarView: View {
             if showSettings {
                 SettingsView(onBack: { showSettings = false })
             } else {
+                titleBar
+                Divider()
                 header
                 Divider()
                 filterBar
@@ -96,6 +105,39 @@ struct MenuBarView: View {
         .onDrop(of: [.fileURL, .image, .text], isTargeted: nil) { providers in
             DragDrop.ingest(providers)
         }
+    }
+
+    /// Brand bar with the app's single most important affordance: a big, clearly
+    /// labelled button that opens the full dashboard. The menu-bar popover looks
+    /// like a self-contained widget, so many users never realise there's a full
+    /// app behind it — this makes it unmissable (and hints on first run).
+    private var titleBar: some View {
+        HStack(spacing: 8) {
+            FlowShelfGlyph(size: 16, color: .accentColor)
+            Text("FlowShelf").font(.system(size: 13, weight: .semibold))
+
+            if !hasOpenedDashboard {
+                Text("full app →")
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
+                    .transition(.opacity)
+            }
+            Spacer()
+
+            Button(action: openDashboard) {
+                Label("Open App", systemImage: "square.grid.2x2.fill")
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .padding(.horizontal, 11).padding(.vertical, 4.5)
+                    .background(Capsule().fill(Color.accentColor))
+                    .foregroundStyle(.white)
+                    .shadow(color: Color.accentColor.opacity(hasOpenedDashboard ? 0 : 0.55),
+                            radius: hasOpenedDashboard ? 0 : 6)
+            }
+            .buttonStyle(.plain)
+            .help("Open the full FlowShelf app — shelf, snippets, notch, peek, clean & settings · ⌘⇧D")
+        }
+        .padding(.horizontal, 12).padding(.top, 9).padding(.bottom, 7)
+        .animation(FlowMotion.state, value: hasOpenedDashboard)
     }
 
     private var header: some View {
@@ -230,15 +272,6 @@ struct MenuBarView: View {
             .foregroundStyle(settings.clipboardCaptureState == .paused ? .orange : .secondary)
             .help("Clipboard capture: \(settings.clipboardCaptureState.label)")
 
-            Button { DashboardWindowController.shared.show() } label: {
-                Label("App", systemImage: "macwindow")
-                    .font(.system(size: 11, weight: .semibold))
-                    .padding(.horizontal, 9).padding(.vertical, 3)
-                    .background(Capsule().fill(Color.accentColor.opacity(0.2)))
-                    .foregroundStyle(Color.accentColor)
-            }
-            .buttonStyle(.plain)
-            .help("Open the full FlowShelf app · ⌘⇧D")
             Spacer()
             footerButton("trash", "Clear unpinned") {
                 store.clearAll(includingPinned: false)
