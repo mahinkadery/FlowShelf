@@ -3,10 +3,10 @@
     <channel>
         <title>FlowShelf</title>
         <item>
-            <title>1.6.1</title>
-            <pubDate>Tue, 21 Jul 2026 00:25:06 +1000</pubDate>
-            <sparkle:version>64</sparkle:version>
-            <sparkle:shortVersionString>1.6.1</sparkle:shortVersionString>
+            <title>1.6.2</title>
+            <pubDate>Sat, 08 Aug 2026 23:51:04 +1000</pubDate>
+            <sparkle:version>65</sparkle:version>
+            <sparkle:shortVersionString>1.6.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <description sparkle:format="markdown"><![CDATA[# What’s improved in FlowShelf 1.6.1
 
@@ -35,7 +35,7 @@
 FlowShelf remains local-first: these improvements do not add an account or upload
 your clipboard, screenshots, or AI requests to a FlowShelf server.
 ]]></description>
-            <enclosure url="https://github.com/mahinkadery/FlowShelf/releases/latest/download/FlowShelf.dmg" length="6544045" type="application/octet-stream" sparkle:edSignature="6uoNAoVmSQzHzl6dJ4b/b+tpPvrYUC+KV2ccUVplx6kBCaCO42cDsI79gxcrUL19gRLcCQ3TrmxELlgmvNJaAg=="/>
+            <enclosure url="https://github.com/mahinkadery/FlowShelf/releases/latest/download/FlowShelf.dmg" length="8565690" type="application/octet-stream" sparkle:edSignature="a7c6xc1h+Iw7UlURFWlJzblW3HsmRSTs3pW2E0/Q99E0WxryXMcBq10DLZDjJzVChHWqZKyKsHc2Z49pkKx6AQ=="/>
         </item>
     </channel>
 </rss>
