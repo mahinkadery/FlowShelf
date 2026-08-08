@@ -178,6 +178,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Permissions.warmScreenRecording()
     }
 
+    /// Opening FlowShelf again from the Dock, Launchpad, Finder or Spotlight
+    /// while it's already running in the menu bar. Without this, macOS does
+    /// nothing at all and the app looks broken ("I clicked it and nothing
+    /// happened") — so open the dashboard, which is what people expect from
+    /// launching an app.
+    func applicationShouldHandleReopen(_ sender: NSApplication,
+                                       hasVisibleWindows flag: Bool) -> Bool {
+        DashboardWindowController.shared.show()
+        return true
+    }
+
+    /// FlowShelf is a menu-bar app: closing the dashboard hides the window and
+    /// drops the Dock icon, but the app keeps running so clipboard capture, the
+    /// notch, global shortcuts and shake-to-summon stay alive.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
     // MARK: - Status item
 
     private func setupStatusItem() {

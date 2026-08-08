@@ -68,7 +68,16 @@ final class DashboardWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        // Back to menu-bar-only once the dashboard is dismissed.
+        // Back to menu-bar-only once the dashboard is dismissed: the Dock icon
+        // and ⌘Tab entry go away so nothing looks half-open, while FlowShelf
+        // keeps running in the menu bar (clipboard capture, notch, shortcuts).
+        // Skip it if another real window — the annotation editor or the welcome
+        // tour — is still on screen and needs the Dock presence.
+        let closing = notification.object as? NSWindow
+        let othersVisible = NSApp.windows.contains {
+            $0 !== closing && $0.isVisible && $0.canBecomeMain
+        }
+        guard !othersVisible else { return }
         NSApp.setActivationPolicy(.accessory)
     }
 }
