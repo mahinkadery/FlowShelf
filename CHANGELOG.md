@@ -4,6 +4,43 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.6.2] — 2026-08-08 (build 65)
+
+This release is about the parts that confused people: getting window
+previews working, and finding the app itself.
+
+### Fixed
+- **Window previews now set up properly the first time.** If FlowShelf was
+  opened straight from the disk image or your Downloads folder, macOS ran it
+  from a temporary location and quietly forgot Screen Recording and
+  Accessibility every launch — which is why previews kept breaking until you
+  removed and re-added FlowShelf. It now offers to move itself to your
+  Applications folder on first run, so permissions stick.
+- **Granting Screen Recording takes effect right away.** FlowShelf no longer
+  reports "not granted" after you have already turned it on — it verifies with
+  a real capture instead of trusting a stale macOS cache, and re-checks the
+  moment you come back from System Settings.
+- **Clearer permission help.** The setup steps now tell you what actually
+  works, and no longer suggest removing FlowShelf from the list as a first
+  step — doing that without restarting can stop macOS asking again at all.
+- **Opening FlowShelf from the Dock, Launchpad or Spotlight now opens the
+  app.** Previously nothing happened at all, because FlowShelf lives in the
+  menu bar. Closing the dashboard hides it again and keeps FlowShelf running
+  quietly in the background.
+
+### Improved
+- **The full app is easy to find.** The menu-bar panel now has a clear
+  **Open App** button at the top, with a first-run hint, so the dashboard,
+  snippets, notch, peek, cleaner and settings are no longer hidden behind a
+  small icon.
+- **A friendlier welcome.** The tour opens with an animated FlowShelf tile.
+- **A bolder menu-bar icon** that stays legible in the menu bar.
+- **The floating shelf is real Liquid Glass** — clear and refractive rather
+  than washed out.
+- **Dock hover previews feel alive** — they rise from the Dock, glide between
+  apps as you move along it, and fade away instead of blinking out. Peek in
+  the dashboard refreshes itself live, with previews that lift as you hover.
+
 ## [1.6.1] — 2026-07-20 (build 64)
 
 ### Improved
