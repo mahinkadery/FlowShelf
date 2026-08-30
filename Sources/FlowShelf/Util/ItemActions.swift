@@ -29,6 +29,70 @@ enum ItemActions {
         }
     }
 
+    /// True when there's something meaningful to Share or Save for this item.
+    static func isShareable(_ item: ShelfItem) -> Bool {
+        switch item.kind {
+        case .image, .screenshot: return ShelfStore.shared.imageURL(for: item) != nil
+        case .file: return item.filePath != nil
+        case .cleanReport: return false
+        default: return !(item.text ?? item.preview).isEmpty
+        }
+    }
+
+    /// The concrete objects a Share sheet / save should act on: the image or
+    /// file URL where possible (so recipients get a real file), else the text.
+    private static func shareItems(_ item: ShelfItem) -> [Any] {
+        switch item.kind {
+        case .image, .screenshot:
+            if let url = ShelfStore.shared.imageURL(for: item) { return [url] }
+        case .file:
+            if let path = item.filePath { return [URL(fileURLWithPath: path)] }
+        default:
+            break
+        }
+        return [item.text ?? item.preview]
+    }
+
+    /// Open the macOS Share sheet (AirDrop, Messages, Mail, Save to Photos, Notes,
+    /// …) anchored to the frontmost window — the thing people expect when they
+    /// want to send a copied photo somewhere.
+    static func share(_ item: ShelfItem) {
+        let payload = shareItems(item)
+        guard !payload.isEmpty else { return }
+        let picker = NSSharingServicePicker(items: payload)
+
+        // Anchor to the key window (dashboard / popover), falling back to any
+        // visible window, so the sheet has somewhere to attach.
+        let window = NSApp.keyWindow ?? NSApp.windows.first { $0.isVisible }
+        guard let view = window?.contentView else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let rect = NSRect(x: view.bounds.midX, y: view.bounds.midY, width: 1, height: 1)
+        picker.show(relativeTo: rect, of: view, preferredEdge: .minY)
+    }
+
+    /// Save an image item out to a real file the user chooses (Downloads, Desktop,
+    /// wherever) — the shelf keeps only a temporary copy, so this is how you get a
+    /// permanent, shareable file back out of it.
+    static func saveImage(_ item: ShelfItem) {
+        guard item.kind == .image || item.kind == .screenshot,
+              let url = ShelfStore.shared.imageURL(for: item) else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        let stamp = Self.fileStampFormatter.string(from: item.createdAt)
+        let base = item.kind == .screenshot ? "Screenshot" : "Image"
+        panel.nameFieldStringValue = "FlowShelf \(base) \(stamp).png"
+        panel.canCreateDirectories = true
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let dest = panel.url else { return }
+        try? FileManager.default.copyItem(at: url, to: dest)
+    }
+
+    private static let fileStampFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
+        return f
+    }()
+
     static func reveal(_ item: ShelfItem) {
         if item.kind == .file, let path = item.filePath {
             NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])

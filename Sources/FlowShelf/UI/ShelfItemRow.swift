@@ -164,6 +164,12 @@ struct ShelfItemRow: View {
 
     @ViewBuilder private var contextMenu: some View {
         Button("Copy") { ItemActions.copyToPasteboard(item) }
+        if ItemActions.isShareable(item) {
+            Button("Share…") { ItemActions.share(item) }
+        }
+        if item.hasImage {
+            Button("Save Image…") { ItemActions.saveImage(item) }
+        }
         if item.kind == .link || item.kind == .file || item.hasImage {
             Button("Open") { ItemActions.open(item) }
         }

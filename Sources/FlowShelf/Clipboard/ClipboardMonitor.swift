@@ -65,8 +65,10 @@ final class ClipboardMonitor {
             return
         }
 
-        // 2. Image data.
-        if let img = NSImage(pasteboard: pb), pb.data(forType: .tiff) != nil || pb.data(forType: .png) != nil {
+        // 2. Image data. Accept anything that's genuinely an image type — not
+        //    just TIFF/PNG. Universal Clipboard photos from an iPhone often
+        //    arrive as JPEG or HEIC only, and were being silently dropped.
+        if let img = NSImage(pasteboard: pb), Self.hasImageData(pb) {
             store.storeImage(img, prefix: "clip") { [weak self] result in
                 guard let self, let (rel, thumb) = result else { return }
                 store.add(ShelfItem(
@@ -92,6 +94,14 @@ final class ClipboardMonitor {
                 sourceApp: sourceApp
             ))
         }
+    }
+
+    /// True when the pasteboard carries real image bytes (TIFF, PNG, JPEG, HEIC,
+    /// GIF…) — i.e. any type conforming to `public.image`. Guards against
+    /// treating PDF or rich text that `NSImage` can *render* as a copied image.
+    private static func hasImageData(_ pb: NSPasteboard) -> Bool {
+        guard let types = pb.types else { return false }
+        return types.contains { UTType($0.rawValue)?.conforms(to: .image) == true }
     }
 
     private func addFile(url: URL, sourceApp: String?) {

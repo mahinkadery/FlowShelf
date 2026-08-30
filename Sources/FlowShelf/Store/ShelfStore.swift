@@ -22,7 +22,9 @@ final class ShelfStore: ObservableObject {
     private let persistenceQueue = DispatchQueue(label: "app.flowshelf.persistence", qos: .utility)
     private var persistWork: DispatchWorkItem?
 
-    private let maxImageDimension: CGFloat = 2200      // cap stored screenshots
+    // High enough to keep Retina screenshots and phone photos crisp when you
+    // drag / save / share them back out; still caps pathologically huge images.
+    private let maxImageDimension: CGFloat = 4096
     private let thumbDimension: CGFloat = 220
 
     private init() {
@@ -36,6 +38,7 @@ final class ShelfStore: ObservableObject {
         hardenStorage()
         load()
         sweepExpired()
+        collectOrphanFiles()   // reclaim image files left behind by past crashes/quits
         startSweepTimer()
         terminationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -239,10 +242,38 @@ final class ShelfStore: ObservableObject {
     func sweepExpired() {
         guard !keepForever else { return }   // permanent retention: never auto-clear
         let expired = items.filter { $0.isExpired }
-        guard !expired.isEmpty else { return }
+        guard !expired.isEmpty else {
+            collectOrphanFiles()
+            return
+        }
         for item in expired { deleteFiles(for: item) }
         items.removeAll { $0.isExpired }
         persist()
+        collectOrphanFiles()
+    }
+
+    /// Delete any image/thumbnail files that no live item references. Files get
+    /// orphaned when the app is force-quit or crashes between an item leaving the
+    /// list and its async file delete completing — and nothing else ever reclaims
+    /// them, so they pile up on disk forever (the shelf entry is gone but the
+    /// photo is not). A 10-minute grace window means a just-written file (added a
+    /// moment ago, not yet in `items`) is never mistaken for an orphan.
+    private func collectOrphanFiles() {
+        let referenced = Set(items.flatMap { item in
+            [item.imageRelPath, item.thumbRelPath].compactMap { $0 }
+        })
+        let dir = filesDir
+        imageIOQueue.async {
+            let fm = FileManager.default
+            guard let urls = try? fm.contentsOfDirectory(
+                at: dir, includingPropertiesForKeys: [.contentModificationDateKey]) else { return }
+            let cutoff = Date().addingTimeInterval(-600)   // never touch files < 10 min old
+            for url in urls where !referenced.contains(url.lastPathComponent) {
+                let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                    .contentModificationDate ?? .distantPast
+                if modified < cutoff { try? fm.removeItem(at: url) }
+            }
+        }
     }
 
     private func deleteFiles(for item: ShelfItem) {
