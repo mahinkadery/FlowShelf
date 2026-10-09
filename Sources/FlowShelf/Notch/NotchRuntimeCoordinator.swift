@@ -25,7 +25,8 @@ final class NotchRuntimeCoordinator {
             MediaManager.shared.start()
             let now = MediaManager.shared.now
             AudioSpectrum.shared.setActive(
-                settings.audioReactiveBars && now.hasMedia && now.isPlaying
+                settings.audioReactiveBars && now.hasMedia && now.isPlaying,
+                playerBundleID: now.bundleID
             )
         } else {
             MediaManager.shared.stop()

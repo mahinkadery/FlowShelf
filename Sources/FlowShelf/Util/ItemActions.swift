@@ -7,26 +7,37 @@ enum ItemActions {
     /// and flash a "copied" confirmation on the matching row/tile.
     static let didCopyNotification = Notification.Name("FlowShelfDidCopyItem")
 
-    static func copyToPasteboard(_ item: ShelfItem) {
-        defer { NotificationCenter.default.post(name: didCopyNotification, object: item.id) }
+    static func copyToPasteboard(_ item: ShelfItem, plainText: Bool = false) {
         let pb = NSPasteboard.general
-        AppSettings.shared.ignoreNextCopy = true   // don't re-shelf our own copy
-        Haptics.copy()
-        pb.clearContents()
-
+        let writers: [NSPasteboardWriting]
         switch item.kind {
         case .image, .screenshot:
-            if let url = ShelfStore.shared.imageURL(for: item),
-               let img = NSImage(contentsOf: url) {
-                pb.writeObjects([img])
+            guard let url = ShelfStore.shared.imageURL(for: item),
+                  let image = NSImage(contentsOf: url) else {
+                return
             }
+            writers = [image]
         case .file:
-            if let path = item.filePath {
-                pb.writeObjects([URL(fileURLWithPath: path) as NSURL])
+            guard let path = item.filePath, FileManager.default.fileExists(atPath: path) else {
+                return
             }
+            writers = [URL(fileURLWithPath: path) as NSURL]
         default:
-            pb.setString(item.text ?? item.preview, forType: .string)
+            let payload = NSPasteboardItem()
+            payload.setString(item.text ?? item.preview, forType: .string)
+            if !plainText, let rtf = ClipboardPayload.boundedRTF(item.richTextRTF) {
+                payload.setData(rtf, forType: .rtf)
+            }
+            writers = [payload]
         }
+        AppSettings.shared.ignoreNextCopy = true
+        pb.clearContents()
+        guard pb.writeObjects(writers) else {
+            AppSettings.shared.ignoreNextCopy = false
+            return
+        }
+        Haptics.copy()
+        NotificationCenter.default.post(name: didCopyNotification, object: item.id)
     }
 
     /// True when there's something meaningful to Share or Save for this item.
@@ -84,7 +95,11 @@ enum ItemActions {
         panel.canCreateDirectories = true
         NSApp.activate(ignoringOtherApps: true)
         guard panel.runModal() == .OK, let dest = panel.url else { return }
-        try? FileManager.default.copyItem(at: url, to: dest)
+        do {
+            try FileManager.default.copyItem(at: url, to: dest)
+        } catch {
+            NSAlert(error: error).runModal()
+        }
     }
 
     private static let fileStampFormatter: DateFormatter = {
@@ -184,7 +199,9 @@ enum ItemActions {
     static func scanQR(_ item: ShelfItem) {
         guard let url = ShelfStore.shared.imageURL(for: item),
               let img = NSImage(contentsOf: url) else { return }
+        let generation = ShelfStore.shared.contentGeneration
         ScreenshotService.shared.decodeQR(in: img) { payload in
+            guard ShelfStore.shared.contentGeneration == generation else { return }
             if payload == nil {
                 let alert = NSAlert()
                 alert.messageText = "No QR code found"
@@ -247,14 +264,16 @@ enum ItemActions {
     /// (and snippets) as context.
     static func aiAskGeneral() {
         guard let q = prompt(title: "Ask AI",
-                             message: "Ask anything — I'll check your shelf for context first.",
+                             message: "Search your saved text and snippets. Answers include the matching source items.",
                              default: "", placeholder: "e.g. What did I save about taxes?") else { return }
-        var context = ShelfStore.shared.visibleItems.compactMap { item -> String? in
+        var context = ShelfStore.shared.visibleItems.compactMap { item -> AIContextItem? in
             let t = (item.text ?? item.preview).trimmingCharacters(in: .whitespacesAndNewlines)
-            return t.isEmpty ? nil : t
+            return t.isEmpty ? nil : AIContextItem(id: item.id, kind: .shelf, title: item.title, text: t)
         }
-        context += SnippetStore.shared.snippets.map { "\($0.title): \($0.content)" }
-        AIResultPresenter.shared.present(title: "Ask AI") {
+        context += SnippetStore.shared.snippets.map {
+            AIContextItem(id: $0.id, kind: .snippet, title: $0.title, text: $0.content)
+        }
+        AIResultPresenter.shared.presentAnswer(title: "Ask your shelf") {
             await AIService.ask(question: q, shelf: context)
         }
     }

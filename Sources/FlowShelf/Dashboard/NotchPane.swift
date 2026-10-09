@@ -72,6 +72,7 @@ struct EmblemRow<Control: View>: View {
 /// modular emblem row.
 struct NotchPane: View {
     @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var media = MediaManager.shared
 
     var body: some View {
         ScrollView {
@@ -89,7 +90,7 @@ struct NotchPane: View {
 
                     EmblemRow(icon: "music.note", tint: .pink,
                               title: "Now-playing media",
-                              caption: "Live activity with album art when collapsed, compact player when open") {
+                              caption: media.failureMessage ?? "Live activity with album art when collapsed, compact player when open") {
                         Toggle("", isOn: $settings.notchMediaEnabled).labelsHidden()
                             .toggleStyle(.switch).controlSize(.small)
                             .disabled(!settings.notchEnabled)
@@ -103,12 +104,55 @@ struct NotchPane: View {
                             .disabled(!settings.notchEnabled || !settings.notchMediaEnabled)
                     }
 
+                    NotchAudioCaptureSettings()
+
                     EmblemRow(icon: "speaker.wave.2.fill", tint: .blue,
-                              title: "Volume, brightness & charging HUDs",
-                              caption: "Sleek notch HUDs instead of Apple's centre-screen overlay") {
+                              title: "System events in the notch",
+                              caption: "Audio connections, Low Power Mode, charging, battery, volume and brightness") {
                         Toggle("", isOn: $settings.notchHUDEnabled).labelsHidden()
                             .toggleStyle(.switch).controlSize(.small)
                             .disabled(!settings.notchEnabled)
+                    }
+
+                    EmblemRow(icon: "play.rectangle", tint: .mint,
+                              title: "Preview notch animations",
+                              caption: "Simulated events only — no devices connect and no power settings change") {
+                        Menu("Preview") {
+                            Button("AirPods Pro · connection demo") {
+                                NotchController.shared.previewHUD(.audioRoute(name: "AirPods Pro · preview", icon: "airpodspro", bluetooth: true))
+                            }
+                            Button("AirPods · connection demo") {
+                                NotchController.shared.previewHUD(.audioRoute(name: "AirPods · preview", icon: "airpods", bluetooth: true))
+                            }
+                            Button("Headphones · 3D demo") {
+                                NotchController.shared.previewHUD(.audioRoute(name: "Headphones · preview", icon: "headphones", bluetooth: true))
+                            }
+                            Button("Charging · demo 75%") {
+                                NotchController.shared.previewHUD(.charging(percent: 75, charging: true, full: false))
+                            }
+                            Button("Low battery · demo 20%") {
+                                NotchController.shared.previewHUD(.lowBattery(percent: 20))
+                            }
+                            Button("Low Power Mode on · demo") {
+                                NotchController.shared.previewHUD(.lowPowerMode(true))
+                            }
+                            Button("Low Power Mode off · demo") {
+                                NotchController.shared.previewHUD(.lowPowerMode(false))
+                            }
+                            Divider()
+                            Button("Volume · demo 60%") {
+                                NotchController.shared.previewHUD(.volume(0.6, muted: false))
+                            }
+                            Button("Muted · demo") {
+                                NotchController.shared.previewHUD(.volume(0, muted: true))
+                            }
+                            Button("Brightness · demo 75%") {
+                                NotchController.shared.previewHUD(.brightness(0.75))
+                            }
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                        .disabled(!settings.notchEnabled || !settings.notchHUDEnabled)
                     }
                 }
                 .padding(.horizontal, 18)

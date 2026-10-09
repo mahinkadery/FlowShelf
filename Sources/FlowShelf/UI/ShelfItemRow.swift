@@ -4,6 +4,7 @@ import SwiftUI
 struct ShelfItemRow: View {
     let item: ShelfItem
     var selected: Bool = false
+    var selectionEnabled: Bool = false
     @ObservedObject private var store = ShelfStore.shared
     @State private var hovering = false
     @State private var copied = false
@@ -39,6 +40,9 @@ struct ShelfItemRow: View {
                         .foregroundStyle(expiryColor)
                 }
                 .help(expiryHelp)
+            }
+            if selectionEnabled {
+                Color.clear.frame(width: 24, height: 28)
             }
         }
         .padding(.horizontal, 8)
@@ -164,6 +168,9 @@ struct ShelfItemRow: View {
 
     @ViewBuilder private var contextMenu: some View {
         Button("Copy") { ItemActions.copyToPasteboard(item) }
+        if item.richTextRTF != nil {
+            Button("Copy as Plain Text") { ItemActions.copyToPasteboard(item, plainText: true) }
+        }
         if ItemActions.isShareable(item) {
             Button("Share…") { ItemActions.share(item) }
         }

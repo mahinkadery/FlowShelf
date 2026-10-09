@@ -81,7 +81,11 @@ struct PeekView: View {
             }
             // Drive this banner off an ACTUAL capture attempt, not the unreliable
             // CGPreflightScreenCaptureAccess flag.
-            if Permissions.hasAccessibility && model.captureWorks == false {
+            if !PrivateWindowSymbols.shared.supportsWindowIDs || !PrivateWindowSymbols.shared.supportsCapture {
+                Label("This macOS version is missing a window-preview component. Changing permissions will not restore it.",
+                      systemImage: "exclamationmark.triangle")
+                    .font(.callout).foregroundStyle(.orange).padding(12)
+            } else if Permissions.hasAccessibility && model.captureWorks == false {
                 permissionBanner(
                     "Turn on Screen Recording, then Quit & Reopen",
                     "① Make sure you’re running FlowShelf from your Applications folder — not the disk image or Downloads (that’s the usual cause). ② Turn FlowShelf ON under Screen Recording. ③ Quit & Reopen — the grant only applies on the next launch. Only if it still won’t capture, remove FlowShelf with “–”, then restart your Mac and turn it on again (removing without a restart can stop the prompt from reappearing).",

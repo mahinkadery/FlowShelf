@@ -45,6 +45,8 @@ struct ShelfItem: Identifiable, Codable, Equatable {
     var preview: String
     /// Full text payload for text/link/ocr items.
     var text: String?
+    var richTextRTF: Data?
+    var imageSearchText: String? = nil
     /// App the item came from, if known.
     var sourceApp: String?
     var createdAt: Date
@@ -65,6 +67,7 @@ struct ShelfItem: Identifiable, Codable, Equatable {
         title: String,
         preview: String,
         text: String? = nil,
+        richTextRTF: Data? = nil,
         sourceApp: String? = nil,
         createdAt: Date = Date(),
         ttl: TimeInterval = 24 * 60 * 60,
@@ -79,6 +82,7 @@ struct ShelfItem: Identifiable, Codable, Equatable {
         self.title = title
         self.preview = preview
         self.text = text
+        self.richTextRTF = richTextRTF
         self.sourceApp = sourceApp
         self.createdAt = createdAt
         self.expiresAt = createdAt.addingTimeInterval(ttl)
@@ -114,8 +118,16 @@ struct ShelfItem: Identifiable, Codable, Equatable {
     var expiringSoon: Bool { !pinned && secondsRemaining < 3600 }
 
     /// Everything searchable, folded to be case- and accent-insensitive.
+    var supportsImageTextSearch: Bool {
+        (kind == .image || kind == .screenshot) && imageRelPath != nil
+    }
+
+    var searchableContent: String {
+        [title, preview, text ?? "", imageSearchText ?? ""].joined(separator: "\n")
+    }
+
     private var searchHaystack: String {
-        [title, preview, text ?? "", sourceApp ?? "", kind.label]
+        [searchableContent, sourceApp ?? "", kind.label]
             .joined(separator: " ")
             .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
     }

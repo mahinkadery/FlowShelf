@@ -189,6 +189,7 @@ private struct ShelfBrowser: View {
     @ObservedObject private var settings = AppSettings.shared
     @State private var query = ""
     @State private var filter: ShelfFilter = .today
+    @State private var selection = Set<UUID>()
 
     private var results: [ShelfItem] {
         let tokens = SearchQuery.tokens(query)
@@ -240,6 +241,11 @@ private struct ShelfBrowser: View {
             }
             Divider()
 
+            if !selection.isEmpty {
+                ShelfSelectionActions(items: results, selection: $selection)
+                Divider()
+            }
+
             if results.isEmpty {
                 VStack(spacing: 10) {
                     Spacer()
@@ -266,13 +272,19 @@ private struct ShelfBrowser: View {
                 ScrollView {
                     LazyVStack(spacing: 5) {
                         ForEach(results) { item in
-                            ShelfItemRow(item: item)
+                            ShelfItemRow(item: item, selected: selection.contains(item.id), selectionEnabled: true)
                                 .onTapGesture(count: 2) { ItemActions.open(item) }
                                 .onTapGesture { ItemActions.copyToPasteboard(item) }
+                                .shelfSelection(item: item, selection: $selection)
                         }
                     }.padding(12)
                 }
             }
+        }
+        .onChange(of: query) { _, _ in selection.removeAll() }
+        .onChange(of: filter) { _, _ in selection.removeAll() }
+        .onChange(of: results.map(\.id)) { _, ids in
+            selection.formIntersection(Set(ids))
         }
     }
 }

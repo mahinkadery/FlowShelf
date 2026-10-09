@@ -2,11 +2,15 @@ import SwiftUI
 import AppKit
 
 @main
-struct FlowShelfApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    var body: some Scene {
-        // No windows — FlowShelf lives in the menu bar (LSUIElement).
-        Settings { EmptyView() }
+struct FlowShelfApp {
+    @MainActor static func main() {
+        let application = NSApplication.shared
+        let delegate = AppDelegate()
+        application.delegate = delegate
+        application.setActivationPolicy(.accessory)
+        withExtendedLifetime(delegate) {
+            application.run()
+        }
     }
 }
 
@@ -16,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let popover = NSPopover()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        setupMainMenu()
         #if DEBUG
         // Hidden debug path: `FlowShelf --scan /Applications/Foo.app` prints the
         // Cleaner scan and exits. Used for validating the engine without the UI.
@@ -104,6 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPopover()
 
         ClipboardMonitor.shared.start()
+        ImageTextIndexer.shared.start()
         UpdaterManager.shared.start()   // Sparkle: background update checks
 
         // Confirm Screen Recording by a real capture shortly after launch, so the
@@ -186,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldHandleReopen(_ sender: NSApplication,
                                        hasVisibleWindows flag: Bool) -> Bool {
         DashboardWindowController.shared.show()
-        return true
+        return false
     }
 
     /// FlowShelf is a menu-bar app: closing the dashboard hides the window and
@@ -197,6 +203,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - Status item
+
+    private func setupMainMenu() {
+        let main = NSMenu()
+        func submenu(_ title: String) -> NSMenu {
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            let menu = NSMenu(title: title)
+            item.submenu = menu
+            main.addItem(item)
+            return menu
+        }
+        let app = submenu("FlowShelf")
+        app.addItem(withTitle: "About FlowShelf", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(.separator())
+        let settings = app.addItem(withTitle: "Settings…", action: #selector(menuOpenSettings), keyEquivalent: ",")
+        settings.target = self
+        app.addItem(.separator())
+        let services = NSMenu(title: "Services")
+        app.addItem(withTitle: "Services", action: nil, keyEquivalent: "").submenu = services
+        NSApp.servicesMenu = services
+        app.addItem(.separator())
+        app.addItem(withTitle: "Hide FlowShelf", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        let hideOthers = app.addItem(withTitle: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        hideOthers.keyEquivalentModifierMask = [.command, .option]
+        app.addItem(withTitle: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
+        app.addItem(.separator())
+        app.addItem(withTitle: "Quit FlowShelf", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+
+        let edit = submenu("Edit")
+        edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        redo.keyEquivalentModifierMask = [.command, .shift]
+        edit.addItem(.separator())
+        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+
+        let windows = submenu("Window")
+        windows.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windows.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windows.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        windows.addItem(.separator())
+        windows.addItem(withTitle: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
+        NSApp.windowsMenu = windows
+        NSApp.mainMenu = main
+    }
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -254,6 +306,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func menuOpenDashboard() { closePopover(); DashboardWindowController.shared.show() }
+    @objc private func menuOpenSettings() { closePopover(); DashboardWindowController.shared.show(section: .settings) }
     @objc private func menuOpenShelf() { showPopover() }
     @objc private func menuShowWelcome() { closePopover(); OnboardingController.shared.show() }
     @objc private func menuQuit() { NSApp.terminate(nil) }
@@ -304,7 +357,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        NotchController.shared.stop()
+        MediaManager.shared.stop()
+        ShakeDetector.shared.stop()
+        AudioSpectrum.shared.setActive(false)
         HotKeyManager.shared.unregisterAll()
         ClipboardMonitor.shared.stop()
+        ImageTextIndexer.shared.stop()
     }
 }

@@ -10,6 +10,7 @@ final class SnippetStore: ObservableObject {
     @Published private(set) var snippets: [Snippet] = []
 
     private let dbURL: URL
+    private var historyIsReadable = true
 
     private init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -65,15 +66,17 @@ final class SnippetStore: ObservableObject {
     // MARK: - Persistence
 
     private func load() {
-        guard let data = try? Data(contentsOf: dbURL) else { return }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        if let decoded = try? decoder.decode([Snippet].self, from: data) {
-            snippets = decoded
+        switch HistoryRecovery.load([Snippet].self, from: dbURL) {
+        case .success(let decoded):
+            snippets = decoded ?? []
+        case .failure:
+            historyIsReadable = false
+            HistoryRecovery.showWarning(for: dbURL)
         }
     }
 
     private func persist() {
+        guard historyIsReadable else { return }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted]

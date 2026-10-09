@@ -4,15 +4,6 @@ import CoreMedia
 import AudioToolbox
 import Accelerate
 
-/// Live loudness of what the Mac is actually playing, so the notch's audio bars
-/// dance to the REAL music instead of a canned sine loop.
-///
-/// Taps system audio with ScreenCaptureKit (`capturesAudio` — covered by the
-/// same Screen Recording permission the notch lens already uses; our own audio
-/// is excluded). Each buffer is reduced to one RMS loudness value with a fast
-/// attack / slow release envelope, normalised against a slowly-decaying running
-/// peak so quiet tracks still move the bars. Cost: a few thousand multiplies per
-/// 10ms buffer on the audio thread — no GPU involved at all.
 @MainActor
 final class AudioSpectrum: ObservableObject {
     static let shared = AudioSpectrum()
@@ -21,58 +12,122 @@ final class AudioSpectrum: ObservableObject {
     @Published private(set) var level: Float = 0
     @Published private(set) var bands: [Float] = Array(repeating: 0, count: 6)
     @Published private(set) var active = false
+    @Published private(set) var statusMessage = "Compatibility capture. Process taps are optional and experimental."
+    @Published private(set) var isStarting = false
 
     private var stream: SCStream?
     private var output: TapOutput?
-    private var starting = false
     private var wantActive = false
     private var screenLocked = false
+    private var sleeping = false
+    private var generation = UUID()
+    private var attempted = false
+    private var mode = NotchAudioCaptureMode.compatibility
+    private var playerBundleID = ""
+    private var processTap: ProcessAudioTapSession?
+    private var processTimer: Timer?
+    private var lastSpectrumAt = Date.distantPast
+    private let processTapFactory: (() -> ProcessAudioTapSession)?
 
-    private init() {
+    var canRetry: Bool { wantActive && !screenLocked && !sleeping && !isStarting }
+
+    init(processTapFactory: (() -> ProcessAudioTapSession)? = nil, observeSystemEvents: Bool = true) {
+        self.processTapFactory = processTapFactory
+        guard observeSystemEvents else { return }
         // Pause the tap while the screen is locked — no one can see the bars,
         // and there's no reason to hold the recording indicator either.
         let dnc = DistributedNotificationCenter.default()
-        dnc.addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { _ in
-            Task { @MainActor in
-                AudioSpectrum.shared.screenLocked = true
-                AudioSpectrum.shared.stopForLock()
-            }
+        dnc.addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.setScreenLocked(true) }
         }
-        dnc.addObserver(forName: .init("com.apple.screenIsUnlocked"), object: nil, queue: .main) { _ in
-            Task { @MainActor in
-                AudioSpectrum.shared.screenLocked = false
-                if AudioSpectrum.shared.wantActive { AudioSpectrum.shared.start() }
-            }
+        dnc.addObserver(forName: .init("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.setScreenLocked(false) }
+        }
+        let workspace = NSWorkspace.shared.notificationCenter
+        workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.setSleeping(true) }
+        }
+        workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.setSleeping(false) }
         }
     }
 
-    private func stopForLock() {
+    func setScreenLocked(_ locked: Bool) {
+        screenLocked = locked
+        if locked { stopCapture(message: "Audio capture paused while locked.") }
+        else { start() }
+    }
+
+    func setSleeping(_ asleep: Bool) {
+        sleeping = asleep
+        if asleep { stopCapture(message: "Audio capture paused while sleeping.") }
+        else { start() }
+    }
+
+    private func stopCapture(message: String = "Audio capture is idle.") {
+        generation = UUID()
+        attempted = false
+        isStarting = false
+        processTimer?.invalidate()
+        processTimer = nil
+        processTap?.stop()
+        processTap = nil
+        lastSpectrumAt = .distantPast
         let streamToStop = stream
         stream = nil; output = nil
         active = false
         level = 0
         resetEnvelope()
+        statusMessage = message
         if let streamToStop {
             Task { try? await streamToStop.stopCapture() }
         }
     }
 
     /// Called by MediaManager as playback starts/stops.
-    func setActive(_ on: Bool) {
+    func setActive(_ on: Bool, playerBundleID: String = "") {
+        let requestedMode = AppSettings.shared.notchAudioCaptureMode
+        let requestedPlayer = requestedMode == .playerTap ? playerBundleID : ""
+        if !on || !wantActive || mode != requestedMode || self.playerBundleID != requestedPlayer {
+            stopCapture()
+        }
+        mode = requestedMode
+        self.playerBundleID = requestedPlayer
         wantActive = on
-        if on, !screenLocked { start() } else { stop() }
+        if on { start() }
+    }
+
+    func retry() {
+        guard canRetry else { return }
+        stopCapture()
+        start()
     }
 
     private func start() {
-        guard stream == nil, !starting, Permissions.hasScreenRecording else { return }
-        starting = true
+        guard wantActive, !screenLocked, !sleeping, !attempted else { return }
+        attempted = true
+        isStarting = true
+        let session = generation
+        if mode != .compatibility {
+            startProcessTap(session: session)
+            return
+        }
+        guard Permissions.hasScreenRecording else {
+            isStarting = false
+            statusMessage = "Compatibility capture needs Screen Recording permission. Grant it, then Retry."
+            return
+        }
+        statusMessage = "Starting compatibility audio capture…"
         Task { [weak self] in
             guard let self else { return }
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(
                     false, onScreenWindowsOnly: true)
+                guard self.generation == session, self.wantActive, !self.screenLocked, !self.sleeping else { return }
                 guard let display = content.displays.first else {
-                    self.starting = false; return
+                    self.isStarting = false
+                    self.statusMessage = "No display is available for compatibility capture. Retry when a display is connected."
+                    return
                 }
                 let filter = SCContentFilter(display: display, excludingWindows: [])
                 let cfg = SCStreamConfiguration()
@@ -84,35 +139,84 @@ final class AudioSpectrum: ObservableObject {
                 cfg.minimumFrameInterval = CMTime(value: 1, timescale: 1)
 
                 let out = TapOutput { [weak self] rms, bands in
-                    Task { @MainActor in self?.ingest(rms, bands: bands) }
+                    Task { @MainActor in
+                        guard let self, self.generation == session, self.active else { return }
+                        self.ingest(rms, bands: bands)
+                    }
+                } onFailure: { [weak self] in
+                    Task { @MainActor in
+                        guard let self, self.generation == session else { return }
+                        self.stopCapture(message: "Compatibility audio capture stopped. Retry to reconnect.")
+                        self.attempted = true
+                    }
                 }
                 let stream = SCStream(filter: filter, configuration: cfg, delegate: out)
                 try stream.addStreamOutput(out, type: .audio,
                                            sampleHandlerQueue: DispatchQueue(label: "flowshelf.audiotap"))
                 try await stream.startCapture()
-                self.starting = false
-                guard self.wantActive else {
+                guard self.generation == session, self.wantActive, !self.screenLocked, !self.sleeping else {
                     try? await stream.stopCapture()
                     return
                 }
+                self.isStarting = false
                 self.stream = stream
                 self.output = out
                 self.active = true
+                self.statusMessage = "Compatibility capture connected (system mix)."
             } catch {
-                self.starting = false
-                NSLog("AudioSpectrum: tap unavailable: \(error)")
+                guard self.generation == session else { return }
+                self.isStarting = false
+                self.statusMessage = "Compatibility capture unavailable. Check Screen Recording permission, then Retry."
             }
         }
     }
 
-    private func stop() {
-        let streamToStop = stream
-        stream = nil; output = nil
-        active = false
-        level = 0
-        resetEnvelope()
-        if let streamToStop {
-            Task { try? await streamToStop.stopCapture() }
+    private func startProcessTap(session: UUID) {
+        guard #available(macOS 14.4, *) else {
+            isStarting = false
+            statusMessage = "Process taps require macOS 14.4 or later. Choose Compatibility."
+            return
+        }
+        statusMessage = "Starting process tap… macOS may ask for audio-recording permission."
+        let tap = processTapFactory?() ?? ProcessAudioTap()
+        processTap = tap
+        tap.start(playerBundleID: mode == .playerTap ? playerBundleID : nil) { [weak self] failure in
+            Task { @MainActor in
+                guard let self, self.generation == session else { tap.stop(); return }
+                self.isStarting = false
+                if let failure {
+                    self.stopCapture(message: failure)
+                    self.attempted = true
+                    return
+                }
+                self.statusMessage = "Process tap connected; waiting for audio buffers…"
+                let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
+                    MainActor.assumeIsolated {
+                        guard let self, self.generation == session else { return }
+                        self.pollProcessTap()
+                    }
+                }
+                self.processTimer = timer
+                RunLoop.main.add(timer, forMode: .common)
+            }
+        }
+    }
+
+    private func pollProcessTap() {
+        guard let result = processTap?.takeResult() else { return }
+        if let failure = result.failure {
+            stopCapture(message: failure)
+            attempted = true
+        } else if let (rms, bands) = result.spectrum {
+            lastSpectrumAt = Date()
+            if !active { active = true }
+            ingest(rms, bands: bands)
+            let message = rms > 0.00001
+                ? "Process tap receiving audio (\(mode == .playerTap ? playerBundleID : "system mix"))."
+                : "Process tap connected, but no audible signal. Check the player and audio-recording permission if this persists."
+            if statusMessage != message { statusMessage = message }
+        } else if active, Date().timeIntervalSince(lastSpectrumAt) > 0.15 {
+            ingest(0, bands: Array(repeating: 0, count: 6))
         }
     }
 
@@ -166,9 +270,15 @@ final class AudioSpectrum: ObservableObject {
     /// Audio-thread side: buffers → RMS, throttled to ~20 updates/s.
     private final class TapOutput: NSObject, SCStreamOutput, SCStreamDelegate {
         private let onSpectrum: (Float, [Float]) -> Void
+        private let onFailure: () -> Void
         private let analyzer = FrequencyAnalyzer()
         private var lastEmit = CFAbsoluteTimeGetCurrent()
-        init(onSpectrum: @escaping (Float, [Float]) -> Void) { self.onSpectrum = onSpectrum }
+        init(onSpectrum: @escaping (Float, [Float]) -> Void, onFailure: @escaping () -> Void) {
+            self.onSpectrum = onSpectrum
+            self.onFailure = onFailure
+        }
+
+        func stream(_ stream: SCStream, didStopWithError error: Error) { onFailure() }
 
         func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
                     of type: SCStreamOutputType) {

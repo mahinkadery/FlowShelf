@@ -1,11 +1,6 @@
 import AppKit
 import ApplicationServices
 
-// Private API used by DockDoor/AltTab etc. to bridge an AX window element to its
-// CoreGraphics window id. Declared here so we can match AX windows to SCWindows.
-@_silgen_name("_AXUIElementGetWindow")
-func _AXUIElementGetWindow(_ element: AXUIElement, _ identifier: UnsafeMutablePointer<CGWindowID>) -> AXError
-
 /// Thin helpers over the Accessibility API for reading window lists, frames, and
 /// raising/activating windows by their CoreGraphics window id.
 enum AX {
@@ -27,7 +22,7 @@ enum AX {
 
     static func cgWindowID(of element: AXUIElement) -> CGWindowID? {
         var wid: CGWindowID = 0
-        return _AXUIElementGetWindow(element, &wid) == .success ? wid : nil
+        return PrivateWindowSymbols.shared.getWindowID(element, output: &wid) == .success && wid != 0 ? wid : nil
     }
 
     static func title(of element: AXUIElement) -> String? {

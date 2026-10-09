@@ -45,17 +45,20 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         case .captureAI:
             return [
                 "screenshots screenshot capture annotate annotation arrows boxes highlight blur text editor",
+                "image screenshot text search ocr index scan recognize local privacy",
                 "on device ai apple intelligence summarize clean ask smart search auto title",
             ]
         case .privacyPermissions:
             return [
                 "privacy excluded apps bundle password clipboard",
+                "privacy ignored clipboard types rules confidential transient generated markers",
                 "permissions accessibility screen recording input monitoring full disk access health required optional",
             ]
         case .about:
             return [
                 "software updates version welcome onboarding setup tour",
                 "support coffee donate developer about",
+                "credits artwork airpods attribution license jed falcone",
             ]
         }
     }
@@ -66,6 +69,7 @@ struct SettingsView: View {
     var onBack: (() -> Void)?
     @ObservedObject private var settings = AppSettings.shared
     @ObservedObject private var store = ShelfStore.shared
+    @ObservedObject private var clipboard = ClipboardMonitor.shared
     @State private var newExclude = ""
     @State private var settingsQuery = ""
     @State private var selectedCategory: SettingsCategory = .general
@@ -328,6 +332,10 @@ struct SettingsView: View {
                     .toggleStyle(.switch).controlSize(.small)
             }
         }
+        if matches("image screenshot text search ocr index scan recognize local privacy") {
+            section("Image text search")
+            ImageTextSearchSettings()
+        }
         if matches("on device ai apple intelligence summarize clean ask smart search auto title") {
             section("On-device AI")
             aiRows
@@ -338,6 +346,10 @@ struct SettingsView: View {
         if matches("privacy excluded apps bundle password clipboard") {
             section("Clipboard privacy")
             excludedCard
+        }
+        if matches("privacy ignored clipboard types rules confidential transient generated markers") {
+            section("Ignored clipboard types")
+            ClipboardPrivacySettings()
         }
         if matches("permissions accessibility screen recording input monitoring full disk access health required optional") {
             section("Permission health")
@@ -362,6 +374,22 @@ struct SettingsView: View {
         if matches("support coffee donate developer about") {
             section("Support")
             supportCard
+        }
+        if matches("credits artwork airpods attribution license jed falcone") {
+            section("Artwork credits")
+            VStack(alignment: .leading, spacing: 6) {
+                Text("AirPods Pro 3D model by Jed Falcone")
+                    .font(.system(size: 12, weight: .medium))
+                Text("Adapted into a short rendered animation for FlowShelf. Licensed under CC BY 4.0. No Apple endorsement implied.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                HStack(spacing: 14) {
+                    Link("Original model", destination: URL(string: "https://sketchfab.com/3d-models/airpods-pro-3f84ddc3d87a4ec0a5e5f379abfecd9c")!)
+                    Link("CC BY 4.0 license", destination: URL(string: "https://creativecommons.org/licenses/by/4.0/")!)
+                }
+                .font(.system(size: 11))
+            }
+            .padding(13)
+            .raisedCard()
         }
         if settingsQuery.isEmpty {
             Text("FlowShelf \(Self.appVersion) — a smarter temporary shelf for your Mac.")
@@ -435,7 +463,7 @@ struct SettingsView: View {
     private var clipboardCaptureCaption: String {
         switch settings.clipboardCaptureState {
         case .active:
-            return "New copies are automatically added to your shelf"
+            return clipboard.accessWarning ?? "New copies are automatically added to your shelf"
         case .paused:
             return "Temporarily paused — nothing is recorded until you resume"
         case .disabled:
@@ -445,7 +473,7 @@ struct SettingsView: View {
 
     private var clipboardCaptureTint: Color {
         switch settings.clipboardCaptureState {
-        case .active: return .green
+        case .active: return clipboard.accessWarning == nil ? .green : .orange
         case .paused: return .orange
         case .disabled: return .gray
         }

@@ -59,7 +59,7 @@ final class BatteryMonitor {
     }
 
     private func handleChange() {
-        guard let s = readState() else { return }
+        guard running, let s = readState() else { return }
         if lastPluggedIn != s.pluggedIn {
             lastPluggedIn = s.pluggedIn
             if s.pluggedIn {

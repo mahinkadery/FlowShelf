@@ -57,6 +57,7 @@ private final class SpectrumBarsView: NSView {
     private var playing = false
     private var fallbackTimer: Timer?
     private var cancellables: Set<AnyCancellable> = []
+    private lazy var activity = NotchViewActivity { [weak self] in self?.refreshActivity() }
 
     init(count: Int, barWidth: CGFloat, spacing: CGFloat, height: CGFloat) {
         self.count = count
@@ -86,6 +87,28 @@ private final class SpectrumBarsView: NSView {
     func update(playing: Bool, color: NSColor, accent: NSColor?) {
         self.playing = playing
         updateColors(color: color, accent: accent)
+        refreshActivity()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        activity.attach(to: self)
+    }
+
+    override func viewDidHide() { super.viewDidHide(); refreshActivity() }
+    override func viewDidUnhide() { super.viewDidUnhide(); refreshActivity() }
+
+    private var canAnimate: Bool {
+        activity.isVisible && !NotchPresentationState.shared.reduceMotion
+    }
+
+    private func refreshActivity() {
+        guard canAnimate else {
+            stopFallback()
+            barsMask.removeAllAnimations()
+            setLevels(Array(repeating: barWidth / maximumHeight, count: count), animated: false)
+            return
+        }
         if !playing {
             stopFallback()
             setLevels(Array(repeating: barWidth / maximumHeight, count: count), animated: true)
@@ -108,7 +131,7 @@ private final class SpectrumBarsView: NSView {
     }
 
     private func spectrumChanged(bands: [Float], active: Bool) {
-        guard playing else { return }
+        guard playing, canAnimate else { return }
         if active {
             stopFallback()
             updateLive(bands: bands)
@@ -125,11 +148,12 @@ private final class SpectrumBarsView: NSView {
     }
 
     private func startFallback() {
-        guard fallbackTimer == nil else { return }
+        guard fallbackTimer == nil, playing, canAnimate else { return }
         let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.fallbackTick() }
         }
         fallbackTimer = timer
+        timer.tolerance = 0.02
         RunLoop.main.add(timer, forMode: .common)
         fallbackTick()
     }
@@ -140,6 +164,7 @@ private final class SpectrumBarsView: NSView {
     }
 
     private func fallbackTick() {
+        guard playing, canAnimate else { stopFallback(); return }
         let time = Date.timeIntervalSinceReferenceDate
         setLevels((0..<count).map { index in
             let phase = Double(index) * 1.7
@@ -170,7 +195,7 @@ private final class SpectrumBarsView: NSView {
         CATransaction.setDisableActions(true)
         barsMask.path = path
         CATransaction.commit()
-        guard animated, let previousPath else { return }
+        guard animated, canAnimate, let previousPath else { return }
         let animation = CABasicAnimation(keyPath: "path")
         animation.fromValue = previousPath
         animation.toValue = path
@@ -249,36 +274,38 @@ struct MediaLiveActivity: View {
 /// static when it does. Restarts per track via `.id(text)` at the call site.
 struct MarqueeText: View {
     let text: String
+    var active: Bool
     var font: Font = .system(size: 12.5, weight: .semibold)
     var color: Color = .white
     var gap: CGFloat = 36
 
     @State private var textWidth: CGFloat = 0
-    @State private var offset: CGFloat = 0
+    @State private var startedAt = Date()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geo in
             let overflows = textWidth > geo.size.width + 1
-            HStack(spacing: gap) {
-                Text(text).font(font).foregroundStyle(color).fixedSize()
-                    .background(GeometryReader { t in
-                        Color.clear.onAppear { textWidth = t.size.width }
-                    })
-                if overflows {
+            let cycle = NotchMarqueeCycle(textWidth: textWidth, availableWidth: geo.size.width,
+                                         gap: gap, active: active && !reduceMotion)
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !cycle.running)) { context in
+                HStack(spacing: gap) {
                     Text(text).font(font).foregroundStyle(color).fixedSize()
+                        .background(GeometryReader { measurement in
+                            Color.clear.onChange(of: measurement.size.width, initial: true) { _, width in
+                                textWidth = width
+                            }
+                        })
+                    if overflows {
+                        Text(text).font(font).foregroundStyle(color).fixedSize()
+                    }
                 }
+                .offset(x: cycle.offset(elapsed: context.date.timeIntervalSince(startedAt)))
+                .frame(maxHeight: .infinity, alignment: .leading)
+                .transaction { $0.animation = nil }
             }
-            .offset(x: overflows ? offset : 0)
-            .frame(maxHeight: .infinity, alignment: .leading)
-            .onChange(of: textWidth) { _, w in
-                guard w > geo.size.width + 1, !FlowMotion.reduceMotion else { return }
-                offset = 0
-                let travel = w + gap
-                withAnimation(.linear(duration: Double(travel) / 24)
-                    .delay(2.0)
-                    .repeatForever(autoreverses: false)) {
-                    offset = -travel
-                }
+            .onChange(of: cycle, initial: true) { _, _ in
+                startedAt = Date()
             }
         }
         .clipped()
@@ -291,6 +318,11 @@ struct MarqueeText: View {
 struct MediaStrip: View {
     @ObservedObject var media = MediaManager.shared
     @ObservedObject private var audio = AudioOutputManager.shared
+    @ObservedObject private var presentation = NotchPresentationState.shared
+    @State private var windowVisible = false
+    @State private var appeared = false
+
+    private var mediaVisible: Bool { appeared && windowVisible && !presentation.suspended }
 
     var body: some View {
         // The whole player sits CENTERED in the card (art · title · controls ·
@@ -301,7 +333,8 @@ struct MediaStrip: View {
             MediaArtwork(image: media.now.artwork, side: 42, corner: 10)
 
             VStack(alignment: .leading, spacing: 3) {
-                MarqueeText(text: media.now.title.isEmpty ? "Not playing" : media.now.title)
+                MarqueeText(text: media.now.title.isEmpty ? "Not playing" : media.now.title,
+                            active: mediaVisible && media.now.isPlaying && !presentation.reduceMotion)
                     .frame(height: 15)
                     .id(media.now.title)             // restart the scroll per track
                 if !media.now.artist.isEmpty {
@@ -326,6 +359,9 @@ struct MediaStrip: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 52)
+        .background(NotchVisibilityReader(visible: $windowVisible))
+        .onAppear { appeared = true }
+        .onDisappear { appeared = false; scrubFraction = nil }
     }
 
     /// While the user is scrubbing, this overrides the live position.
@@ -336,7 +372,8 @@ struct MediaStrip: View {
     /// sparse updates.
     @ViewBuilder private var progressBar: some View {
         if media.now.duration > 0 {
-            TimelineView(.periodic(from: .now, by: 0.5)) { _ in
+            TimelineView(.animation(minimumInterval: 0.5,
+                                    paused: !mediaVisible || !media.now.isPlaying || scrubFraction != nil)) { _ in
                 GeometryReader { geo in
                     let f = scrubFraction ?? max(0, min(1, media.now.currentPosition / media.now.duration))
                     ZStack(alignment: .leading) {

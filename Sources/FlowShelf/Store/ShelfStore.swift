@@ -21,6 +21,8 @@ final class ShelfStore: ObservableObject {
     private let imageIOQueue = DispatchQueue(label: "app.flowshelf.image-io", qos: .userInitiated)
     private let persistenceQueue = DispatchQueue(label: "app.flowshelf.persistence", qos: .utility)
     private var persistWork: DispatchWorkItem?
+    private(set) var contentGeneration = UUID()
+    private var historyIsReadable = true
 
     // High enough to keep Retina screenshots and phone photos crisp when you
     // drag / save / share them back out; still caps pathologically huge images.
@@ -97,7 +99,8 @@ final class ShelfStore: ObservableObject {
         if let newest = items.first,
            newest.kind == item.kind,
            newest.text != nil,
-           newest.text == item.text {
+           newest.text == item.text,
+           newest.richTextRTF == item.richTextRTF {
             return
         }
         items.insert(item, at: 0)
@@ -143,7 +146,25 @@ final class ShelfStore: ObservableObject {
         persist()
     }
 
+    func setImageSearchText(_ id: UUID, relativePath: String, text: String) {
+        guard let index = items.firstIndex(where: { $0.id == id }),
+              items[index].supportsImageTextSearch,
+              items[index].imageRelPath == relativePath,
+              items[index].imageSearchText == nil,
+              keepForever || !items[index].isExpired else { return }
+        items[index].imageSearchText = String(text.prefix(ImageTextRecognition.maximumTextLength))
+        persist()
+    }
+
+    func clearImageSearchText() {
+        var updated = items
+        for index in updated.indices { updated[index].imageSearchText = nil }
+        items = updated
+        persist()
+    }
+
     func clearAll(includingPinned: Bool = false) {
+        contentGeneration = UUID()
         let survivors = includingPinned ? [] : items.filter { $0.pinned }
         for item in items where !survivors.contains(where: { $0.id == item.id }) {
             deleteFiles(for: item)
@@ -178,7 +199,9 @@ final class ShelfStore: ObservableObject {
     /// Convert, resize, and persist an image away from the main actor. Completion
     /// returns on the main actor with (imageRelPath, thumbRelPath).
     func storeImage(_ image: NSImage, prefix: String,
+                    isStillValid: @escaping () -> Bool = { true },
                     completion: @escaping (((String, String?))?) -> Void) {
+        guard isStillValid() else { completion(nil); return }
         guard let source = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             completion(nil)
             return
@@ -190,6 +213,7 @@ final class ShelfStore: ObservableObject {
         let thumbURL = fileURL(forRel: thumbRel)
         let maxDimension = maxImageDimension
         let thumbnailDimension = thumbDimension
+        let generation = contentGeneration
 
         imageIOQueue.async {
             guard let capped = Self.resized(source, maxDimension: maxDimension),
@@ -204,22 +228,34 @@ final class ShelfStore: ObservableObject {
                 savedThumb = thumbRel
             }
             let result = (imageRel, savedThumb)
-            DispatchQueue.main.async { completion(result) }
+            DispatchQueue.main.async {
+                guard self.contentGeneration == generation, isStillValid() else {
+                    self.imageIOQueue.async {
+                        try? FileManager.default.removeItem(at: imageURL)
+                        try? FileManager.default.removeItem(at: thumbURL)
+                    }
+                    completion(nil)
+                    return
+                }
+                completion(result)
+            }
         }
     }
 
     // MARK: - Persistence
 
     private func load() {
-        guard let data = try? Data(contentsOf: dbURL) else { return }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        if let decoded = try? decoder.decode([ShelfItem].self, from: data) {
-            items = decoded
+        switch HistoryRecovery.load([ShelfItem].self, from: dbURL) {
+        case .success(let decoded):
+            items = decoded ?? []
+        case .failure:
+            historyIsReadable = false
+            HistoryRecovery.showWarning(for: dbURL)
         }
     }
 
     private func persist() {
+        guard historyIsReadable else { return }
         let snapshot = items
         let destination = dbURL
         persistWork?.cancel()
@@ -259,6 +295,7 @@ final class ShelfStore: ObservableObject {
     /// photo is not). A 10-minute grace window means a just-written file (added a
     /// moment ago, not yet in `items`) is never mistaken for an orphan.
     private func collectOrphanFiles() {
+        guard historyIsReadable else { return }
         let referenced = Set(items.flatMap { item in
             [item.imageRelPath, item.thumbRelPath].compactMap { $0 }
         })
@@ -288,6 +325,7 @@ final class ShelfStore: ObservableObject {
     }
 
     private func flushPersistence() {
+        guard historyIsReadable else { return }
         persistWork?.cancel()
         let snapshot = items
         let destination = dbURL

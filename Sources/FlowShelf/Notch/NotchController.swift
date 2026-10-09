@@ -35,6 +35,16 @@ final class NotchController {
     func debugShowHUD(_ hud: NotchHUD, for seconds: Double = 8) {
         for u in units { u.model.showHUD(hud, for: seconds) }
     }
+
+    func previewHUD(_ hud: NotchHUD) {
+        guard running, AppSettings.shared.notchHUDEnabled,
+              !NotchPresentationState.shared.suspended else { return }
+        for unit in units {
+            unit.collapseWork?.cancel()
+            unit.model.expanded = false
+            unit.model.showHUD(hud, for: 3.2)
+        }
+    }
     private var screenObserver: NSObjectProtocol?
     private var mouseGlobal: Any?
     private var mouseLocal: Any?
@@ -68,15 +78,24 @@ final class NotchController {
             }
         // Transient system HUDs (charging / low battery) → show on every screen.
         BatteryMonitor.shared.onEvent = { [weak self] hud in
-            guard AppSettings.shared.notchHUDEnabled else { return }
+            guard self?.running == true, AppSettings.shared.notchHUDEnabled,
+                  !NotchPresentationState.shared.suspended else { return }
             var seconds = 2.5
             if case .lowBattery = hud { seconds = 3.5 }
             for u in self?.units ?? [] { u.model.showHUD(hud, for: seconds) }
         }
-        // Volume / brightness keys → notch HUD (and suppress Apple's overlay).
         SystemHUDMonitor.shared.onEvent = { [weak self] hud in
-            guard AppSettings.shared.notchHUDEnabled else { return }
+            guard self?.running == true, AppSettings.shared.notchHUDEnabled,
+                  !NotchPresentationState.shared.suspended else { return }
             for u in self?.units ?? [] { u.model.showHUD(hud, for: 1.3) }
+        }
+        NotchSystemEvents.shared.onEvent = { [weak self] hud in
+            guard self?.running == true, AppSettings.shared.notchHUDEnabled,
+                  !NotchPresentationState.shared.suspended else { return }
+            for unit in self?.units ?? [] { unit.model.showHUD(hud, for: 3.2) }
+        }
+        NotchSystemEvents.shared.onSuspend = { [weak self] in
+            for unit in self?.units ?? [] { unit.model.clearHUD() }
         }
         setHUDEnabled(AppSettings.shared.notchHUDEnabled)
         screenObserver = NotificationCenter.default.addObserver(
@@ -87,6 +106,7 @@ final class NotchController {
     }
 
     func stop() {
+        NotchSystemEvents.shared.stop()
         guard running else {
             BatteryMonitor.shared.stop()
             SystemHUDMonitor.shared.stop()
@@ -108,12 +128,15 @@ final class NotchController {
     /// because the shelf itself was enabled.
     func setHUDEnabled(_ enabled: Bool) {
         guard running, enabled else {
+            NotchSystemEvents.shared.stop()
+            for unit in units { unit.model.clearHUD() }
             BatteryMonitor.shared.stop()
             SystemHUDMonitor.shared.stop()
             return
         }
         BatteryMonitor.shared.start()
         SystemHUDMonitor.shared.start()
+        NotchSystemEvents.shared.start()
     }
 
     // MARK: - Global drag reactions
@@ -135,7 +158,12 @@ final class NotchController {
     }
 
     private func teardown() {
-        for u in units { u.collapseWork?.cancel(); u.panel.orderOut(nil) }
+        for u in units {
+            u.collapseWork?.cancel()
+            u.model.clearHUD()
+            u.panel.orderOut(nil)
+            u.panel.contentView = nil
+        }
         units.removeAll()
     }
 

@@ -50,15 +50,9 @@ enum AppRelocator {
     }
 
     private static func move(to dest: URL) {
-        let fm = FileManager.default
         let source = Bundle.main.bundleURL
         do {
-            if fm.fileExists(atPath: dest.path) {
-                // The running copy is the translocated/Downloads one, never the
-                // /Applications copy — so replacing it is safe.
-                try fm.removeItem(at: dest)
-            }
-            try fm.copyItem(at: source, to: dest)
+            try AppBundleInstaller.install(from: source, to: dest)
         } catch {
             // Usually a write-permission error on /Applications. Fall back to
             // revealing the app so the user can drag it across by hand.
@@ -87,11 +81,6 @@ enum AppRelocator {
     }
 
     private static func relaunch(at url: URL) {
-        let config = NSWorkspace.OpenConfiguration()
-        config.createsNewApplicationInstance = true
-        config.activates = true
-        NSWorkspace.shared.openApplication(at: url, configuration: config) { _, _ in
-            DispatchQueue.main.async { NSApp.terminate(nil) }
-        }
+        AppRelaunch.relaunch(at: url)
     }
 }

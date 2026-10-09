@@ -4,6 +4,44 @@ All notable changes to FlowShelf. Versioning is [semantic](https://semver.org):
 `MAJOR.MINOR.PATCH` — bump PATCH for fixes, MINOR for features, MAJOR for breaking
 changes. The number in parentheses is the build number (`CFBundleVersion`).
 
+## [1.7.0] — 2026-10-10 (build 88)
+
+This release adds a few genuinely new things — searching inside images, picking
+several items at once, your own clipboard-privacy rules, and richer Notch
+reactions — plus fixes that make clearing the shelf and updating the app safer.
+
+### Added
+- **Search the text inside saved images.** FlowShelf reads the words in your
+  screenshots and photos on-device, so search matches what an image says, not
+  just its name. It is off until enabled in Settings, runs only on your Mac, and
+  what it has read can be cleared at any time.
+- **Multi-select on the shelf.** Tick several items, then copy them together or
+  drag the whole group into another app at once. Originals stay in place.
+- **Custom clipboard-privacy rules.** In addition to the built-in detection of
+  password-manager and transient clipboard types, you can add your own exact
+  clipboard type names to ignore.
+- **More Notch reactions.** Output-route changes (AirPods, headphones, display,
+  speaker) show a pill with a matching icon and a small AirPods animation; Low
+  Power Mode and brightness changes show too.
+- **Experimental audio-tap visualizer.** An opt-in mode captures audio from the
+  current player or the whole system (Core Audio process tap) for a more
+  responsive spectrum. Off by default; the ScreenCaptureKit-based Compatibility
+  mode remains the default and fallback.
+
+### Fixed
+- **Clear All race.** A late OCR, QR or capture result can no longer refill the
+  shelf or overwrite the clipboard after Clear All — stale results are rejected
+  by content generation.
+- **False “No QR code found”** no longer appears when a QR scan is cancelled.
+- **Safer self-install/relocation.** The new version is staged as a full copy
+  before replacing the old one, with rollback if the swap fails; a failed
+  relaunch now leaves the existing app running.
+- **Damaged-history protection.** If a shelf or snippets file can’t be read,
+  saving to it is paused for the session, orphan-image cleanup is blocked, and a
+  recovery warning explains how to restore a good copy.
+- **Clean shutdown.** Termination explicitly stops media, audio capture, Notch
+  and shake services.
+
 ## [1.6.2] — 2026-08-08 (build 65)
 
 This release is about the parts that confused people: getting window

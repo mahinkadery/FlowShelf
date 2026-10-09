@@ -57,7 +57,8 @@ struct DockPreviewView: View {
                     Text("Capturing…").font(.system(size: 12)).foregroundStyle(.secondary) }
                     .frame(height: thumbH).frame(maxWidth: .infinity)
             } else if model.windows.isEmpty {
-                Text("No open windows")
+                Text(PrivateWindowSymbols.shared.supportsWindowIDs ? "No open windows"
+                     : "Window listing is unavailable on this macOS version")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .frame(height: thumbH).frame(maxWidth: .infinity)
             } else {
@@ -79,7 +80,9 @@ struct DockPreviewView: View {
                 if !model.loading && model.windows.allSatisfy({ $0.thumbnail == nil }) {
                     HStack(spacing: 5) {
                         Image(systemName: "exclamationmark.circle").font(.system(size: 10))
-                        Text("Can’t capture previews — enable Screen Recording for FlowShelf, then quit & reopen.")
+                        Text(PrivateWindowSymbols.shared.supportsCapture
+                             ? "Can’t capture previews — enable Screen Recording for FlowShelf, then quit & reopen."
+                             : "Window previews are unavailable on this macOS version.")
                             .font(.system(size: 10))
                     }
                     .foregroundStyle(.orange)

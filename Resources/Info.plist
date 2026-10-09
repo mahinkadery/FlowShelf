@@ -15,9 +15,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.6.2</string>
+	<string>1.7.0</string>
 	<key>CFBundleVersion</key>
-	<string>65</string>
+	<string>88</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSMinimumSystemVersion</key>
@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>FlowShelf uses system events for global shortcuts.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>FlowShelf analyzes playing audio on this Mac to animate optional Notch music bars. Audio is not saved or uploaded, and the microphone is not used.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>FlowShelf — a temporary shelf for your Mac.</string>
 	<key>NSScreenCaptureUsageDescription</key>

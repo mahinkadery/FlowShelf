@@ -42,11 +42,15 @@ enum ShelfFilter: String, CaseIterable, Identifiable {
 struct MenuBarView: View {
     @ObservedObject private var store = ShelfStore.shared
     @ObservedObject private var settings = AppSettings.shared
+    @ObservedObject private var clipboard = ClipboardMonitor.shared
     @State private var query = ""
     @State private var filter: ShelfFilter = .today
     @State private var showSettings = false
+    @State private var selection = Set<UUID>()
     @State private var aiResultIDs: [UUID]? = nil   // non-nil = showing AI search results
     @State private var aiSearching = false
+    @State private var searchTask: Task<Void, Never>?
+    @State private var searchID = UUID()
     /// First-time hint: point new users at the full app until they open it once.
     @AppStorage("hasOpenedDashboard") private var hasOpenedDashboard = false
 
@@ -63,7 +67,7 @@ struct MenuBarView: View {
     private var results: [ShelfItem] {
         if let ids = aiResultIDs {
             let map = Dictionary(store.visibleItems.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            return ids.compactMap { map[$0] }
+            return ids.compactMap { map[$0] }.filter { filter.matches($0) }
         }
         let tokens = SearchQuery.tokens(query)
         return store.visibleItems.filter { filter.matches($0) && $0.matches(searchTokens: tokens) }
@@ -72,17 +76,28 @@ struct MenuBarView: View {
     private func runAISearch() {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return }
+        cancelAISearch()
+        let currentID = searchID
         aiSearching = true
-        let candidates = store.visibleItems.map {
-            (id: $0.id.uuidString, text: "\($0.title) \($0.preview) \($0.text ?? "")")
+        let candidates = store.visibleItems.filter { filter.matches($0) }.map {
+            (id: $0.id.uuidString, text: $0.searchableContent)
         }
-        Task {
+        searchTask = Task {
             let ids = await AIService.smartSearch(query: q, candidates: candidates)
             await MainActor.run {
+                guard !Task.isCancelled, searchID == currentID else { return }
                 aiResultIDs = ids.compactMap { UUID(uuidString: $0) }
                 aiSearching = false
             }
         }
+    }
+
+    private func cancelAISearch() {
+        searchTask?.cancel()
+        searchTask = nil
+        searchID = UUID()
+        aiSearching = false
+        aiResultIDs = nil
     }
 
     var body: some View {
@@ -96,12 +111,20 @@ struct MenuBarView: View {
                 Divider()
                 filterBar
                 Divider()
+                if !selection.isEmpty {
+                    ShelfSelectionActions(items: results, selection: $selection)
+                    Divider()
+                }
                 list
                 Divider()
                 footer
             }
         }
         .frame(width: 360, height: 460)
+        .onDisappear { cancelAISearch(); selection.removeAll() }
+        .onChange(of: query) { _, _ in selection.removeAll() }
+        .onChange(of: filter) { _, _ in selection.removeAll() }
+        .onChange(of: results.map(\.id)) { _, ids in selection.formIntersection(Set(ids)) }
         .onDrop(of: [.fileURL, .image, .text], isTargeted: nil) { providers in
             DragDrop.ingest(providers)
         }
@@ -149,7 +172,7 @@ struct MenuBarView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .onSubmit { if canSmartSearch { runAISearch() } }
-                .onChange(of: query) { _, _ in aiResultIDs = nil }   // back to normal search
+                .onChange(of: query) { _, _ in cancelAISearch() }
             if aiSearching {
                 ProgressView().controlSize(.small)
             } else if aiActive {
@@ -162,6 +185,10 @@ struct MenuBarView: View {
                     Image(systemName: "sparkles").foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain).help("Smart search with AI · ⏎")
+            }
+            if settings.clipboardEnabled, !settings.privateMode, let warning = clipboard.accessWarning {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundStyle(.orange).help(warning)
             }
             if settings.privateMode {
                 Label("Private", systemImage: "eye.slash")
@@ -179,6 +206,7 @@ struct MenuBarView: View {
             HStack(spacing: 6) {
                 ForEach(ShelfFilter.allCases) { f in
                     Button {
+                        cancelAISearch()
                         filter = f
                     } label: {
                         Label(f.label, systemImage: f.symbol)
@@ -221,8 +249,9 @@ struct MenuBarView: View {
             ScrollView {
                 LazyVStack(spacing: 2) {
                     ForEach(results) { item in
-                        ShelfItemRow(item: item)
+                        ShelfItemRow(item: item, selected: selection.contains(item.id), selectionEnabled: true)
                             .onTapGesture { ItemActions.copyToPasteboard(item) }
+                            .shelfSelection(item: item, selection: $selection)
                     }
                 }
                 .padding(.horizontal, 6)

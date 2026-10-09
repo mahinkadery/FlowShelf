@@ -21,12 +21,21 @@ all: bundle
 # Universal build: compile each arch (full Xcode's multi-arch needs xcbuild, which
 # Command Line Tools lacks), then lipo the slices into one fat binary.
 build:
-	swift build -c $(CONFIG) --arch arm64
-	swift build -c $(CONFIG) --arch x86_64
-	@lipo -create \
-		.build/arm64-apple-macosx/$(CONFIG)/$(APP) \
-		.build/x86_64-apple-macosx/$(CONFIG)/$(APP) \
-		-output $(BIN)
+	@set -eu; \
+	stage=".build/universal-inputs/$(CONFIG)"; \
+	mkdir -p "$$stage"; \
+	for arch in arm64 x86_64; do \
+		swift build -c $(CONFIG) --arch "$$arch"; \
+		output=$$(swift build -c $(CONFIG) --arch "$$arch" --show-bin-path); \
+		test -f "$$output/$(APP)"; \
+		test "$$(lipo -archs "$$output/$(APP)")" = "$$arch"; \
+		cp "$$output/$(APP)" "$$stage/$(APP)-$$arch"; \
+		echo "Staged $$arch from $$output/$(APP)"; \
+	done; \
+	lipo -create "$$stage/$(APP)-arm64" "$$stage/$(APP)-x86_64" -output "$(BIN).tmp"; \
+	architectures=$$(lipo -archs "$(BIN).tmp"); \
+	test "$$architectures" = "arm64 x86_64" || test "$$architectures" = "x86_64 arm64"; \
+	mv "$(BIN).tmp" "$(BIN)"
 	@echo "Universal binary: $$(lipo -archs $(BIN))"
 
 bundle: build icon
@@ -34,6 +43,7 @@ bundle: build icon
 	@mkdir -p $(MACOS_DIR) $(CONTENTS)/Resources
 	@cp $(BIN) $(MACOS_DIR)/$(APP)
 	@cp Resources/Info.plist $(CONTENTS)/Info.plist
+	@ditto Resources/Notch3D $(CONTENTS)/Resources/Notch3D
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
 	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
 	@if [ -f Resources/MenuBarIcon.png ]; then cp Resources/MenuBarIcon.png $(CONTENTS)/Resources/MenuBarIcon.png; fi
@@ -130,6 +140,7 @@ developer-id-bundle: build icon
 	@rm -rf $(BUNDLE) && mkdir -p $(MACOS_DIR) $(CONTENTS)/Resources
 	@cp $(BIN) $(MACOS_DIR)/$(APP)
 	@cp Resources/Info.plist $(CONTENTS)/Info.plist
+	@ditto Resources/Notch3D $(CONTENTS)/Resources/Notch3D
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
 	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
 	@if [ -f Resources/MenuBarIcon.png ]; then cp Resources/MenuBarIcon.png $(CONTENTS)/Resources/MenuBarIcon.png; fi

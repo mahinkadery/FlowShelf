@@ -5,13 +5,21 @@ import AppKit
 /// stays false for the current run.
 @MainActor
 enum AppRelaunch {
-    static func relaunch() {
-        let url = Bundle.main.bundleURL
+    static func relaunch(at url: URL = Bundle.main.bundleURL) {
         let config = NSWorkspace.OpenConfiguration()
         config.createsNewApplicationInstance = true
         config.activates = true
-        NSWorkspace.shared.openApplication(at: url, configuration: config) { _, _ in
-            DispatchQueue.main.async { NSApp.terminate(nil) }
+        NSWorkspace.shared.openApplication(at: url, configuration: config) { application, error in
+            DispatchQueue.main.async {
+                guard application != nil, error == nil else {
+                    let alert = NSAlert()
+                    alert.messageText = "FlowShelf couldn’t reopen"
+                    alert.informativeText = "Your current session is still running. Try opening FlowShelf again from Applications."
+                    alert.runModal()
+                    return
+                }
+                NSApp.terminate(nil)
+            }
         }
     }
 }

@@ -36,6 +36,7 @@ final class ScreenshotService {
     }
 
     private func runCapture(extraArgs: [String], runOCR ocr: Bool) {
+        let generation = store.contentGeneration
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("flowshelf-\(UUID().uuidString).png")
 
@@ -46,7 +47,7 @@ final class ScreenshotService {
 
         proc.terminationHandler = { _ in
             Task { @MainActor in
-                self.finishCapture(at: tmp, runOCR: ocr)
+                self.finishCapture(at: tmp, runOCR: ocr, generation: generation)
             }
         }
 
@@ -57,11 +58,12 @@ final class ScreenshotService {
         }
     }
 
-    private func finishCapture(at url: URL, runOCR ocr: Bool) {
+    private func finishCapture(at url: URL, runOCR ocr: Bool, generation: UUID) {
+        defer { try? FileManager.default.removeItem(at: url) }
+        guard store.contentGeneration == generation else { return }
         // User pressed Esc → no file written.
         guard FileManager.default.fileExists(atPath: url.path),
               let image = NSImage(contentsOf: url) else { return }
-        defer { try? FileManager.default.removeItem(at: url) }
 
         // If the user wants to mark up shots, hand off to the annotation editor
         // (it adds the result to the Shelf itself). Otherwise shelf it directly.
@@ -87,6 +89,7 @@ final class ScreenshotService {
     /// Run OCR on an arbitrary NSImage and shelf the result. Reusable by the
     /// "OCR this" action on existing image items.
     func recognizeText(in image: NSImage) {
+        let generation = store.contentGeneration
         guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
 
         let request = VNRecognizeTextRequest { request, _ in
@@ -97,6 +100,7 @@ final class ScreenshotService {
             guard !trimmed.isEmpty else { return }
 
             Task { @MainActor in
+                guard self.store.contentGeneration == generation else { return }
                 self.store.add(ShelfItem(
                     kind: .ocr,
                     title: trimmed.firstLine(),
@@ -124,6 +128,7 @@ final class ScreenshotService {
     /// Decode any QR / barcode in an image. Shelfs the payload (and opens it on the
     /// clipboard) when found; calls `onResult` with the decoded string or nil.
     func decodeQR(in image: NSImage, onResult: ((String?) -> Void)? = nil) {
+        let generation = store.contentGeneration
         guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
             onResult?(nil); return
         }
@@ -135,6 +140,10 @@ final class ScreenshotService {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
             Task { @MainActor in
+                guard self.store.contentGeneration == generation else {
+                    onResult?(nil)
+                    return
+                }
                 if let payload, !payload.isEmpty {
                     self.store.add(ShelfItem(
                         kind: payload.looksLikeURL ? .link : .text,

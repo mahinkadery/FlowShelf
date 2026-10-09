@@ -23,19 +23,84 @@ final class NotchModel: ObservableObject {
     /// A transient system HUD (volume/brightness/charging) shown briefly in the
     /// collapsed notch; takes visual priority over media while present.
     @Published var hud: NotchHUD?
+    @Published private(set) var hudExiting = false
+    @Published private(set) var hudCompact = false
+    @Published private(set) var hudPresentationID = UUID()
     private var hudClear: DispatchWorkItem?
+    private var hudExpansion: DispatchWorkItem?
+    private var hudGeneration = UUID()
 
     func showHUD(_ h: NotchHUD, for seconds: Double = 1.5) {
+        guard !expanded else { return }
         hudClear?.cancel()
+        hudExpansion?.cancel()
+        hudGeneration = UUID()
+        let generation = hudGeneration
+        hudExiting = false
+        hudPresentationID = generation
+        hudCompact = h.isAccessoryConnection && !FlowMotion.reduceMotion
         hud = h
-        let work = DispatchWorkItem { [weak self] in self?.hud = nil }
+        if hudCompact {
+            let expansion = DispatchWorkItem { [weak self] in
+                guard let self, self.hudGeneration == generation else { return }
+                self.hudCompact = false
+            }
+            hudExpansion = expansion
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.38, execute: expansion)
+        }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.hudGeneration == generation else { return }
+            self.dismissHUD(generation: generation)
+        }
         hudClear = work
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
+    }
+
+    func clearHUD() {
+        hudGeneration = UUID()
+        hudClear?.cancel()
+        hudExpansion?.cancel()
+        hudExpansion = nil
+        hudClear = nil
+        hud = nil
+        hudExiting = false
+        hudCompact = false
+    }
+
+    private func dismissHUD(generation: UUID) {
+        hudExpansion?.cancel()
+        hudExpansion = nil
+        guard !FlowMotion.reduceMotion else { clearHUD(); return }
+        if hud?.isAccessoryConnection == true && !hudCompact {
+            hudCompact = true
+            let compactHold = DispatchWorkItem { [weak self] in
+                guard let self, self.hudGeneration == generation else { return }
+                self.dismissHUD(generation: generation)
+            }
+            hudClear = compactHold
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.55, execute: compactHold)
+            return
+        }
+        hudExiting = true
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.hudGeneration == generation else { return }
+            self.clearHUD()
+        }
+        hudClear = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24, execute: work)
+    }
+
+    var hudSize: CGSize {
+        if hudExiting {
+            return CGSize(width: collapsedSize.width + (mediaActive ? 132 : 0), height: collapsedSize.height)
+        }
+        return hud?.presentationSize(notch: collapsedSize, compact: hudCompact) ?? collapsedSize
     }
 
     /// The *interactive* area when collapsed — a bit wider and taller than the
     /// visible pill so it's easy to drag a file into (and to swipe down from).
     var triggerSize: CGSize {
+        if hud != nil { return CGSize(width: hudSize.width + 20, height: hudSize.height + 20) }
         let extra: CGFloat = (mediaActive || hud != nil) ? 132 : 44
         return CGSize(width: collapsedSize.width + extra, height: collapsedSize.height + 34)
     }
@@ -121,7 +186,7 @@ struct NotchView: View {
 
     /// Collapsed pill for a transient system HUD (icon + bar/percent flanking).
     private var hudCollapsedSize: CGSize {
-        CGSize(width: model.collapsedSize.width + 120, height: max(model.collapsedSize.height, 30))
+        model.hudSize
     }
 
     /// On hover the invisible notch reveals itself as a rounded glass bar —
@@ -148,7 +213,8 @@ struct NotchView: View {
         return model.triggerSize
     }
     private var shape: NotchShape {
-        NotchShape(topRadius: model.expanded ? 12 : 7, bottomRadius: model.expanded ? 26 : 12)
+        NotchShape(topRadius: model.expanded ? 12 : 7,
+                   bottomRadius: model.expanded ? 26 : (model.hud != nil ? 17 : 12))
     }
 
     private var enhancedGlassActive: Bool { useNativeLiquidGlass }
@@ -166,6 +232,7 @@ struct NotchView: View {
         .flowExpand(model.expanded)
         .animation(FlowMotion.expandOpen, value: audio.pickerOpen)
         .onChange(of: model.expanded) { _, open in
+            if open { model.clearHUD() }
             if !open { audio.pickerOpen = false }   // tuck the picker back under
         }
     }
@@ -206,7 +273,9 @@ struct NotchView: View {
         // pass, which freezes the live Liquid Glass backdrop into a static frost.
         .animation(FlowMotion.hoverScale, value: hovering)
         .animation(FlowMotion.state, value: model.targeted)
-        .animation(FlowMotion.expandOpen, value: model.hud)
+        .animation(FlowMotion.reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.76), value: model.hud)
+        .animation(FlowMotion.reduceMotion ? nil : .spring(response: 0.46, dampingFraction: 0.88), value: model.hudCompact)
+        .animation(FlowMotion.reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 1), value: model.hudExiting)
         .onHover { hovering = $0 }
         // Tap the bar to open; tap again (outside tiles) to close.
         .onTapGesture {
@@ -251,8 +320,17 @@ struct NotchView: View {
                 .transition(.asymmetric(insertion: .flowEmergeLight, removal: .opacity))
             } else if let hud = model.hud {
                 // Transient system HUD (volume / brightness / charging).
-                NotchHUDView(hud: hud, notchWidth: model.collapsedSize.width,
-                             height: hudCollapsedSize.height)
+                if hud.isSystemEvent {
+                    NotchHUDView(hud: hud, notchWidth: model.collapsedSize.width,
+                                 height: hud.presentationSize(notch: model.collapsedSize, compact: model.hudCompact).height,
+                                 exiting: model.hudExiting, compact: model.hudCompact,
+                                 notchHeight: model.collapsedSize.height)
+                        .id(model.hudPresentationID)
+                } else {
+                    NotchHUDView(hud: hud, notchWidth: model.collapsedSize.width,
+                                 height: hud.presentationSize(notch: model.collapsedSize).height,
+                                 exiting: model.hudExiting)
+                }
             } else if hasMedia {
                 // Collapsed live activity: album art + audio bars flanking the notch.
                 MediaLiveActivity(notchWidth: model.collapsedSize.width,
@@ -418,6 +496,10 @@ private final class GlassStack: NSView {
     private let lock = NSLock()
     private var band: CVPixelBuffer?
     private var bandGeneration: UInt64 = 0
+    private var frameSequence: UInt64 = 0
+    private var lastPresentedKey: NotchLensRenderKey?
+    private var presentationEpoch: UInt64 = 0
+    private lazy var activity = NotchViewActivity { [weak self] in self?.refreshActivity() }
     private var acceptedGeneration: UInt64 = 0
     private var displayLink: CADisplayLink?
     private let bandHeightPoints: CGFloat = 240
@@ -466,7 +548,6 @@ private final class GlassStack: NSView {
         // so a quick close/reopen does not cold-start ScreenCaptureKit. The rendered
         // frame is always cleared while collapsed; retaining it caused the previous
         // desktop background to flash briefly on the next open.
-        let active = window != nil && bounds.height >= activeHeight
         if bounds.size != lastSize {
             lastSize = bounds.size
             lastResize = CACurrentMediaTime()        // mark the card as animating
@@ -474,6 +555,23 @@ private final class GlassStack: NSView {
             clipMask.path = notchPath(in: bounds, top: 12, bottom: bottomRadius).cgPath
             CATransaction.commit()
         }
+        refreshActivity()
+    }
+
+    override func viewDidHide() { super.viewDidHide(); refreshActivity() }
+    override func viewDidUnhide() { super.viewDidUnhide(); refreshActivity() }
+
+    private var captureVisible: Bool { activity.isVisible && bounds.height >= activeHeight }
+
+    private func refreshActivity() {
+        guard activity.isVisible else {
+            displayLink?.isPaused = true
+            stopCaptureWorkItem?.cancel()
+            stopCaptureWorkItem = nil
+            stopCapture()
+            return
+        }
+        let active = captureVisible
         displayLink?.isPaused = !active
         if active {
             stopCaptureWorkItem?.cancel()
@@ -514,17 +612,27 @@ private final class GlassStack: NSView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if window != nil {
-            guard displayLink == nil else { return }
-            let dl = displayLink(target: self, selector: #selector(tick))
-            dl.isPaused = true               // layout() resumes it while open
-            dl.add(to: .current, forMode: .common)
-            displayLink = dl
+            if displayLink == nil {
+                let target = DisplayLinkTarget(owner: self)
+                let link = displayLink(target: target, selector: #selector(DisplayLinkTarget.tick))
+                link.isPaused = true
+                link.add(to: .current, forMode: .common)
+                displayLink = link
+            }
+            activity.attach(to: self)
         } else {
             teardown()
         }
     }
 
+    private final class DisplayLinkTarget: NSObject {
+        weak var owner: GlassStack?
+        init(owner: GlassStack) { self.owner = owner }
+        @objc func tick() { owner?.tick() }
+    }
+
     func teardown() {
+        activity.detach()
         displayLink?.invalidate(); displayLink = nil
         stopCaptureWorkItem?.cancel(); stopCaptureWorkItem = nil
         stopCapture()
@@ -535,6 +643,7 @@ private final class GlassStack: NSView {
     private func startCapture() {
         let now = CACurrentMediaTime()
         guard !streaming, !startingStream, !capturePermissionDenied,
+              captureVisible,
               now >= nextCaptureAttempt,
               let screen = window?.screen ?? NSScreen.main else { return }
         captureGeneration &+= 1
@@ -561,8 +670,16 @@ private final class GlassStack: NSView {
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(
                     false, onScreenWindowsOnly: true)
-                guard let display = content.displays.first(where: { $0.displayID == displayID })
-                        ?? content.displays.first else { await MainActor.run { self.startingStream = false }; return }
+                guard self.captureGeneration == generation else { return }
+                guard self.captureVisible else {
+                    self.startingStream = false
+                    return
+                }
+                guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
+                    self.startingStream = false
+                    self.nextCaptureAttempt = CACurrentMediaTime() + 30
+                    return
+                }
                 let myPID = ProcessInfo.processInfo.processIdentifier
                 let mine = content.windows.filter { $0.owningApplication?.processID == myPID }
                 let filter = SCContentFilter(display: display, excludingWindows: mine)
@@ -584,6 +701,12 @@ private final class GlassStack: NSView {
 
                 let out = StreamOutput { [weak self] pb in
                     self?.ingest(pb, generation: generation)
+                } onStop: { [weak self] in
+                    Task { @MainActor in
+                        guard let self, self.captureGeneration == generation else { return }
+                        self.stopCapture()
+                        self.nextCaptureAttempt = CACurrentMediaTime() + 30
+                    }
                 }
                 let stream = SCStream(filter: filter, configuration: cfg, delegate: out)
                 try stream.addStreamOutput(out, type: .screen,
@@ -597,7 +720,7 @@ private final class GlassStack: NSView {
                     self.startingStream = false
                     self.captureRectPoints = band
                     // Bail if we were asked to stop while starting up.
-                    guard self.window != nil, self.bounds.height >= self.activeHeight else {
+                    guard self.captureVisible else {
                         self.stopCapture()
                         stream.stopCapture { _ in }
                         return
@@ -628,7 +751,7 @@ private final class GlassStack: NSView {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.stopCaptureWorkItem = nil
-            guard self.window == nil || self.bounds.height < self.activeHeight else { return }
+            guard !self.captureVisible else { return }
             self.stopCapture()
         }
         stopCaptureWorkItem = work
@@ -655,6 +778,8 @@ private final class GlassStack: NSView {
     }
 
     private func clearRenderedFrame() {
+        presentationEpoch &+= 1
+        lastPresentedKey = nil
         CATransaction.begin(); CATransaction.setDisableActions(true)
         layer?.contents = nil
         CATransaction.commit()
@@ -668,6 +793,7 @@ private final class GlassStack: NSView {
         guard acceptedGeneration == generation else { lock.unlock(); return }
         band = pb
         bandGeneration = generation
+        frameSequence &+= 1
         lock.unlock()
     }
 
@@ -675,7 +801,8 @@ private final class GlassStack: NSView {
     /// displacement lens, and show the result. No white wash, no frost — the
     /// desktop is genuinely bent at the bottom edge.
     @objc private func tick() {
-        guard let window, bounds.width > 2, bounds.height >= activeHeight else { return }
+        guard captureVisible, let window, bounds.width > 2 else { return }
+        if !streaming, !startingStream { startCapture() }
         // Rendering runs off-main and drops overlapping frames, so keep the lens
         // attached during the spring instead of making it appear after the card
         // settles. A lower in-motion rate protects the GPU while resizing.
@@ -684,7 +811,7 @@ private final class GlassStack: NSView {
         if now - lastRender < renderInterval { return }
         guard !renderInFlight else { return }             // drop, never queue frames
         lastRender = now
-        lock.lock(); let b = band; let generation = bandGeneration; lock.unlock()
+        lock.lock(); let b = band; let generation = bandGeneration; let frame = frameSequence; lock.unlock()
         guard let b, generation == captureGeneration,
               let screen = window.screen ?? NSScreen.main else { return }
 
@@ -705,6 +832,10 @@ private final class GlassStack: NSView {
         let ciY = bh - cy - ch
         let extent = CGRect(x: 0, y: 0, width: cw, height: ch)
         let crop = CGRect(x: cx, y: ciY, width: cw, height: ch)
+        let key = NotchLensRenderKey(generation: generation, frame: frame, crop: crop, scale: s)
+        guard key != lastPresentedKey else { return }
+        let size = bounds.size
+        let epoch = presentationEpoch
         let mode = mode
         let radius = bottomRadius
         let kernel = kernel
@@ -725,10 +856,12 @@ private final class GlassStack: NSView {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.renderInFlight = false
-                guard self.window != nil,
-                      self.bounds.height >= self.activeHeight,
+                guard self.captureVisible,
+                      self.presentationEpoch == epoch,
+                      self.bounds.size == size,
                       self.captureGeneration == generation,
                       let image else { return }
+                self.lastPresentedKey = key
                 CATransaction.begin(); CATransaction.setDisableActions(true)
                 self.layer?.contents = image
                 self.layer?.contentsScale = s
@@ -827,7 +960,11 @@ private final class GlassStack: NSView {
 
     private final class StreamOutput: NSObject, SCStreamOutput, SCStreamDelegate {
         private let onFrame: (CVPixelBuffer) -> Void
-        init(onFrame: @escaping (CVPixelBuffer) -> Void) { self.onFrame = onFrame }
+        private let onStop: () -> Void
+        init(onFrame: @escaping (CVPixelBuffer) -> Void, onStop: @escaping () -> Void) {
+            self.onFrame = onFrame
+            self.onStop = onStop
+        }
         func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
                     of type: SCStreamOutputType) {
             guard type == .screen, sampleBuffer.isValid,
@@ -839,7 +976,7 @@ private final class GlassStack: NSView {
             onFrame(pb)
         }
         func stream(_ stream: SCStream, didStopWithError error: Error) {
-            NSLog("Notch glass: stream stopped: \(error)")
+            onStop()
         }
     }
 }

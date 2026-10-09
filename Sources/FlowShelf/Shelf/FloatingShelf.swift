@@ -9,6 +9,7 @@ struct FloatingShelfView: View {
     var onClose: () -> Void
     @State private var targeted = false
     @State private var filter: ShelfFilter = .today
+    @State private var selection = Set<UUID>()
 
     private var items: [ShelfItem] { store.visibleItems.filter { filter.matches($0) } }
 
@@ -51,6 +52,11 @@ struct FloatingShelfView: View {
 
             Divider().opacity(0.5)
 
+            if !selection.isEmpty {
+                ShelfSelectionActions(items: items, selection: $selection)
+                Divider().opacity(0.5)
+            }
+
             if items.isEmpty {
                 VStack(spacing: 10) {
                     ZStack {
@@ -79,6 +85,7 @@ struct FloatingShelfView: View {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 86), spacing: 10)], spacing: 10) {
                         ForEach(items) { item in
                             ShelfTile(item: item)
+                                .shelfSelection(item: item, selection: $selection, layout: .tile)
                         }
                     }
                     .padding(12)
@@ -92,6 +99,9 @@ struct FloatingShelfView: View {
         .onDrop(of: [.fileURL, .image, .text], isTargeted: $targeted) { providers in
             DragDrop.ingest(providers)
         }
+        .onChange(of: filter) { _, _ in selection.removeAll() }
+        .onChange(of: items.map(\.id)) { _, ids in selection.formIntersection(Set(ids)) }
+        .onDisappear { selection.removeAll() }
     }
 }
 
@@ -120,9 +130,10 @@ private struct ShelfTile: View {
                 content
 
                 if item.pinned {
-                    VStack { HStack { Spacer()
+                    VStack { HStack {
                         Image(systemName: "pin.fill").font(.system(size: 8)).foregroundStyle(.orange)
                             .padding(4)
+                        Spacer()
                     }; Spacer() }
                 }
 

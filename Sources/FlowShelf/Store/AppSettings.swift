@@ -77,11 +77,16 @@ final class AppSettings: ObservableObject {
     }
     /// "Private mode" — pauses clipboard capture entirely.
     @Published var privateMode: Bool {
-        didSet { defaults.set(privateMode, forKey: "privateMode") }
+        didSet {
+            defaults.set(privateMode, forKey: "privateMode")
+        }
     }
     /// Bundle IDs whose copies are never recorded (e.g. password managers).
     @Published var excludedBundleIDs: [String] {
         didSet { defaults.set(excludedBundleIDs, forKey: "excludedBundleIDs") }
+    }
+    @Published var ignoredClipboardTypes: [String] {
+        didSet { defaults.set(ignoredClipboardTypes, forKey: "ignoredClipboardTypes") }
     }
     @Published var launchAtLogin: Bool {
         didSet { defaults.set(launchAtLogin, forKey: "launchAtLogin") }
@@ -128,6 +133,12 @@ final class AppSettings: ObservableObject {
             NotchRuntimeCoordinator.shared.apply()
         }
     }
+    @Published var notchAudioCaptureMode: NotchAudioCaptureMode {
+        didSet {
+            defaults.set(notchAudioCaptureMode.rawValue, forKey: "notchAudioCaptureMode")
+            NotchRuntimeCoordinator.shared.apply()
+        }
+    }
     /// Show now-playing media (live activity + compact player) in the notch.
     @Published var notchMediaEnabled: Bool {
         didSet {
@@ -146,6 +157,9 @@ final class AppSettings: ObservableObject {
     /// Open the annotation editor after a region screenshot.
     @Published var annotateAfterScreenshot: Bool {
         didSet { defaults.set(annotateAfterScreenshot, forKey: "annotateAfterScreenshot") }
+    }
+    @Published var imageTextSearchEnabled: Bool {
+        didSet { defaults.set(imageTextSearchEnabled, forKey: "imageTextSearchEnabled") }
     }
     /// Show on-device AI actions (summarize / clean / smart title). Only has any
     /// effect on Apple-Intelligence-capable Macs.
@@ -201,6 +215,7 @@ final class AppSettings: ObservableObject {
         clipboardEnabled = defaults.object(forKey: "clipboardEnabled") as? Bool ?? true
         clipboardRetention = ClipboardRetention(rawValue: defaults.string(forKey: "clipboardRetention") ?? "") ?? .day
         privateMode = defaults.bool(forKey: "privateMode")
+        ignoredClipboardTypes = ClipboardPrivacyRules.sanitized(defaults.stringArray(forKey: "ignoredClipboardTypes") ?? [])
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         dockPreviewsEnabled = defaults.bool(forKey: "dockPreviewsEnabled")
         shakeToSummon = defaults.bool(forKey: "shakeToSummon")
@@ -213,8 +228,10 @@ final class AppSettings: ObservableObject {
         notchEnabled = defaults.bool(forKey: "notchEnabled")
         notchMediaEnabled = defaults.object(forKey: "notchMediaEnabled") as? Bool ?? true
         audioReactiveBars = defaults.object(forKey: "audioReactiveBars") as? Bool ?? true
+        notchAudioCaptureMode = NotchAudioCaptureMode(rawValue: defaults.string(forKey: "notchAudioCaptureMode") ?? "") ?? .compatibility
         notchHUDEnabled = defaults.object(forKey: "notchHUDEnabled") as? Bool ?? true
         annotateAfterScreenshot = defaults.bool(forKey: "annotateAfterScreenshot")
+        imageTextSearchEnabled = defaults.bool(forKey: "imageTextSearchEnabled")
         aiEnabled = defaults.object(forKey: "aiEnabled") as? Bool ?? true
         aiAutoTitle = defaults.bool(forKey: "aiAutoTitle")
         hasSupported = defaults.bool(forKey: "hasSupported")

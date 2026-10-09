@@ -45,6 +45,10 @@ final class MediaManager: ObservableObject {
 
     private var stream: Process?
     private var running = false
+    private var streamID = UUID()
+    private var retryTask: Task<Void, Never>?
+    private var unexpectedExitCount = 0
+    @Published private(set) var failureMessage: String?
 
     private init() {}
 
@@ -76,6 +80,9 @@ final class MediaManager: ObservableObject {
         guard !running, let script = scriptPath, let fw = frameworkPath,
               FileManager.default.fileExists(atPath: fw) else { return }
         running = true
+        streamID = UUID()
+        let currentID = streamID
+        failureMessage = nil
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/bin/perl")
@@ -93,11 +100,15 @@ final class MediaManager: ObservableObject {
             let chunk = handle.availableData
             guard !chunk.isEmpty else { return }
             parser.consume(chunk) { update in
-                Task { @MainActor in self?.apply(update) }
+                Task { @MainActor in
+                    guard let self, self.running, self.streamID == currentID else { return }
+                    self.apply(update)
+                }
             }
         }
-        proc.terminationHandler = { [weak self] _ in
-            Task { @MainActor in self?.handleExit() }
+        proc.terminationHandler = { [weak self] process in
+            let status = process.terminationStatus
+            Task { @MainActor in self?.handleExit(id: currentID, status: status) }
         }
         Self.crumb("start script=\(script) fwExists=\(FileManager.default.fileExists(atPath: fw))")
         do {
@@ -106,11 +117,17 @@ final class MediaManager: ObservableObject {
         } catch {
             NSLog("MediaManager: failed to start adapter: \(error)")
             running = false
+            failureMessage = "The media helper could not start. Toggle Notch media off and on to retry."
         }
     }
 
     func stop() {
         running = false
+        streamID = UUID()
+        retryTask?.cancel()
+        retryTask = nil
+        unexpectedExitCount = 0
+        failureMessage = nil
         stream?.terminationHandler = nil
         (stream?.standardOutput as? Pipe)?.fileHandleForReading.readabilityHandler = nil
         if let s = stream, s.isRunning { s.terminate() }
@@ -121,12 +138,23 @@ final class MediaManager: ObservableObject {
 
     /// Restart if the stream dies (it can, e.g. on the machine waking) while the
     /// feature is still meant to be on.
-    private func handleExit() {
-        guard running else { return }
+    private func handleExit(id: UUID, status: Int32) {
+        guard running, id == streamID else { return }
         running = false
+        (stream?.standardOutput as? Pipe)?.fileHandleForReading.readabilityHandler = nil
         stream = nil
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+        now = NowPlaying()
+        AudioSpectrum.shared.setActive(false)
+        unexpectedExitCount += 1
+        guard status == 0, unexpectedExitCount <= 3 else {
+            failureMessage = "Media updates stopped. Toggle Notch media off and on to retry."
+            return
+        }
+        let delay = UInt64(unexpectedExitCount * 2) * 1_000_000_000
+        retryTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds: delay) } catch { return }
             guard let self,
+                  !Task.isCancelled, self.streamID == id,
                   AppSettings.shared.notchEnabled,
                   AppSettings.shared.notchMediaEnabled else { return }
             self.start()
@@ -194,7 +222,8 @@ final class MediaManager: ObservableObject {
                 AppSettings.shared.notchEnabled &&
                 AppSettings.shared.notchMediaEnabled &&
                 next.hasMedia && next.isPlaying &&
-                AppSettings.shared.audioReactiveBars
+                AppSettings.shared.audioReactiveBars,
+                playerBundleID: next.bundleID
             )
             Self.crumb("now: '\(next.title)' — '\(next.artist)' playing=\(next.isPlaying) art=\(next.artwork != nil)")
         }
