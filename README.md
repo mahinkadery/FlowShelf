@@ -6,9 +6,10 @@
 
 ### One Mac app for the dozen little things you copy, grab, and juggle all day.
 
-A self-cleaning shelf for everything you collect — clipboard, screenshots, files,
-links — plus window snapping, window previews, a notch shelf, snippets, an app
-cleaner, and on-device AI. **One menu-bar icon instead of five separate apps.**
+A self-cleaning shelf for everything you copy, capture and drag — plus a smart
+notch with Now Playing, window snapping, Dock previews, a ⌥-Tab switcher, a
+screenshot studio, snippets, an app uninstaller and private on-device AI.
+**One menu-bar icon instead of a dozen apps.**
 
 <a href="https://flowshelf.app/assets/videos/demos/flowshelf-promo.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-promo.gif" alt="FlowShelf in 60 seconds" width="760" /></a>
 
@@ -74,8 +75,9 @@ I got tired of running a separate app for every little thing — a clipboard man
 a window snapper, a file shelf, an app cleaner, a screenshot tool. Five menu-bar
 icons, five subscriptions, and half my RAM gone before I'd done any actual work.
 
-So I built **one** app that does all of it — **native, lightweight (~7 MB), and
-private**. Everything stays on your Mac. No account, no cloud, no Electron.
+So I built **one** app that does all of it — **native, lightweight (about a
+10 MB download), and private**. Everything stays on your Mac. No account, no
+cloud, no Electron.
 
 — Mahin, a solo dev trying to make daily Mac life a little less cluttered.
 
@@ -91,7 +93,7 @@ FlowShelf does what I actually used these popular apps for, in a single place:
 | **CleanShot X / Shottr** (screenshots + annotation) | **Screenshot studio** |
 | **AppCleaner** (uninstaller) | **Clean** |
 | **TextExpander** (snippets) | **Snippets** |
-| **NotchNook** (notch utility) | **Notch shelf** |
+| **NotchNook** (notch utility) | **Notch** — shelf, Now Playing, HUDs |
 
 > Not a 1:1 clone of each — it covers the everyday parts most people use, in one
 > tidy, free app. The **Screenshot studio** in particular has grown into a full
@@ -99,22 +101,20 @@ FlowShelf does what I actually used these popular apps for, in a single place:
 
 ## Features
 
-<!-- 📸 Add a short GIF next to each row as you record them -->
-
 | | |
 |---|---|
-| 🗂️ **Shelf** | A home for everything you collect — text, links, images, files, screenshots. Search it, pin it, drag items back out. **Auto-clears after 24 hours** so it never piles up — or switch to **Permanent** history if you want a full clipboard manager. |
-| 🪟 **Window snapping** | Hold **⌃⌥** and press arrows / `U I J K` / `Return` / `C` to snap the focused window to halves, quarters, maximize, or center. |
-| 🎯 **Notch shelf** | A Dynamic-Island-style shelf in your MacBook notch (and a matching pill on external monitors). **Swipe down** to open, drop files in, click a tile to copy. |
-| 👀 **Peek** | Hover a Dock icon for **live previews** of that app's windows — click to switch, or close/minimize from the preview. |
-| 🔀 **⌥-Tab switcher** | Hold Option, press Tab for a live-thumbnail window switcher across all apps. |
-| 📸 **Screenshot studio** | Region & window capture with **local OCR** (Apple Vision), plus a full editor: arrows, shapes, a real **highlighter**, numbered **steps**, text, **redaction** (pixelate / blur / black-out), **spotlight**, a **magnifier callout**, a **pixel ruler**, and gradient **backdrops**. Plus **pin-on-top**, **QR scanning**, image **combine**, and **before/after GIFs**. |
-| ✂️ **Snippets** | A searchable library of reusable text — signatures, addresses, canned replies. One click to copy, or grab from the menu-bar menu. |
-| 🧹 **Clean** | Drag an app in to uninstall it — FlowShelf finds the leftovers, scores them by confidence, and moves them to the Trash (reversible). It even tells you what it *couldn't* remove and why. |
+| 🗂️ **Shelf** | Everything you copy lands here — text, links, images, files, screenshots — with the app it came from. Click to copy it back, drag it out, pin what matters. **Select several items** to copy or drag them together. Search by name, by meaning (AI), or — if you turn it on — by the **text inside your images**. Items **clear themselves after 24 hours**, or keep everything with **Permanent** history. Open it from the menu bar or with `⌘⇧V`. |
+| 🧲 **Floating shelf** | A Liquid Glass shelf that opens right under your pointer with `⌘⇧S` (or a shake, if you turn that on). Drop anything in, drag it out into any app. |
+| 🎯 **Notch** | A Dynamic-Island-style notch (and a matching pill on Macs without one). **Click it** for your shelf, or start dragging a file and it opens to catch it. **Now Playing** shows the album art and live audio bars tinted to match; open it for a mini player and a **Sound Output** picker. Volume, brightness, charging, low battery, Low Power Mode and AirPods/headphone switches show as neat notch HUDs. |
+| 📸 **Screenshot studio** | Region (`⌘⇧7`) and window capture, plus `⌘⇧O` to copy the text out of anything (local OCR with Apple Vision). A full editor: arrows, shapes, a real **highlighter**, numbered **steps**, text, **redaction** (pixelate / blur / black-out), **spotlight**, a **magnifier callout**, a **pixel ruler**, **crop**, and gradient **backdrops**. Plus **pin-on-top**, **QR scanning**, image **combine**, and **before/after GIFs**. |
+| 🪟 **Window snapping** | Hold `⌃⌥` and press the arrows for halves, `U I J K` for quarters, `Return` to maximize, `C` to center. |
+| 👀 **Peek** | Hover a Dock icon for **live previews** of that app's windows (small, medium or large) — click one to switch, or close/minimize it right from the preview. |
+| 🔀 **⌥-Tab switcher** | Hold `⌥` and tap `Tab` for every window, live — `⇧` goes back, release to jump. Thumbnails or a compact list; the shortcut is yours to change. |
+| ✂️ **Snippets** | A searchable library of reusable text — signatures, addresses, canned replies — with optional keywords. One click to copy, or grab one from the menu-bar icon's right-click menu. |
+| 🧹 **Clean** | Drag an app in to uninstall it — FlowShelf finds the leftovers, scores each match (low-confidence ones start unchecked), and moves them to the Trash so **Put Back** still works. A cleanup report lands on your shelf, including anything it *couldn't* remove and why. |
 | ✨ **On-device AI** | See below. |
 
-Plus a **floating drop-shelf** you can shake-summon at your cursor, and a unified
-dashboard tying it all together.
+All of it lives in one dashboard (`⌘⇧D`, then `⌘1`–`⌘7` to jump between sections).
 
 ## ✨ On-device AI — free, private, no cloud
 
@@ -130,6 +130,8 @@ enabled. AI runs only when you ask.)
 - **Smart Search** — type a natural query (*"that tax link"*) and it finds it by
   meaning, not just keywords.
 - **Summarize my day** — a friendly recap of everything you collected today.
+- Results open in a small window with **Copy** and **Add to Shelf** — nothing is
+  added or changed until you choose.
 
 ## Keyboard shortcuts
 
@@ -140,6 +142,7 @@ enabled. AI runs only when you ask.)
 | `⌘⇧7` | Screenshot a region → Shelf |
 | `⌘⇧O` | Screenshot a region → OCR + Shelf |
 | `⌘⇧D` | Open the Dashboard |
+| `⌥ Tab` | Window switcher (`⇧` to go back) |
 | `⌃⌥ ← → ↑ ↓` | Snap window to halves |
 | `⌃⌥ U I J K` | Snap window to quarters |
 | `⌃⌥ Return / C` | Maximize / center window |
@@ -152,14 +155,19 @@ FlowShelf is **private by design**:
 - **On-device AI** — prompts and results never leave your machine.
 - Clipboard history is stored **owner-only** and **excluded from iCloud / Time
   Machine backups**.
-- Password managers and apps you exclude are **never recorded**; **Private Mode**
-  pauses capture entirely.
+- Password managers' private copies and apps you exclude are **never recorded**,
+  and you can add **your own clipboard types to ignore**. **Private Mode** pauses
+  capture entirely.
+- **Text-in-image search is off until you turn it on**, runs on your Mac, and what
+  it has read can be cleared at any time.
 - The **only** network request is a once-a-day check for app updates.
 
 ## Install
 
 1. **[Download the latest `.dmg`](https://github.com/mahinkadery/FlowShelf/releases/latest)**
-2. Open it and **drag FlowShelf into Applications**.
+2. Open it and **drag FlowShelf into Applications** (if you open it from the
+   disk image or Downloads, FlowShelf offers to move itself there so its
+   permissions stick).
 3. Open FlowShelf normally. The app is **Developer ID signed and notarized by
    Apple**.
 4. Grant permissions when asked — **Accessibility** powers Peek, the ⌥-Tab
@@ -193,7 +201,9 @@ set them the same and it'll enable. AI only runs when you explicitly ask.
 <details>
 <summary><b>A feature stopped working after an update (Peek, ⌥-Tab, snapping, window thumbnails)</b></summary>
 
-Those need **Accessibility** and/or **Screen Recording** permission. FlowShelf uses
+Those need **Accessibility** and/or **Screen Recording** permission, and FlowShelf
+should run from your **Applications** folder — macOS forgets permissions for apps
+opened straight from a disk image or Downloads. FlowShelf uses
 a stable Developer ID signature so grants normally persist across updates, but if
 macOS drops one, re-enable FlowShelf under **System Settings → Privacy & Security →
 Accessibility / Screen Recording**.
@@ -235,10 +245,10 @@ image), `make clean`. Contributors build with an ad-hoc signature by default.
 FlowShelf.app
 ├── FlowShelfApp / AppDelegate  – menu-bar status item, popover, wiring
 ├── Models / Store              – ShelfItem, Snippet, persistence + 24h expiry
-├── Clipboard                   – NSPasteboard monitoring
+├── Clipboard                   – NSPasteboard monitoring + privacy rules
 ├── Screenshot                  – screencapture, Vision OCR, annotation editor
 ├── Shelf                       – floating drop-shelf + shake-to-summon
-├── Notch                       – Dynamic-Island notch shelf (per display)
+├── Notch                       – notch shelf, Now Playing, HUDs (per display)
 ├── WindowSnap                  – Magnet-style window snapping (Carbon hotkeys)
 ├── Peek                        – Dock window previews + ⌥-Tab switcher
 ├── Cleaner                     – app uninstaller (scan + Trash)
