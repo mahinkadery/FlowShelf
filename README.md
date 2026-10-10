@@ -10,6 +10,10 @@ A self-cleaning shelf for everything you collect — clipboard, screenshots, fil
 links — plus window snapping, window previews, a notch shelf, snippets, an app
 cleaner, and on-device AI. **One menu-bar icon instead of five separate apps.**
 
+<a href="https://flowshelf.app/assets/videos/demos/flowshelf-promo.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-promo.gif" alt="FlowShelf in 60 seconds" width="760" /></a>
+
+<sub>▶ <a href="https://flowshelf.app/assets/videos/demos/flowshelf-promo.mp4">Watch the 60-second video with sound</a></sub>
+
 [![Download](https://img.shields.io/badge/Download-for%20macOS-FFC107?style=for-the-badge&logo=apple&logoColor=black)](https://github.com/mahinkadery/FlowShelf/releases/latest)
 [![Homebrew](https://img.shields.io/badge/Homebrew-brew%20install-FBB040?style=for-the-badge&logo=homebrew&logoColor=white)](#or-install-with-homebrew)
 [![Website](https://img.shields.io/badge/Website-flowshelf.app-111111?style=for-the-badge&logo=safari&logoColor=white)](https://flowshelf.app)
@@ -33,20 +37,30 @@ it helps other people find it (and gets us closer to a one-word `brew install fl
 
 <div align="center">
 
-**A self-cleaning shelf for everything you copy, grab, and drag**
-
-<img src="docs/videos/floating-shelf.gif" alt="The FlowShelf shelf" width="680" />
+**A self-cleaning shelf for everything you copy, grab, and drag** — tap any demo for its full video.
 
 </div>
 
 <table>
   <tr>
-    <td align="center" width="50%"><b>Screenshot studio</b><br/><img src="docs/videos/screenshot-annotation.gif" alt="Screenshot studio" width="380" /></td>
-    <td align="center" width="50%"><b>Notch shelf</b><br/><img src="docs/videos/notch-drag.gif" alt="Notch shelf" width="380" /></td>
+    <td align="center" width="50%"><b>Copy &amp; paste</b><br/><a href="https://flowshelf.app/assets/videos/demos/flowshelf-copy-paste.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-copy-paste.gif" alt="Copy &amp; paste" width="380" /></a><br/><sub>Every copy lands on one shelf — menu bar, floating shelf and notch.</sub></td>
+    <td align="center" width="50%"><b>Notch</b><br/><a href="https://flowshelf.app/assets/videos/demos/flowshelf-notch.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-notch.gif" alt="Notch" width="380" /></a><br/><sub>Now Playing, a file shelf and quieter HUDs, right in the notch.</sub></td>
   </tr>
   <tr>
-    <td align="center"><b>On-device AI</b><br/><img src="docs/videos/ai-features.gif" alt="On-device AI" width="380" /></td>
-    <td align="center"><b>Window snapping</b><br/><img src="docs/videos/window-snapping.gif" alt="Window snapping" width="380" /></td>
+    <td align="center" width="50%"><b>Floating shelf</b><br/><a href="https://flowshelf.app/assets/videos/demos/flowshelf-floating-shelf.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-floating-shelf.gif" alt="Floating shelf" width="380" /></a><br/><sub><kbd>⌘</kbd><kbd>⇧</kbd><kbd>S</kbd> or a shake. Drop in, drag out anywhere.</sub></td>
+    <td align="center" width="50%"><b>Screenshot studio</b><br/><a href="https://flowshelf.app/assets/videos/demos/flowshelf-screenshots.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-screenshots.gif" alt="Screenshot studio" width="380" /></a><br/><sub><kbd>⌘</kbd><kbd>⇧</kbd><kbd>7</kbd>, annotate, backdrops, pins — and OCR.</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><b>On-device AI</b><br/><a href="https://flowshelf.app/assets/videos/demos/flowshelf-ai.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-ai.gif" alt="On-device AI" width="380" /></a><br/><sub>Smart Search, Summarize, Ask AI. Private, only when you ask.</sub></td>
+    <td align="center" width="50%"><b>Snippets</b><br/><a href="https://flowshelf.app/assets/videos/demos/flowshelf-snippets.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-snippets.gif" alt="Snippets" width="380" /></a><br/><sub>Save text you type all the time; copy it in one click.</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><b>Window snapping</b><br/><a href="https://flowshelf.app/assets/videos/demos/flowshelf-window-snapping.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-window-snapping.gif" alt="Window snapping" width="380" /></a><br/><sub><kbd>⌃</kbd><kbd>⌥</kbd> + arrows, U I J K, <kbd>⏎</kbd>, C.</sub></td>
+    <td align="center" width="50%"><b>Peek</b><br/><a href="https://flowshelf.app/assets/videos/demos/flowshelf-peek.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-peek.gif" alt="Peek" width="380" /></a><br/><sub>Hover the Dock to see, close or jump to any window.</sub></td>
+  </tr>
+  <tr>
+    <td align="center" width="50%"><b>⌥-Tab switcher</b><br/><a href="https://flowshelf.app/assets/videos/demos/flowshelf-alt-tab.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-alt-tab.gif" alt="⌥-Tab switcher" width="380" /></a><br/><sub>Switch windows, not just apps — grid or list.</sub></td>
+    <td align="center" width="50%"><b>Clean</b><br/><a href="https://flowshelf.app/assets/videos/demos/flowshelf-clean.mp4"><img src="https://flowshelf.app/assets/videos/demos/flowshelf-clean.gif" alt="Clean" width="380" /></a><br/><sub>Uninstall apps, leftovers included. Put Back any time.</sub></td>
   </tr>
 </table>
 
