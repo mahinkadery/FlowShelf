@@ -9,7 +9,7 @@ struct OutputPickerColumn: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Sound Output")
+            Text(L10n.text("Sound Output"))
                 .font(.system(size: 10.5, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.5))
                 .padding(.horizontal, 12)
@@ -44,7 +44,7 @@ struct OutputPickerColumn: View {
                             .foregroundStyle(.white.opacity(0.55))
                     }
                 } else {
-                    Text("Volume is controlled on the device")
+                    Text(L10n.text("Volume is controlled on the device"))
                         .font(.system(size: 9.5))
                         .foregroundStyle(.white.opacity(0.4))
                         .frame(maxWidth: .infinity)

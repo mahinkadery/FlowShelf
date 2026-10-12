@@ -77,28 +77,28 @@ struct NotchPane: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                PaneHeader(icon: "macbook", tint: .orange, title: "Notch",
-                           subtitle: "A Dynamic-Island shelf, media player and HUDs living in your notch")
+                PaneHeader(icon: "macbook", tint: .orange, title: L10n.text("Notch"),
+                           subtitle: L10n.text("A Dynamic-Island shelf, media player and HUDs living in your notch"))
 
                 Group {
                     EmblemRow(icon: "tray.and.arrow.down.fill", tint: .orange,
-                              title: "Notch shelf",
-                              caption: "Tap the notch to open; drop files, images or text to shelve them") {
+                              title: L10n.text("Notch shelf"),
+                              caption: L10n.text("Tap the notch to open; drop files, images or text to shelve them")) {
                         Toggle("", isOn: $settings.notchEnabled).labelsHidden()
                             .toggleStyle(.switch).controlSize(.small)
                     }
 
                     EmblemRow(icon: "music.note", tint: .pink,
-                              title: "Now-playing media",
-                              caption: media.failureMessage ?? "Live activity with album art when collapsed, compact player when open") {
+                              title: L10n.text("Now-playing media"),
+                              caption: media.failureMessage ?? L10n.text("Live activity with album art when collapsed, compact player when open")) {
                         Toggle("", isOn: $settings.notchMediaEnabled).labelsHidden()
                             .toggleStyle(.switch).controlSize(.small)
                             .disabled(!settings.notchEnabled)
                     }
 
                     EmblemRow(icon: "waveform", tint: .purple,
-                              title: "Audio-reactive bars",
-                              caption: "Bars dance to the actual music (shows the macOS recording indicator)") {
+                              title: L10n.text("Audio-reactive bars"),
+                              caption: L10n.text("Bars dance to the actual music (shows the macOS recording indicator)")) {
                         Toggle("", isOn: $settings.audioReactiveBars).labelsHidden()
                             .toggleStyle(.switch).controlSize(.small)
                             .disabled(!settings.notchEnabled || !settings.notchMediaEnabled)
@@ -107,46 +107,46 @@ struct NotchPane: View {
                     NotchAudioCaptureSettings()
 
                     EmblemRow(icon: "speaker.wave.2.fill", tint: .blue,
-                              title: "System events in the notch",
-                              caption: "Audio connections, Low Power Mode, charging, battery, volume and brightness") {
+                              title: L10n.text("System events in the notch"),
+                              caption: L10n.text("Audio connections, Low Power Mode, charging, battery, volume and brightness")) {
                         Toggle("", isOn: $settings.notchHUDEnabled).labelsHidden()
                             .toggleStyle(.switch).controlSize(.small)
                             .disabled(!settings.notchEnabled)
                     }
 
                     EmblemRow(icon: "play.rectangle", tint: .mint,
-                              title: "Preview notch animations",
-                              caption: "Simulated events only — no devices connect and no power settings change") {
-                        Menu("Preview") {
-                            Button("AirPods Pro · connection demo") {
-                                NotchController.shared.previewHUD(.audioRoute(name: "AirPods Pro · preview", icon: "airpodspro", bluetooth: true))
+                              title: L10n.text("Preview notch animations"),
+                              caption: L10n.text("Simulated events only — no devices connect and no power settings change")) {
+                        Menu(L10n.text("Preview")) {
+                            Button(L10n.text("AirPods Pro · connection demo")) {
+                                NotchController.shared.previewHUD(.audioRoute(name: L10n.text("AirPods Pro · preview"), icon: "airpodspro", bluetooth: true))
                             }
-                            Button("AirPods · connection demo") {
-                                NotchController.shared.previewHUD(.audioRoute(name: "AirPods · preview", icon: "airpods", bluetooth: true))
+                            Button(L10n.text("AirPods · connection demo")) {
+                                NotchController.shared.previewHUD(.audioRoute(name: L10n.text("AirPods · preview"), icon: "airpods", bluetooth: true))
                             }
-                            Button("Headphones · 3D demo") {
-                                NotchController.shared.previewHUD(.audioRoute(name: "Headphones · preview", icon: "headphones", bluetooth: true))
+                            Button(L10n.text("Headphones · 3D demo")) {
+                                NotchController.shared.previewHUD(.audioRoute(name: L10n.text("Headphones · preview"), icon: "headphones", bluetooth: true))
                             }
-                            Button("Charging · demo 75%") {
+                            Button(L10n.text("Charging · demo 75%")) {
                                 NotchController.shared.previewHUD(.charging(percent: 75, charging: true, full: false))
                             }
-                            Button("Low battery · demo 20%") {
+                            Button(L10n.text("Low battery · demo 20%")) {
                                 NotchController.shared.previewHUD(.lowBattery(percent: 20))
                             }
-                            Button("Low Power Mode on · demo") {
+                            Button(L10n.text("Low Power Mode on · demo")) {
                                 NotchController.shared.previewHUD(.lowPowerMode(true))
                             }
-                            Button("Low Power Mode off · demo") {
+                            Button(L10n.text("Low Power Mode off · demo")) {
                                 NotchController.shared.previewHUD(.lowPowerMode(false))
                             }
                             Divider()
-                            Button("Volume · demo 60%") {
+                            Button(L10n.text("Volume · demo 60%")) {
                                 NotchController.shared.previewHUD(.volume(0.6, muted: false))
                             }
-                            Button("Muted · demo") {
+                            Button(L10n.text("Muted · demo")) {
                                 NotchController.shared.previewHUD(.volume(0, muted: true))
                             }
-                            Button("Brightness · demo 75%") {
+                            Button(L10n.text("Brightness · demo 75%")) {
                                 NotchController.shared.previewHUD(.brightness(0.75))
                             }
                         }
@@ -157,7 +157,7 @@ struct NotchPane: View {
                 }
                 .padding(.horizontal, 18)
 
-                Text("On Macs without a notch, FlowShelf shows a top-centre pill instead — every feature works the same.")
+                Text(L10n.text("On Macs without a notch, FlowShelf shows a top-centre pill instead — every feature works the same."))
                     .font(.system(size: 11)).foregroundStyle(.tertiary)
                     .padding(.horizontal, 20).padding(.top, 4)
             }

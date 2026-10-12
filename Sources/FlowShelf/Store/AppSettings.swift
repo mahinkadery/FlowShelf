@@ -6,7 +6,13 @@ import CoreGraphics
 enum DockPreviewSize: String, CaseIterable, Identifiable {
     case small, medium, large
     var id: String { rawValue }
-    var label: String { rawValue.capitalized }
+    var label: String {
+        switch self {
+        case .small: return L10n.text("Small")
+        case .medium: return L10n.text("Medium")
+        case .large: return L10n.text("Large")
+        }
+    }
     var thumb: CGSize {
         switch self {
         case .small:  return CGSize(width: 230, height: 144)
@@ -28,14 +34,14 @@ enum DockPreviewSize: String, CaseIterable, Identifiable {
 enum AltTabLayout: String, CaseIterable, Identifiable {
     case thumbnails, list
     var id: String { rawValue }
-    var label: String { self == .thumbnails ? "Thumbnails" : "List" }
+    var label: String { self == .thumbnails ? L10n.text("Thumbnails") : L10n.text("List") }
 }
 
 /// How long captured clipboard/shelf items live before auto-clearing.
 enum ClipboardRetention: String, CaseIterable, Identifiable {
     case day, forever
     var id: String { rawValue }
-    var label: String { self == .day ? "24 hours" : "Permanent" }
+    var label: String { self == .day ? L10n.text("24 hours") : L10n.text("Permanent") }
     var isForever: Bool { self == .forever }
 }
 
@@ -47,9 +53,9 @@ enum ClipboardCaptureState: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .active: return "Active"
-        case .paused: return "Paused by Private Mode"
-        case .disabled: return "Disabled"
+        case .active: return L10n.text("Active")
+        case .paused: return L10n.text("Paused by Private Mode")
+        case .disabled: return L10n.text("Disabled")
         }
     }
     var symbol: String {

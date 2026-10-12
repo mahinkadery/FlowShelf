@@ -6,9 +6,9 @@ enum MatchConfidence: Int, Comparable, Sendable {
 
     var label: String {
         switch self {
-        case .high: return "High"
-        case .medium: return "Medium"
-        case .low: return "Low"
+        case .high: return L10n.text("High")
+        case .medium: return L10n.text("Medium")
+        case .low: return L10n.text("Low")
         }
     }
     var color: Color {
@@ -20,9 +20,9 @@ enum MatchConfidence: Int, Comparable, Sendable {
     }
     var explanation: String {
         switch self {
-        case .high: return "Exact bundle-ID match"
-        case .medium: return "App name + path match"
-        case .low: return "Fuzzy name match — review carefully"
+        case .high: return L10n.text("Exact bundle-ID match")
+        case .medium: return L10n.text("App name + path match")
+        case .low: return L10n.text("Fuzzy name match — review carefully")
         }
     }
 }
@@ -34,18 +34,18 @@ enum LeftoverCategory: String, CaseIterable, Sendable {
 
     var label: String {
         switch self {
-        case .appBundle: return "Application"
-        case .preferences: return "Preferences"
-        case .caches: return "Caches"
-        case .appSupport: return "Application Support"
-        case .containers: return "Containers"
-        case .groupContainers: return "Group Containers"
-        case .logs: return "Logs"
-        case .launchAgents: return "Login / Background Items"
-        case .launchDaemons: return "Launch Daemons"
-        case .savedState: return "Saved State"
-        case .http: return "Web/HTTP Storage"
-        case .other: return "Other"
+        case .appBundle: return L10n.text("Application")
+        case .preferences: return L10n.text("Preferences")
+        case .caches: return L10n.text("Caches")
+        case .appSupport: return L10n.text("Application Support")
+        case .containers: return L10n.text("Containers")
+        case .groupContainers: return L10n.text("Group Containers")
+        case .logs: return L10n.text("Logs")
+        case .launchAgents: return L10n.text("Login / Background Items")
+        case .launchDaemons: return L10n.text("Launch Daemons")
+        case .savedState: return L10n.text("Saved State")
+        case .http: return L10n.text("Web/HTTP Storage")
+        case .other: return L10n.text("Other")
         }
     }
     var symbol: String {

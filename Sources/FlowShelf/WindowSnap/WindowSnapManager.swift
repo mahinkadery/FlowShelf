@@ -16,16 +16,16 @@ final class WindowSnapManager: ObservableObject {
 
         var label: String {
             switch self {
-            case .leftHalf: return "Left half"
-            case .rightHalf: return "Right half"
-            case .topHalf: return "Top half"
-            case .bottomHalf: return "Bottom half"
-            case .topLeft: return "Top-left quarter"
-            case .topRight: return "Top-right quarter"
-            case .bottomLeft: return "Bottom-left quarter"
-            case .bottomRight: return "Bottom-right quarter"
-            case .maximize: return "Maximize"
-            case .center: return "Center"
+            case .leftHalf: return L10n.text("Left half")
+            case .rightHalf: return L10n.text("Right half")
+            case .topHalf: return L10n.text("Top half")
+            case .bottomHalf: return L10n.text("Bottom half")
+            case .topLeft: return L10n.text("Top-left quarter")
+            case .topRight: return L10n.text("Top-right quarter")
+            case .bottomLeft: return L10n.text("Bottom-left quarter")
+            case .bottomRight: return L10n.text("Bottom-right quarter")
+            case .maximize: return L10n.text("Maximize")
+            case .center: return L10n.text("Center")
             }
         }
 

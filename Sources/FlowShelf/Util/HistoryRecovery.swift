@@ -18,10 +18,10 @@ enum HistoryRecovery {
         DispatchQueue.main.async {
             let alert = NSAlert()
             alert.alertStyle = .warning
-            alert.messageText = "FlowShelf couldn’t read \(url.lastPathComponent)"
-            alert.informativeText = "Your existing file has not been changed. Saving changes to this history is paused for this session to protect your data. New items in this history are temporary. Quit FlowShelf before restoring a known-good copy of this file, then reopen it. Do not delete the original file or its images."
-            alert.addButton(withTitle: "OK")
-            alert.addButton(withTitle: "Show File")
+            alert.messageText = L10n.text("FlowShelf couldn’t read \(url.lastPathComponent)")
+            alert.informativeText = L10n.text("Your existing file has not been changed. Saving changes to this history is paused for this session to protect your data. New items in this history are temporary. Quit FlowShelf before restoring a known-good copy of this file, then reopen it. Do not delete the original file or its images.")
+            alert.addButton(withTitle: L10n.text("OK"))
+            alert.addButton(withTitle: L10n.text("Show File"))
             if alert.runModal() == .alertSecondButtonReturn {
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             }

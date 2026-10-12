@@ -8,9 +8,9 @@ enum ShelfBatchTransfer {
 
         var errorDescription: String? {
             switch self {
-            case .emptySelection: return "Select at least one item first."
-            case .unavailable(let title): return "“\(title)” is no longer available. Nothing was transferred."
-            case .mixedCopy: return "Copy text and files separately, or drag the selection to an app that accepts those types."
+            case .emptySelection: return L10n.text("Select at least one item first.")
+            case .unavailable(let title): return L10n.text("“\(title)” is no longer available. Nothing was transferred.")
+            case .mixedCopy: return L10n.text("Copy text and files separately, or drag the selection to an app that accepts those types.")
             }
         }
     }
@@ -70,7 +70,7 @@ enum ShelfBatchTransfer {
             return entries.filter { seen.insert($0.fileURL!.standardizedFileURL).inserted }.map { $0.writer() }
         }
         guard entries.allSatisfy({ $0.text != nil }) else { throw TransferError.mixedCopy }
-        return [Entry(title: "Selected text", fileURL: nil,
+        return [Entry(title: L10n.text("Selected text"), fileURL: nil,
                       text: entries.compactMap(\.text).joined(separator: "\n\n"), rtf: nil).writer()]
     }
 }

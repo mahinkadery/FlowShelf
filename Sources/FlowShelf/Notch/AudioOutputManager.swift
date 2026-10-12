@@ -52,7 +52,7 @@ final class AudioOutputManager: ObservableObject {
         AudioObjectAddPropertyListenerBlock(system, &devAddr, DispatchQueue.main, onChange)
     }
 
-    var currentName: String { devices.first { $0.id == currentID }?.name ?? "Output" }
+    var currentName: String { devices.first { $0.id == currentID }?.name ?? L10n.text("Output") }
     var currentIcon: String { devices.first { $0.id == currentID }?.icon ?? "hifispeaker.fill" }
 
     func refresh() {

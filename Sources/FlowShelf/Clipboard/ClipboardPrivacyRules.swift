@@ -18,15 +18,15 @@ enum ClipboardPrivacyRules {
 
     static func validationMessage(for input: String, existing: [String]) -> String? {
         let value = normalized(input)
-        guard !value.isEmpty else { return "Enter an exact clipboard type name." }
-        guard value.utf8.count <= 255 else { return "Type names must be 255 bytes or shorter." }
+        guard !value.isEmpty else { return L10n.text("Enter an exact clipboard type name.") }
+        guard value.utf8.count <= 255 else { return L10n.text("Type names must be 255 bytes or shorter.") }
         guard !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains) else {
-            return "Use one type name without tabs or line breaks."
+            return L10n.text("Use one type name without tabs or line breaks.")
         }
-        guard !value.contains("*") else { return "Use an exact type name, not a wildcard." }
-        guard !builtInTypes.contains(value) else { return "This type is already protected by a built-in rule." }
-        guard !existing.contains(value) else { return "This type is already in your list." }
-        guard existing.count < maximumCustomRules else { return "Remove a rule before adding another (128 maximum)." }
+        guard !value.contains("*") else { return L10n.text("Use an exact type name, not a wildcard.") }
+        guard !builtInTypes.contains(value) else { return L10n.text("This type is already protected by a built-in rule.") }
+        guard !existing.contains(value) else { return L10n.text("This type is already in your list.") }
+        guard existing.count < maximumCustomRules else { return L10n.text("Remove a rule before adding another (128 maximum).") }
         return nil
     }
 

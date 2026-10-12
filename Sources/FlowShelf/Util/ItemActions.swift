@@ -90,7 +90,7 @@ enum ItemActions {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
         let stamp = Self.fileStampFormatter.string(from: item.createdAt)
-        let base = item.kind == .screenshot ? "Screenshot" : "Image"
+        let base = item.kind == .screenshot ? L10n.text("Screenshot") : "Image"
         panel.nameFieldStringValue = "FlowShelf \(base) \(stamp).png"
         panel.canCreateDirectories = true
         NSApp.activate(ignoringOtherApps: true)
@@ -151,16 +151,16 @@ enum ItemActions {
     /// Stitch this image together with others the user picks, into one tall canvas.
     static func combine(_ item: ShelfItem) {
         guard let base = loadImage(item) else { return }
-        let extra = pickImages(message: "Choose image(s) to stack below this one")
+        let extra = pickImages(message: L10n.text("Choose image(s) to stack below this one"))
         guard !extra.isEmpty else { return }
         guard let out = ImageTools.stack([base] + extra, vertical: true, gap: 12, bg: .white) else { return }
-        shelf(out, title: "Combined", prefix: "combined")
+        shelf(out, title: L10n.text("Combined"), prefix: "combined")
     }
 
     /// Build a 2-frame before/after GIF from this image plus one the user picks.
     static func beforeAfterGIF(_ item: ShelfItem) {
         guard let before = loadImage(item) else { return }
-        guard let after = pickImages(message: "Choose the “after” image", multiple: false).first else { return }
+        guard let after = pickImages(message: L10n.text("Choose the “after” image"), multiple: false).first else { return }
         let frames = ImageTools.normalize([before, after])
         guard let data = ImageTools.makeGIF(frames: frames, seconds: 0.8) else { return }
         let panel = NSSavePanel()
@@ -190,7 +190,7 @@ enum ItemActions {
         ShelfStore.shared.storeImage(image, prefix: prefix) { result in
             guard let (rel, thumb) = result else { return }
             ShelfStore.shared.add(ShelfItem(kind: .screenshot, title: title,
-                preview: "\(title) \(Date().shortTime)", sourceApp: "Image Tools",
+                preview: "\(title) \(Date().shortTime)", sourceApp: L10n.text("Image Tools"),
                 imageRelPath: rel, thumbRelPath: thumb))
         }
     }
@@ -204,8 +204,8 @@ enum ItemActions {
             guard ShelfStore.shared.contentGeneration == generation else { return }
             if payload == nil {
                 let alert = NSAlert()
-                alert.messageText = "No QR code found"
-                alert.informativeText = "FlowShelf couldn’t find a QR or barcode in this image."
+                alert.messageText = L10n.text("No QR code found")
+                alert.informativeText = L10n.text("FlowShelf couldn’t find a QR or barcode in this image.")
                 alert.runModal()
             }
         }
@@ -220,12 +220,12 @@ enum ItemActions {
 
     static func aiSummarize(_ item: ShelfItem) {
         guard let text = aiText(of: item) else { return }
-        AIResultPresenter.shared.present(title: "Summary") { await AIService.summarize(text) }
+        AIResultPresenter.shared.present(title: L10n.text("Summary")) { await AIService.summarize(text) }
     }
 
     static func aiCleanUp(_ item: ShelfItem) {
         guard let text = aiText(of: item) else { return }
-        AIResultPresenter.shared.present(title: "Cleaned text") { await AIService.cleanUp(text) }
+        AIResultPresenter.shared.present(title: L10n.text("Cleaned text")) { await AIService.cleanUp(text) }
     }
 
     static func aiTitle(_ item: ShelfItem) {
@@ -246,16 +246,16 @@ enum ItemActions {
 
     static func aiTranslate(_ item: ShelfItem) {
         guard aiText(of: item) != nil else { return }
-        guard let lang = prompt(title: "Translate", message: "Translate to which language?", default: "English") else { return }
+        guard let lang = prompt(title: L10n.text("Translate"), message: L10n.text("Translate to which language?"), default: L10n.text("English")) else { return }
         aiTransform(item,
             instruction: "Translate the following into \(lang). Reply with only the translation.",
-            title: "Translation (\(lang))")
+            title: L10n.text("Translation (\(lang))"))
     }
 
     static func aiAsk(_ item: ShelfItem) {
         guard aiText(of: item) != nil else { return }
-        guard let instr = prompt(title: "Ask AI", message: "What should AI do with this item?",
-                                 default: "", placeholder: "e.g. Turn this into a tweet") else { return }
+        guard let instr = prompt(title: L10n.text("Ask AI"), message: L10n.text("What should AI do with this item?"),
+                                 default: "", placeholder: L10n.text("e.g. Turn this into a tweet")) else { return }
         aiTransform(item, instruction: "\(instr). Reply with only the result.",
                     title: "AI: \(String(instr.prefix(28)))")
     }
@@ -263,9 +263,9 @@ enum ItemActions {
     /// General assistant — asks the user a question and answers using the shelf
     /// (and snippets) as context.
     static func aiAskGeneral() {
-        guard let q = prompt(title: "Ask AI",
-                             message: "Search your saved text and snippets. Answers include the matching source items.",
-                             default: "", placeholder: "e.g. What did I save about taxes?") else { return }
+        guard let q = prompt(title: L10n.text("Ask AI"),
+                             message: L10n.text("Search your saved text and snippets. Answers include the matching source items."),
+                             default: "", placeholder: L10n.text("e.g. What did I save about taxes?")) else { return }
         var context = ShelfStore.shared.visibleItems.compactMap { item -> AIContextItem? in
             let t = (item.text ?? item.preview).trimmingCharacters(in: .whitespacesAndNewlines)
             return t.isEmpty ? nil : AIContextItem(id: item.id, kind: .shelf, title: item.title, text: t)
@@ -273,7 +273,7 @@ enum ItemActions {
         context += SnippetStore.shared.snippets.map {
             AIContextItem(id: $0.id, kind: .snippet, title: $0.title, text: $0.content)
         }
-        AIResultPresenter.shared.presentAnswer(title: "Ask your shelf") {
+        AIResultPresenter.shared.presentAnswer(title: L10n.text("Ask your shelf")) {
             await AIService.ask(question: q, shelf: context)
         }
     }
@@ -284,7 +284,7 @@ enum ItemActions {
             return t.isEmpty ? nil : t
         }
         guard !texts.isEmpty else { return }
-        AIResultPresenter.shared.present(title: "Today’s summary") {
+        AIResultPresenter.shared.present(title: L10n.text("Today’s summary")) {
             await AIService.summarizeDay(texts)
         }
     }
@@ -299,8 +299,8 @@ enum ItemActions {
         field.stringValue = def
         field.placeholderString = placeholder
         alert.accessoryView = field
-        alert.addButton(withTitle: "Run")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: L10n.text("Run"))
+        alert.addButton(withTitle: L10n.text("Cancel"))
         alert.window.initialFirstResponder = field   // type immediately, no extra click
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         let value = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)

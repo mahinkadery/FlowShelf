@@ -24,13 +24,13 @@ enum ItemKind: String, Codable, CaseIterable {
 
     var label: String {
         switch self {
-        case .text:        return "Text"
-        case .link:        return "Link"
-        case .image:       return "Image"
-        case .file:        return "File"
-        case .screenshot:  return "Screenshot"
+        case .text:        return L10n.text("Text")
+        case .link:        return L10n.text("Link")
+        case .image:       return L10n.text("Image")
+        case .file:        return L10n.text("File")
+        case .screenshot:  return L10n.text("Screenshot")
         case .ocr:         return "OCR"
-        case .cleanReport: return "Cleanup"
+        case .cleanReport: return L10n.text("Cleanup")
         }
     }
 }
@@ -106,12 +106,12 @@ struct ShelfItem: Identifiable, Codable, Equatable {
 
     /// Compact "time left" label for the UI, e.g. "23h left", "12m left".
     var expiryLabel: String {
-        if pinned { return "Pinned" }
+        if pinned { return L10n.text("Pinned") }
         let s = secondsRemaining
-        if s <= 0 { return "expiring…" }
-        if s < 3600 { return "\(Int(ceil(s / 60)))m left" }
-        if s < 86_400 { return "\(Int(s / 3600))h left" }
-        return "\(Int(s / 86_400))d left"
+        if s <= 0 { return L10n.text("expiring…") }
+        if s < 3600 { return L10n.text("\(Int(ceil(s / 60)))m left") }
+        if s < 86_400 { return L10n.text("\(Int(s / 3600))h left") }
+        return L10n.text("\(Int(s / 86_400))d left")
     }
 
     /// True when the item is within the last hour of its life (for emphasis).

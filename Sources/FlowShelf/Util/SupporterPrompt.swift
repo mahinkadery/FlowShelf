@@ -41,17 +41,11 @@ final class SupporterPrompt {
 
         let alert = NSAlert()
         alert.icon = NSApp.applicationIconImage
-        alert.messageText = "Enjoying FlowShelf? ☕️"
-        alert.informativeText = """
-        FlowShelf is free and built by one person in my spare time. If it's saved you \
-        some clicks, a small coffee — $2.99, or $4.99 if you're feeling generous — helps \
-        me keep building and shipping updates.
-
-        No pressure, and I'll only ask once in a while.
-        """
-        alert.addButton(withTitle: "Buy me a coffee")       // .alertFirstButtonReturn
-        alert.addButton(withTitle: "I already supported")   // .alertSecondButtonReturn
-        alert.addButton(withTitle: "Maybe later")           // .alertThirdButtonReturn
+        alert.messageText = L10n.text("Enjoying FlowShelf? ☕️")
+        alert.informativeText = L10n.text("FlowShelf is free and built by one person in my spare time. If it's saved you some clicks, a small coffee — $2.99, or $4.99 if you're feeling generous — helps me keep building and shipping updates.\n\nNo pressure, and I'll only ask once in a while.")
+        alert.addButton(withTitle: L10n.text("Buy me a coffee"))       // .alertFirstButtonReturn
+        alert.addButton(withTitle: L10n.text("I already supported"))   // .alertSecondButtonReturn
+        alert.addButton(withTitle: L10n.text("Maybe later"))           // .alertThirdButtonReturn
 
         NSApp.activate(ignoringOtherApps: true)
         switch alert.runModal() {

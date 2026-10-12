@@ -117,7 +117,7 @@ final class MediaManager: ObservableObject {
         } catch {
             NSLog("MediaManager: failed to start adapter: \(error)")
             running = false
-            failureMessage = "The media helper could not start. Toggle Notch media off and on to retry."
+            failureMessage = L10n.text("The media helper could not start. Toggle Notch media off and on to retry.")
         }
     }
 
@@ -147,7 +147,7 @@ final class MediaManager: ObservableObject {
         AudioSpectrum.shared.setActive(false)
         unexpectedExitCount += 1
         guard status == 0, unexpectedExitCount <= 3 else {
-            failureMessage = "Media updates stopped. Toggle Notch media off and on to retry."
+            failureMessage = L10n.text("Media updates stopped. Toggle Notch media off and on to retry.")
             return
         }
         let delay = UInt64(unexpectedExitCount * 2) * 1_000_000_000

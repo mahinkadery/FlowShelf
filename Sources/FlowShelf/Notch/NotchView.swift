@@ -415,7 +415,7 @@ struct NotchView: View {
             .scaleEffect(model.targeted ? 1.08 : 1)
             .animation(FlowMotion.state, value: model.targeted)
 
-            Text(model.targeted ? "Release to shelve" : "Drop files, images, or text")
+            Text(model.targeted ? L10n.text("Release to shelve") : L10n.text("Drop files, images, or text"))
                 .font(.system(size: 11.5, weight: .medium))
                 .foregroundStyle(.white.opacity(model.targeted ? 0.95 : 0.55))
         }

@@ -41,7 +41,7 @@ enum DragDrop {
                             kind: .file,
                             title: url.lastPathComponent,
                             preview: url.deletingLastPathComponent().path,
-                            sourceApp: "Drop",
+                            sourceApp: L10n.text("Drop"),
                             fileBookmark: bookmark,
                             filePath: url.path
                         ))
@@ -74,7 +74,7 @@ enum DragDrop {
                             kind: .file,
                             title: url.lastPathComponent,
                             preview: url.deletingLastPathComponent().path,
-                            sourceApp: "Drop",
+                            sourceApp: L10n.text("Drop"),
                             fileBookmark: bookmark,
                             filePath: url.path
                         ))
@@ -91,8 +91,8 @@ enum DragDrop {
                     Task { @MainActor in
                         store.storeImage(img, prefix: "drop") { result in
                             guard let (rel, thumb) = result else { return }
-                            store.add(ShelfItem(kind: .image, title: "Image",
-                                                preview: "Dropped image", sourceApp: "Drop",
+                            store.add(ShelfItem(kind: .image, title: L10n.text("Image"),
+                                                preview: L10n.text("Dropped image"), sourceApp: L10n.text("Drop"),
                                                 imageRelPath: rel, thumbRelPath: thumb))
                         }
                     }
@@ -110,9 +110,9 @@ enum DragDrop {
                         let isLink = s.looksLikeURL
                         store.add(ShelfItem(
                             kind: isLink ? .link : .text,
-                            title: isLink ? (URL(string: s)?.host ?? "Link") : s.firstLine(),
+                            title: isLink ? (URL(string: s)?.host ?? L10n.text("Link")) : s.firstLine(),
                             preview: s.firstLine(max: 140),
-                            text: s, sourceApp: "Drop"))
+                            text: s, sourceApp: L10n.text("Drop")))
                     }
                 }
             }
@@ -133,7 +133,7 @@ enum DragDrop {
             for url in urls {
                 let bookmark = try? url.bookmarkData(options: .minimalBookmark)
                 store.add(ShelfItem(kind: .file, title: url.lastPathComponent,
-                                    preview: url.deletingLastPathComponent().path, sourceApp: "Drop",
+                                    preview: url.deletingLastPathComponent().path, sourceApp: L10n.text("Drop"),
                                     fileBookmark: bookmark, filePath: url.path))
             }
             Haptics.drop()
@@ -143,8 +143,8 @@ enum DragDrop {
            let img = images.first {
             store.storeImage(img, prefix: "drop") { result in
                 guard let (rel, thumb) = result else { return }
-                store.add(ShelfItem(kind: .image, title: "Image", preview: "Dropped image",
-                                    sourceApp: "Drop", imageRelPath: rel, thumbRelPath: thumb))
+                store.add(ShelfItem(kind: .image, title: L10n.text("Image"), preview: L10n.text("Dropped image"),
+                                    sourceApp: L10n.text("Drop"), imageRelPath: rel, thumbRelPath: thumb))
             }
             Haptics.drop()
             return true
@@ -153,8 +153,8 @@ enum DragDrop {
            !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             let isLink = s.looksLikeURL
             store.add(ShelfItem(kind: isLink ? .link : .text,
-                                title: isLink ? (URL(string: s)?.host ?? "Link") : s.firstLine(),
-                                preview: s.firstLine(max: 140), text: s, sourceApp: "Drop"))
+                                title: isLink ? (URL(string: s)?.host ?? L10n.text("Link")) : s.firstLine(),
+                                preview: s.firstLine(max: 140), text: s, sourceApp: L10n.text("Drop")))
             Haptics.drop()
             return true
         }

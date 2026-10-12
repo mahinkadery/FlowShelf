@@ -24,16 +24,16 @@ enum AnnoTool: String, CaseIterable, Identifiable {
     }
     var label: String {
         switch self {
-        case .arrow: return "Arrow"
-        case .box: return "Box"
-        case .highlight: return "Highlight"
-        case .step: return "Step"
-        case .blur: return "Blur"
-        case .spotlight: return "Spotlight"
-        case .text: return "Text"
-        case .crop: return "Crop"
-        case .ruler: return "Ruler"
-        case .magnifier: return "Magnify"
+        case .arrow: return L10n.text("Arrow")
+        case .box: return L10n.text("Box")
+        case .highlight: return L10n.text("Highlight")
+        case .step: return L10n.text("Step")
+        case .blur: return L10n.text("Blur")
+        case .spotlight: return L10n.text("Spotlight")
+        case .text: return L10n.text("Text")
+        case .crop: return L10n.text("Crop")
+        case .ruler: return L10n.text("Ruler")
+        case .magnifier: return L10n.text("Magnify")
         }
     }
 }
@@ -45,12 +45,12 @@ enum Backdrop: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .none: return "None"
-        case .sunset: return "Sunset"
-        case .ocean: return "Ocean"
-        case .mint: return "Mint"
-        case .graphite: return "Graphite"
-        case .paper: return "Paper"
+        case .none: return L10n.text("None")
+        case .sunset: return L10n.text("Sunset")
+        case .ocean: return L10n.text("Ocean")
+        case .mint: return L10n.text("Mint")
+        case .graphite: return L10n.text("Graphite")
+        case .paper: return L10n.text("Paper")
         }
     }
     var colors: [Color]? {
@@ -100,7 +100,7 @@ final class AnnotationEditorController {
             self?.close()
         })
         let win = NSWindow(contentViewController: host)
-        win.title = "Annotate Screenshot"
+        win.title = L10n.text("Annotate Screenshot")
         win.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
         win.isReleasedWhenClosed = false
         window = win
@@ -212,26 +212,26 @@ struct AnnotationEditorView: View {
                     .foregroundStyle(tool == t ? Color.accentColor : Color.primary)
                 }
                 .buttonStyle(.plain)
-                .help(t == .crop ? "Drag a region to crop" : t.label)
+                .help(t == .crop ? L10n.text("Drag a region to crop") : t.label)
             }
             Divider().frame(height: 30)
             ColorPicker("", selection: $color).labelsHidden().frame(width: 38)
             VStack(spacing: 1) {
-                Text("Size").font(.system(size: 9)).foregroundStyle(.secondary)
+                Text(L10n.text("Size")).font(.system(size: 9)).foregroundStyle(.secondary)
                 Slider(value: $lineWidth, in: 2...14).frame(width: 80)
             }
             Spacer()
             Button { undo() } label: {
                 Image(systemName: "arrow.uturn.backward")
-            }.disabled(annos.isEmpty).help("Undo (⌘Z)")
+            }.disabled(annos.isEmpty).help(L10n.text("Undo (⌘Z)"))
                 .keyboardShortcut("z", modifiers: .command)
             Button { redo() } label: {
                 Image(systemName: "arrow.uturn.forward")
-            }.disabled(redoStack.isEmpty).help("Redo (⇧⌘Z)")
+            }.disabled(redoStack.isEmpty).help(L10n.text("Redo (⇧⌘Z)"))
                 .keyboardShortcut("z", modifiers: [.command, .shift])
             Button(role: .destructive) { annos.removeAll(); redoStack.removeAll() } label: {
                 Image(systemName: "trash")
-            }.disabled(annos.isEmpty).help("Clear all")
+            }.disabled(annos.isEmpty).help(L10n.text("Clear all"))
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
     }
@@ -244,15 +244,15 @@ struct AnnotationEditorView: View {
     /// Sub-option labels for the current tool — every tool exposes a row.
     private var toolOptionLabels: [String] {
         switch tool {
-        case .arrow:     return ["Arrow", "Line", "Double"]
-        case .box:       return ["Outline", "Filled", "Rounded", "Ellipse"]
-        case .highlight: return ["Marker", "Block"]
+        case .arrow:     return [L10n.text("Arrow"), L10n.text("Line"), L10n.text("Double")]
+        case .box:       return [L10n.text("Outline"), L10n.text("Filled"), L10n.text("Rounded"), L10n.text("Ellipse")]
+        case .highlight: return [L10n.text("Marker"), L10n.text("Block")]
         case .step:      return ["1, 2, 3", "A, B, C"]
-        case .blur:      return ["Pixelate", "Blur", "Solid"]
-        case .spotlight: return ["Rectangle", "Ellipse"]
-        case .text:      return ["Small", "Medium", "Large", "XL"]
-        case .crop:      return ["Free", "1:1", "16:9", "4:3"]
-        case .ruler:     return ["Length", "Width × Height"]
+        case .blur:      return [L10n.text("Pixelate"), L10n.text("Blur"), L10n.text("Solid")]
+        case .spotlight: return [L10n.text("Rectangle"), L10n.text("Ellipse")]
+        case .text:      return [L10n.text("Small"), L10n.text("Medium"), L10n.text("Large"), "XL"]
+        case .crop:      return [L10n.text("Free"), "1:1", "16:9", "4:3"]
+        case .ruler:     return [L10n.text("Length"), L10n.text("Width × Height")]
         case .magnifier: return ["2×", "2.5×", "3×"]
         }
     }
@@ -417,7 +417,7 @@ struct AnnotationEditorView: View {
     private func textElement(_ a: Anno, interactive: Bool) -> some View {
         let size = Self.textSize(a.variant)
         if interactive, editingTextID == a.id {
-            TextField("Text", text: bindingForText(a.id))
+            TextField(L10n.text("Text"), text: bindingForText(a.id))
                 .textFieldStyle(.plain)
                 .font(.system(size: size, weight: .semibold))
                 .foregroundStyle(a.color).frame(width: 240)
@@ -491,17 +491,17 @@ struct AnnotationEditorView: View {
                     }
                 }
             } label: {
-                Label(backdrop == .none ? "Backdrop" : backdrop.label, systemImage: "photo.artframe")
+                Label(backdrop == .none ? L10n.text("Backdrop") : backdrop.label, systemImage: "photo.artframe")
             }
             .frame(width: 120)
-            .help("Wrap the shot in a gradient backdrop")
-            Button("Cancel") { onClose() }
+            .help(L10n.text("Wrap the shot in a gradient backdrop"))
+            Button(L10n.text("Cancel")) { onClose() }
             Button { if let i = render() { PinController.shared.pin(i) } } label: {
-                Label("Pin", systemImage: "pin")
+                Label(L10n.text("Pin"), systemImage: "pin")
             }
-            Button { saveToFile() } label: { Label("Save…", systemImage: "square.and.arrow.down") }
-            Button { addToShelf() } label: { Label("Add to Shelf", systemImage: "tray.and.arrow.down") }
-            Button { copyToClipboard() } label: { Label("Copy", systemImage: "doc.on.doc") }
+            Button { saveToFile() } label: { Label(L10n.text("Save…"), systemImage: "square.and.arrow.down") }
+            Button { addToShelf() } label: { Label(L10n.text("Add to Shelf"), systemImage: "tray.and.arrow.down") }
+            Button { copyToClipboard() } label: { Label(L10n.text("Copy"), systemImage: "doc.on.doc") }
                 .keyboardShortcut(.defaultAction)
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
@@ -526,8 +526,8 @@ struct AnnotationEditorView: View {
         guard let img = render() else { return }
         ShelfStore.shared.storeImage(img, prefix: "annot") { result in
             guard let (rel, thumb) = result else { return }
-            ShelfStore.shared.add(ShelfItem(kind: .screenshot, title: "Annotated",
-                preview: "Annotated \(Date().shortTime)", sourceApp: "Annotate",
+            ShelfStore.shared.add(ShelfItem(kind: .screenshot, title: L10n.text("Annotated"),
+                preview: L10n.text("Annotated \(Date().shortTime)"), sourceApp: L10n.text("Annotate"),
                 imageRelPath: rel, thumbRelPath: thumb))
             onClose()
         }
@@ -539,7 +539,7 @@ struct AnnotationEditorView: View {
               let png = rep.representation(using: .png, properties: [:]) else { return }
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue = "Screenshot.png"
+        panel.nameFieldStringValue = L10n.text("Screenshot.png")
         if panel.runModal() == .OK, let url = panel.url { try? png.write(to: url) }
     }
 }

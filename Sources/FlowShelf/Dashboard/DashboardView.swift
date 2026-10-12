@@ -5,13 +5,13 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .shelf: return "Shelf"
-        case .notch: return "Notch"
-        case .snippets: return "Snippets"
-        case .peek: return "Peek"
-        case .clean: return "Clean"
-        case .permissions: return "Permissions"
-        case .settings: return "Settings"
+        case .shelf: return L10n.text("Shelf")
+        case .notch: return L10n.text("Notch")
+        case .snippets: return L10n.text("Snippets")
+        case .peek: return L10n.text("Peek")
+        case .clean: return L10n.text("Clean")
+        case .permissions: return L10n.text("Permissions")
+        case .settings: return L10n.text("Settings")
         }
     }
     var symbol: String {
@@ -27,13 +27,13 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
     }
     var subtitle: String {
         switch self {
-        case .shelf: return "Today’s items"
-        case .notch: return "Island & HUDs"
-        case .snippets: return "Reusable text"
-        case .peek: return "Window previews"
-        case .clean: return "App cleaner"
-        case .permissions: return "Access health"
-        case .settings: return "Preferences"
+        case .shelf: return L10n.text("Today’s items")
+        case .notch: return L10n.text("Island & HUDs")
+        case .snippets: return L10n.text("Reusable text")
+        case .peek: return L10n.text("Window previews")
+        case .clean: return L10n.text("App cleaner")
+        case .permissions: return L10n.text("Access health")
+        case .settings: return L10n.text("Preferences")
         }
     }
 
@@ -52,9 +52,9 @@ enum DashboardSection: String, CaseIterable, Identifiable, Hashable {
 
     /// Sidebar grouping.
     static let groups: [(title: String, items: [DashboardSection])] = [
-        ("Workspace", [.shelf, .snippets]),
-        ("Tools", [.notch, .peek, .clean]),
-        ("App", [.permissions, .settings]),
+        (L10n.text("Workspace"), [.shelf, .snippets]),
+        (L10n.text("Tools"), [.notch, .peek, .clean]),
+        (L10n.text("App"), [.permissions, .settings]),
     ]
 }
 
@@ -127,9 +127,9 @@ struct DashboardView: View {
                     switch section {
                     case .shelf:    ShelfBrowser()
                     case .notch:    NotchPane()
-                    case .snippets: VStack(spacing: 0) { PaneHeader(icon: "text.quote", tint: .purple, title: "Snippets", subtitle: "Reusable text, one click to paste") ; SnippetsView() }
-                    case .peek:     VStack(spacing: 0) { PaneHeader(icon: "rectangle.on.rectangle", tint: .blue, title: "Peek", subtitle: "Live window previews from your Dock") ; PeekView() }
-                    case .clean:    VStack(spacing: 0) { PaneHeader(icon: "trash", tint: .green, title: "Clean", subtitle: "Uninstall apps completely, leftovers included") ; CleanView() }
+                    case .snippets: VStack(spacing: 0) { PaneHeader(icon: "text.quote", tint: .purple, title: L10n.text("Snippets"), subtitle: L10n.text("Reusable text, one click to paste")) ; SnippetsView() }
+                    case .peek:     VStack(spacing: 0) { PaneHeader(icon: "rectangle.on.rectangle", tint: .blue, title: L10n.text("Peek"), subtitle: L10n.text("Live window previews from your Dock")) ; PeekView() }
+                    case .clean:    VStack(spacing: 0) { PaneHeader(icon: "trash", tint: .green, title: L10n.text("Clean"), subtitle: L10n.text("Uninstall apps completely, leftovers included")) ; CleanView() }
                     case .permissions: PermissionHealthView()
                     case .settings: DashboardSettings()
                     }
@@ -199,27 +199,27 @@ private struct ShelfBrowser: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Shelf").font(.system(size: 19, weight: .bold))
+                Text(L10n.text("Shelf")).font(.system(size: 19, weight: .bold))
                 Text("\(store.visibleItems.count)")
                     .font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary)
                 Spacer()
                 if AIService.isSupported && settings.aiEnabled {
                     Button { ItemActions.aiAskGeneral() } label: {
-                        Label("Ask AI", systemImage: "sparkle")
+                        Label(L10n.text("Ask AI"), systemImage: "sparkle")
                     }
                     .controlSize(.small)
-                    .help("Ask anything — answers using your shelf as context")
+                    .help(L10n.text("Ask anything — answers using your shelf as context"))
                     if !store.visibleItems.isEmpty {
                         Button { ItemActions.aiSummarizeDay() } label: {
-                            Label("Summarize day", systemImage: "sparkles")
+                            Label(L10n.text("Summarize day"), systemImage: "sparkles")
                         }
                         .controlSize(.small)
-                        .help("A friendly recap of everything you collected today")
+                        .help(L10n.text("A friendly recap of everything you collected today"))
                     }
                 }
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 12))
-                    TextField("Search…", text: $query).textFieldStyle(.plain).frame(width: 180)
+                    TextField(L10n.text("Search…"), text: $query).textFieldStyle(.plain).frame(width: 180)
                 }
                 .padding(.horizontal, 8).padding(.vertical, 5)
                 .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.06)))
@@ -261,10 +261,10 @@ private struct ShelfBrowser: View {
                     }
                     .frame(width: 72, height: 72)
                     .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
-                    Text(query.isEmpty ? "Nothing on the shelf yet" : "No matches")
+                    Text(query.isEmpty ? L10n.text("Nothing on the shelf yet") : L10n.text("No matches"))
                         .font(.system(size: 13, weight: .semibold))
-                    Text(query.isEmpty ? "Copy something or drop a file — it lands here."
-                                       : "Try fewer words, or another filter.")
+                    Text(query.isEmpty ? L10n.text("Copy something or drop a file — it lands here.")
+                                       : L10n.text("Try fewer words, or another filter."))
                         .foregroundStyle(.secondary).font(.system(size: 11.5))
                     Spacer()
                 }.frame(maxWidth: .infinity)

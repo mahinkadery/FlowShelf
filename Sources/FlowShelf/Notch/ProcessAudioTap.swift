@@ -6,9 +6,9 @@ enum NotchAudioCaptureMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .compatibility: return "Compatibility (ScreenCaptureKit)"
-        case .systemTap: return "System audio (experimental tap)"
-        case .playerTap: return "Current player only (experimental tap)"
+        case .compatibility: return L10n.text("Compatibility (ScreenCaptureKit)")
+        case .systemTap: return L10n.text("System audio (experimental tap)")
+        case .playerTap: return L10n.text("Current player only (experimental tap)")
         }
     }
 }
@@ -76,7 +76,7 @@ final class ProcessAudioTap: ProcessAudioTapSession, @unchecked Sendable {
 
     private func check(_ status: OSStatus, _ operation: String) throws {
         guard status == noErr else {
-            throw TapError(message: "\(operation) failed (\(status)). Check macOS audio-recording permission, then Retry or choose Compatibility.")
+            throw TapError(message: L10n.text("\(operation) failed (\(status)). Check macOS audio-recording permission, then Retry or choose Compatibility."))
         }
     }
 
@@ -90,19 +90,19 @@ final class ProcessAudioTap: ProcessAudioTapSession, @unchecked Sendable {
         var result = AudioObjectID(kAudioObjectUnknown)
         var size = UInt32(MemoryLayout<AudioObjectID>.size)
         try check(AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &property,
-                                            UInt32(MemoryLayout<pid_t>.size), &qualifier, &size, &result), "Finding audio process")
+                                            UInt32(MemoryLayout<pid_t>.size), &qualifier, &size, &result), L10n.text("Finding audio process"))
         return result
     }
 
     private func playerProcesses(bundleID: String) throws -> [AudioObjectID] {
-        guard !bundleID.isEmpty else { throw TapError(message: "No current player identified. Select System audio explicitly or wait for a supported player.") }
+        guard !bundleID.isEmpty else { throw TapError(message: L10n.text("No current player identified. Select System audio explicitly or wait for a supported player.")) }
         var property = address(kAudioHardwarePropertyProcessObjectList)
         var size: UInt32 = 0
-        try check(AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &property, 0, nil, &size), "Listing audio processes")
-        guard size > 0, size <= 1_048_576 else { throw TapError(message: "No audio processes are available. Start playback, then Retry.") }
+        try check(AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &property, 0, nil, &size), L10n.text("Listing audio processes"))
+        guard size > 0, size <= 1_048_576 else { throw TapError(message: L10n.text("No audio processes are available. Start playback, then Retry.")) }
         var processes = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
         try processes.withUnsafeMutableBytes { bytes in
-            try check(AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &property, 0, nil, &size, bytes.baseAddress!), "Reading audio processes")
+            try check(AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &property, 0, nil, &size, bytes.baseAddress!), L10n.text("Reading audio processes"))
         }
         let matches = processes.filter { process in
             var property = address(kAudioProcessPropertyBundleID)
@@ -112,7 +112,7 @@ final class ProcessAudioTap: ProcessAudioTapSession, @unchecked Sendable {
                   let value else { return false }
             return value.takeRetainedValue() as String == bundleID
         }
-        guard !matches.isEmpty else { throw TapError(message: "This player's audio process could not be isolated. Browser/helper processes may not match. Retry after playback starts, or explicitly choose System audio.") }
+        guard !matches.isEmpty else { throw TapError(message: L10n.text("This player's audio process could not be isolated. Browser/helper processes may not match. Retry after playback starts, or explicitly choose System audio.")) }
         return matches
     }
 
@@ -133,13 +133,13 @@ final class ProcessAudioTap: ProcessAudioTapSession, @unchecked Sendable {
         description.isPrivate = true
         description.muteBehavior = .unmuted
         try ensureNotCancelled()
-        try check(AudioHardwareCreateProcessTap(description, &tapID), "Creating audio tap")
+        try check(AudioHardwareCreateProcessTap(description, &tapID), L10n.text("Creating audio tap"))
         var property = address(kAudioTapPropertyFormat)
         var format = AudioStreamBasicDescription()
         var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
-        try check(AudioObjectGetPropertyData(tapID, &property, 0, nil, &size, &format), "Reading audio format")
+        try check(AudioObjectGetPropertyData(tapID, &property, 0, nil, &size, &format), L10n.text("Reading audio format"))
         guard let buffer = ProcessTapSpectrumBuffer(format: format), let analyzer = ProcessTapSpectrumAnalyzer() else {
-            throw TapError(message: "This audio format is unsupported by the prototype. Choose Compatibility instead.")
+            throw TapError(message: L10n.text("This audio format is unsupported by the prototype. Choose Compatibility instead."))
         }
         let device: [String: Any] = [
             kAudioAggregateDeviceNameKey: "FlowShelf spectrum (private)",
@@ -148,16 +148,16 @@ final class ProcessAudioTap: ProcessAudioTapSession, @unchecked Sendable {
             kAudioAggregateDeviceTapAutoStartKey: false,
             kAudioAggregateDeviceTapListKey: [[kAudioSubTapUIDKey: description.uuid.uuidString, kAudioSubTapDriftCompensationKey: true]]
         ]
-        try check(AudioHardwareCreateAggregateDevice(device as CFDictionary, &deviceID), "Creating audio device")
+        try check(AudioHardwareCreateAggregateDevice(device as CFDictionary, &deviceID), L10n.text("Creating audio device"))
         try check(AudioDeviceCreateIOProcIDWithBlock(&ioProc, deviceID, ioQueue) { _, input, _, _, _ in
             buffer.append(input)
-        }, "Connecting audio callback")
-        guard ioProc != nil else { throw TapError(message: "Audio callback was not created. Choose Compatibility or Retry.") }
+        }, L10n.text("Connecting audio callback"))
+        guard ioProc != nil else { throw TapError(message: L10n.text("Audio callback was not created. Choose Compatibility or Retry.")) }
         try observe(tapID, selector: kAudioTapPropertyFormat)
         try observe(deviceID, selector: kAudioDevicePropertyDeviceIsAlive)
         try observe(AudioObjectID(kAudioObjectSystemObject), selector: kAudioHardwarePropertyDefaultOutputDevice)
         try ensureNotCancelled()
-        try check(AudioDeviceStart(deviceID, ioProc), "Starting audio capture")
+        try check(AudioDeviceStart(deviceID, ioProc), L10n.text("Starting audio capture"))
         try ensureNotCancelled()
         lastBufferAt = Date()
         let sampleRate = Float(format.mSampleRate)
@@ -172,7 +172,7 @@ final class ProcessAudioTap: ProcessAudioTapSession, @unchecked Sendable {
                 latest = spectrum
                 resultLock.unlock()
             } else if Date().timeIntervalSince(lastBufferAt) > 6 {
-                fail("No audio buffers received. Check audio-recording permission and the player/output, then Retry.")
+                fail(L10n.text("No audio buffers received. Check audio-recording permission and the player/output, then Retry."))
             }
         }
         self.timer = timer
@@ -189,9 +189,9 @@ final class ProcessAudioTap: ProcessAudioTapSession, @unchecked Sendable {
                 var size = UInt32(MemoryLayout<UInt32>.size)
                 if AudioObjectGetPropertyData(object, &property, 0, nil, &size, &alive) == noErr, alive != 0 { return }
             }
-            self.fail("Audio output or format changed. Retry to reconnect, or choose Compatibility.")
+            self.fail(L10n.text("Audio output or format changed. Retry to reconnect, or choose Compatibility."))
         }
-        try check(AudioObjectAddPropertyListenerBlock(object, &property, queue, block), "Monitoring audio changes")
+        try check(AudioObjectAddPropertyListenerBlock(object, &property, queue, block), L10n.text("Monitoring audio changes"))
         observers.append((object, property, block))
     }
 

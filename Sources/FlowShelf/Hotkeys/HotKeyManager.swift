@@ -21,11 +21,11 @@ final class HotKeyManager: ObservableObject {
 
         var label: String {
             switch self {
-            case .toggleShelf: return "Show floating shelf"
-            case .openSearch: return "Open shelf search"
-            case .screenshot: return "Screenshot region"
-            case .ocr: return "Screenshot + OCR"
-            case .dashboard: return "Open dashboard"
+            case .toggleShelf: return L10n.text("Show floating shelf")
+            case .openSearch: return L10n.text("Open shelf search")
+            case .screenshot: return L10n.text("Screenshot region")
+            case .ocr: return L10n.text("Screenshot + OCR")
+            case .dashboard: return L10n.text("Open dashboard")
             }
         }
     }

@@ -56,7 +56,7 @@ struct ShortcutSpec: Codable, Equatable, Hashable {
 
     static func keyName(_ keyCode: UInt32) -> String {
         let specials: [UInt32: String] = [
-            36: "↩", 48: "⇥", 49: "Space", 51: "⌫", 53: "⎋", 76: "⌤", 117: "⌦",
+            36: "↩", 48: "⇥", 49: L10n.text("Space"), 51: "⌫", 53: "⎋", 76: "⌤", 117: "⌦",
             123: "←", 124: "→", 125: "↓", 126: "↑", 115: "↖", 119: "↘", 116: "⇞", 121: "⇟",
             122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6", 98: "F7",
             100: "F8", 101: "F9", 109: "F10", 103: "F11", 111: "F12",
@@ -117,7 +117,7 @@ private struct ShortcutRecorderField: View {
             if isFailed {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 10)).foregroundStyle(.yellow)
-                    .help("macOS refused this shortcut — another app or a system shortcut may already use it. Pick a different combo.")
+                    .help(L10n.text("macOS refused this shortcut — another app or a system shortcut may already use it. Pick a different combo."))
             }
 
             if spec != defaultSpec, !recording {
@@ -126,13 +126,13 @@ private struct ShortcutRecorderField: View {
                         .font(.system(size: 9, weight: .semibold))
                 }
                 .buttonStyle(.plain).foregroundStyle(.secondary)
-                .help("Reset to default (\(defaultSpec.display))")
+                .help(L10n.text("Reset to default (\(defaultSpec.display))"))
             }
 
             Button(action: { recording ? cancel() : begin() }) {
                 Group {
                     if recording {
-                        Text("Press keys…")
+                        Text(L10n.text("Press keys…"))
                             .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                             .foregroundStyle(Color.accentColor)
                             .padding(.horizontal, 10).padding(.vertical, 4.5)
@@ -153,7 +153,7 @@ private struct ShortcutRecorderField: View {
             }
             .buttonStyle(.plain)
             .onHover { hovering = $0 }
-            .help(recording ? "Press the new shortcut (Esc to cancel)" : "Click, then press the new shortcut")
+            .help(recording ? L10n.text("Press the new shortcut (Esc to cancel)") : L10n.text("Click, then press the new shortcut"))
         }
         .animation(FlowMotion.state, value: recording)
         .onDisappear { if recording { cancel() } }
@@ -238,7 +238,7 @@ struct WindowSnapShortcutsEditor: View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach(WindowSnapManager.Zone.allCases, id: \.self) { zone in
                 EmblemRow(icon: zone.symbol, tint: .teal, title: zone.label,
-                          caption: "Default \(WindowSnapManager.defaultSpec(for: zone).display)") {
+                          caption: L10n.text("Default \(WindowSnapManager.defaultSpec(for: zone).display)")) {
                     WindowSnapShortcutRecorder(zone: zone)
                 }
             }
@@ -259,9 +259,9 @@ struct ShortcutsEditor: View {
             seen[hotkeys.spec(for: action), default: []].append(action.label)
         }
         for zone in WindowSnapManager.Zone.allCases {
-            seen[snap.spec(for: zone), default: []].append("Snap: \(zone.label)")
+            seen[snap.spec(for: zone), default: []].append(L10n.text("Snap: \(zone.label)"))
         }
-        seen[switcher.shortcut, default: []].append("Window switcher")
+        seen[switcher.shortcut, default: []].append(L10n.text("Window switcher"))
         return seen.filter { $0.value.count > 1 }
             .map { "\($0.key.display) → " + $0.value.joined(separator: " + ") }
             .sorted()
@@ -283,14 +283,14 @@ struct ShortcutsEditor: View {
             ForEach(HotKeyManager.Action.allCases, id: \.rawValue) { action in
                 let e = emblem(for: action)
                 EmblemRow(icon: e.icon, tint: e.tint, title: action.label,
-                          caption: "Default \(HotKeyManager.defaultSpec(for: action).display) — click the keys to change") {
+                          caption: L10n.text("Default \(HotKeyManager.defaultSpec(for: action).display) — click the keys to change")) {
                     ShortcutRecorder(action: action)
                 }
             }
 
             if !duplicates.isEmpty {
                 Label(
-                    "Same shortcut used twice: \(duplicates.joined(separator: " · ")). Only one action will fire — change one of them.",
+                    L10n.text("Same shortcut used twice: \(duplicates.joined(separator: " · ")). Only one action will fire — change one of them."),
                     systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 10.5)).foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
@@ -298,7 +298,7 @@ struct ShortcutsEditor: View {
             }
             if !hotkeys.failedActions.isEmpty || !snap.failedZones.isEmpty {
                 Label(
-                    "Shortcuts marked ⚠︎ were refused by macOS — the combo is likely taken by the system or another app.",
+                    L10n.text("Shortcuts marked ⚠︎ were refused by macOS — the combo is likely taken by the system or another app."),
                     systemImage: "info.circle")
                     .font(.system(size: 10.5)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

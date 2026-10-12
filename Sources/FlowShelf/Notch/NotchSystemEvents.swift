@@ -139,7 +139,7 @@ final class NotchSystemEvents {
         var transport: UInt32 = 0
         _ = read(device, kAudioDevicePropertyTransportType, into: &transport)
         let cleanName = String(name.filter { !$0.isNewline && !$0.isASCIIControl }.prefix(64))
-        return NotchAudioRoute(uid: uid, name: cleanName.isEmpty ? "Audio device" : cleanName,
+        return NotchAudioRoute(uid: uid, name: cleanName.isEmpty ? L10n.text("Audio device") : cleanName,
             bluetooth: transport == kAudioDeviceTransportTypeBluetooth || transport == kAudioDeviceTransportTypeBluetoothLE)
     }
 

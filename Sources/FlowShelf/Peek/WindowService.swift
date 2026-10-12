@@ -65,7 +65,7 @@ final class WindowService {
         var groups: [AppWindows] = []
 
         for app in apps {
-            let name = app.localizedName ?? "App"
+            let name = app.localizedName ?? L10n.text("App")
             var windows = axWindows(pid: app.processIdentifier, appName: name,
                                     bundleID: app.bundleIdentifier)
             guard !windows.isEmpty else { continue }

@@ -41,14 +41,14 @@ struct SnippetsView: View {
         HStack(spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary).font(.system(size: 12))
-                TextField("Search snippets…", text: $query).textFieldStyle(.plain).frame(width: 180)
+                TextField(L10n.text("Search snippets…"), text: $query).textFieldStyle(.plain).frame(width: 180)
             }
             .padding(.horizontal, 9).padding(.vertical, 6)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.06)))
             Text("\(store.snippets.count)")
                 .font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
             Spacer()
-            Button { creating = true } label: { Label("New snippet", systemImage: "plus") }
+            Button { creating = true } label: { Label(L10n.text("New snippet"), systemImage: "plus") }
                 .controlSize(.small)
         }
         .padding(.horizontal, 18).padding(.vertical, 12)
@@ -59,7 +59,7 @@ struct SnippetsView: View {
             EmblemChip(icon: "text.quote", tint: .purple)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(s.title.isEmpty ? "Untitled" : s.title)
+                    Text(s.title.isEmpty ? L10n.text("Untitled") : s.title)
                         .font(.system(size: 13, weight: .semibold)).lineLimit(1)
                     if !s.keyword.isEmpty {
                         Text(s.keyword)
@@ -78,11 +78,11 @@ struct SnippetsView: View {
                 Image(systemName: copiedID == s.id ? "checkmark" : "doc.on.doc")
                     .foregroundStyle(copiedID == s.id ? Color.green : Color.accentColor)
             }
-            .buttonStyle(.plain).help("Copy to clipboard")
+            .buttonStyle(.plain).help(L10n.text("Copy to clipboard"))
             Button { editing = s } label: { Image(systemName: "pencil") }
-                .buttonStyle(.plain).foregroundStyle(.secondary).help("Edit")
+                .buttonStyle(.plain).foregroundStyle(.secondary).help(L10n.text("Edit"))
             Button { store.remove(s.id) } label: { Image(systemName: "trash") }
-                .buttonStyle(.plain).foregroundStyle(.secondary).help("Delete")
+                .buttonStyle(.plain).foregroundStyle(.secondary).help(L10n.text("Delete"))
         }
         .padding(.horizontal, 13).padding(.vertical, 10)
         .raisedCard()
@@ -94,11 +94,11 @@ struct SnippetsView: View {
         VStack(spacing: 10) {
             Spacer()
             GlassCircleBadge(icon: "text.quote")
-            Text("No snippets yet").font(.system(size: 13, weight: .semibold))
-            Text("Save text you paste often — signatures, addresses,\ncanned replies, code — and reuse it in one click.")
+            Text(L10n.text("No snippets yet")).font(.system(size: 13, weight: .semibold))
+            Text(L10n.text("Save text you paste often — signatures, addresses,\ncanned replies, code — and reuse it in one click."))
                 .font(.system(size: 11.5)).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button { creating = true } label: { Label("Create your first snippet", systemImage: "plus") }
+            Button { creating = true } label: { Label(L10n.text("Create your first snippet"), systemImage: "plus") }
                 .padding(.top, 4)
             Spacer()
         }
@@ -109,7 +109,7 @@ struct SnippetsView: View {
         VStack(spacing: 10) {
             Spacer()
             GlassCircleBadge(icon: "magnifyingglass")
-            Text("No snippets match “\(query)”").font(.system(size: 12.5)).foregroundStyle(.secondary)
+            Text(L10n.text("No snippets match “\(query)”")).font(.system(size: 12.5)).foregroundStyle(.secondary)
             Spacer()
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -140,21 +140,21 @@ private struct SnippetEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(isNew ? "New Snippet" : "Edit Snippet")
+            Text(isNew ? L10n.text("New Snippet") : L10n.text("Edit Snippet"))
                 .font(.system(size: 14, weight: .semibold))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Title").font(.system(size: 11)).foregroundStyle(.secondary)
-                TextField("e.g. Work signature", text: $draft.title)
+                Text(L10n.text("Title")).font(.system(size: 11)).foregroundStyle(.secondary)
+                TextField(L10n.text("e.g. Work signature"), text: $draft.title)
                     .textFieldStyle(.roundedBorder)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Keyword (optional)").font(.system(size: 11)).foregroundStyle(.secondary)
-                TextField("e.g. ;sig", text: $draft.keyword)
+                Text(L10n.text("Keyword (optional)")).font(.system(size: 11)).foregroundStyle(.secondary)
+                TextField(L10n.text("e.g. ;sig"), text: $draft.keyword)
                     .textFieldStyle(.roundedBorder)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Content").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(L10n.text("Content")).font(.system(size: 11)).foregroundStyle(.secondary)
                 TextEditor(text: $draft.content)
                     .font(.system(size: 12, design: .monospaced))
                     .frame(minHeight: 150)
@@ -164,8 +164,8 @@ private struct SnippetEditor: View {
 
             HStack {
                 Spacer()
-                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Save") { onSave(draft); dismiss() }
+                Button(L10n.text("Cancel")) { dismiss() }.keyboardShortcut(.cancelAction)
+                Button(L10n.text("Save")) { onSave(draft); dismiss() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(draft.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
