@@ -1,0 +1,4 @@
+"NSAppleEventsUsageDescription" = "FlowShelf uses system events for global shortcuts.";
+"NSAudioCaptureUsageDescription" = "FlowShelf analyzes playing audio on this Mac to animate optional Notch music bars. Audio is not saved or uploaded, and the microphone is not used.";
+"NSScreenCaptureUsageDescription" = "FlowShelf uses Screen Recording for screenshots you request, window previews, and optional Notch visuals.";
+"NSHumanReadableCopyright" = "FlowShelf — a temporary shelf for your Mac.";

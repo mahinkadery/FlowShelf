@@ -36,10 +36,10 @@ private struct ShelfSelectionOverlay: ViewModifier {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Select \(item.title.isEmpty ? item.kind.label : item.title)")
-                .accessibilityValue(isSelected ? "Selected" : "Not selected")
+                .accessibilityLabel(L10n.text("Select \(item.title.isEmpty ? item.kind.label : item.title)"))
+                .accessibilityValue(isSelected ? L10n.text("Selected") : L10n.text("Not selected"))
                 .accessibilityAddTraits(isSelected ? [.isSelected] : [])
-                .help(isSelected ? "Deselect item" : "Select item without copying")
+                .help(isSelected ? L10n.text("Deselect item") : L10n.text("Select item without copying"))
                 .padding(.trailing, layout == .row ? 6 : 1)
                 .padding(.top, layout == .row ? 0 : 1)
             }
@@ -62,13 +62,13 @@ struct ShelfSelectionActions: View {
         selectedItems.filter { [.file, .image, .screenshot].contains($0.kind) }.count
     }
     private var isMixed: Bool { fileCount > 0 && fileCount < selectedItems.count }
-    private var copyLabel: String { fileCount > 0 ? "Copy files" : "Copy as text" }
+    private var copyLabel: String { fileCount > 0 ? L10n.text("Copy files") : L10n.text("Copy as text") }
 
     private func prepare() throws -> [ShelfBatchTransfer.Entry] {
         let visibleIDs = Set(ShelfStore.shared.visibleItems.map(\.id))
         let currentItems = selectedItems.filter { visibleIDs.contains($0.id) }
         guard currentItems.count == selection.count else {
-            throw ShelfBatchTransfer.TransferError.unavailable("A selected item")
+            throw ShelfBatchTransfer.TransferError.unavailable(L10n.text("A selected item"))
         }
         return try ShelfBatchTransfer.prepare(currentItems, imageURL: ShelfStore.shared.imageURL(for:))
     }
@@ -79,12 +79,12 @@ struct ShelfSelectionActions: View {
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             guard pasteboard.writeObjects(writers) else {
-                status = "Could not write the clipboard. Please try again."
+                status = L10n.text("Could not write the clipboard. Please try again.")
                 return
             }
             Haptics.copy()
-            status = fileCount > 0 ? "Copied \(writers.count) files."
-                : "Copied \(selectedItems.count) items as plain text, in shelf order."
+            status = fileCount > 0 ? L10n.text("Copied \(writers.count) files.")
+                : L10n.text("Copied \(selectedItems.count) items as plain text, in shelf order.")
         } catch {
             status = error.localizedDescription
         }
@@ -95,23 +95,23 @@ struct ShelfSelectionActions: View {
             HStack {
                 Label("\(selectedItems.count)", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(Color.accentColor)
-                    .accessibilityLabel("\(selectedItems.count) selected")
+                    .accessibilityLabel(L10n.text("\(selectedItems.count) selected"))
                 Button { selection.removeAll() } label: {
                     Image(systemName: "xmark").frame(width: 22, height: 26)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel("Clear selection")
-                .help("Clear selection")
+                .accessibilityLabel(L10n.text("Clear selection"))
+                .help(L10n.text("Clear selection"))
                 Spacer(minLength: 0)
-                Button("Copy") { copy() }
+                Button(L10n.text("Copy")) { copy() }
                     .disabled(selectedItems.isEmpty || isMixed)
-                    .help("\(copyLabel). Text is joined with blank lines in shelf order. Images are copied as files.")
+                    .help(L10n.text("\(copyLabel). Text is joined with blank lines in shelf order. Images are copied as files."))
                 BatchDragHandle(count: selectedItems.count, prepare: prepare) { status = $0 }
                     .frame(width: 116, height: 28)
             }
             if !status.isEmpty || isMixed {
-                Text(status.isEmpty ? "Mixed types: drag to an app that accepts them." : status)
+                Text(status.isEmpty ? L10n.text("Mixed types: drag to an app that accepts them.") : status)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

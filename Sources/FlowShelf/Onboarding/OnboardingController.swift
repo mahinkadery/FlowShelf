@@ -58,7 +58,7 @@ final class OnboardingController: NSObject, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        win.title = "Welcome to FlowShelf"
+        win.title = L10n.text("Welcome to FlowShelf")
         win.titleVisibility = .hidden
         win.titlebarAppearsTransparent = true
         win.titlebarSeparatorStyle = .none

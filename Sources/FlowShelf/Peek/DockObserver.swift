@@ -109,7 +109,7 @@ final class DockObserver {
 
         let show = { [weak self] in
             self?.preview.present(pid: app.processIdentifier,
-                                  appName: app.localizedName ?? "App",
+                                  appName: app.localizedName ?? L10n.text("App"),
                                   icon: app.icon,
                                   bundleID: app.bundleIdentifier,
                                   iconFrameCG: frame ?? .zero,

@@ -6,12 +6,12 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .general: return "General"
-        case .shelf: return "Shelf"
-        case .shortcuts: return "Shortcuts"
-        case .captureAI: return "Capture & AI"
-        case .privacyPermissions: return "Privacy & Permissions"
-        case .about: return "About"
+        case .general: return L10n.text("General")
+        case .shelf: return L10n.text("Shelf")
+        case .shortcuts: return L10n.text("Shortcuts")
+        case .captureAI: return L10n.text("Capture & AI")
+        case .privacyPermissions: return L10n.text("Privacy & Permissions")
+        case .about: return L10n.text("About")
         }
     }
     var symbol: String {
@@ -28,37 +28,37 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         switch self {
         case .general:
             return [
-                "general launch login startup floating shelf shake summon cursor mouse wiggle",
-                "peek dock hover previews thumbnails accessibility screen recording size delay",
+                L10n.text("general launch login startup floating shelf shake summon cursor mouse wiggle"),
+                L10n.text("peek dock hover previews thumbnails accessibility screen recording size delay"),
             ]
         case .shelf:
             return [
-                "clipboard capture history active paused private mode disabled retention keep items",
-                "storage items shelf clear all pinned disk",
+                L10n.text("clipboard capture history active paused private mode disabled retention keep items"),
+                L10n.text("storage items shelf clear all pinned disk"),
             ]
         case .shortcuts:
             return [
-                "window switcher alt option tab shortcut keyboard modifiers thumbnails list accessibility",
-                "window snapping snap shortcuts halves quarters maximize center accessibility",
-                "shortcuts hotkeys keyboard floating shelf search screenshot ocr dashboard conflicts",
+                L10n.text("window switcher alt option tab shortcut keyboard modifiers thumbnails list accessibility"),
+                L10n.text("window snapping snap shortcuts halves quarters maximize center accessibility"),
+                L10n.text("shortcuts hotkeys keyboard floating shelf search screenshot ocr dashboard conflicts"),
             ]
         case .captureAI:
             return [
-                "screenshots screenshot capture annotate annotation arrows boxes highlight blur text editor",
-                "image screenshot text search ocr index scan recognize local privacy",
-                "on device ai apple intelligence summarize clean ask smart search auto title",
+                L10n.text("screenshots screenshot capture annotate annotation arrows boxes highlight blur text editor"),
+                L10n.text("image screenshot text search ocr index scan recognize local privacy"),
+                L10n.text("on device ai apple intelligence summarize clean ask smart search auto title"),
             ]
         case .privacyPermissions:
             return [
-                "privacy excluded apps bundle password clipboard",
-                "privacy ignored clipboard types rules confidential transient generated markers",
-                "permissions accessibility screen recording input monitoring full disk access health required optional",
+                L10n.text("privacy excluded apps bundle password clipboard"),
+                L10n.text("privacy ignored clipboard types rules confidential transient generated markers"),
+                L10n.text("permissions accessibility screen recording input monitoring full disk access health required optional"),
             ]
         case .about:
             return [
-                "software updates version welcome onboarding setup tour",
-                "support coffee donate developer about",
-                "credits artwork airpods attribution license jed falcone",
+                L10n.text("software updates version welcome onboarding setup tour"),
+                L10n.text("support coffee donate developer about"),
+                L10n.text("credits artwork airpods attribution license jed falcone"),
             ]
         }
     }
@@ -86,7 +86,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 0) {
             if let onBack {
                 Button(action: onBack) {
-                    Label("Back", systemImage: "chevron.left")
+                    Label(L10n.text("Back"), systemImage: "chevron.left")
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .buttonStyle(.plain).foregroundStyle(.secondary)
@@ -94,7 +94,7 @@ struct SettingsView: View {
             }
 
             PaneHeader(icon: "gearshape.fill", tint: Color(white: 0.45),
-                       title: "Settings", subtitle: "Make FlowShelf yours")
+                       title: L10n.text("Settings"), subtitle: L10n.text("Make FlowShelf yours"))
 
             if onBack == nil {
                 HStack(spacing: 0) {
@@ -156,7 +156,7 @@ struct SettingsView: View {
     }
 
     private var compactCategoryPicker: some View {
-        Picker("Settings category", selection: $selectedCategory) {
+        Picker(L10n.text("Settings category"), selection: $selectedCategory) {
             ForEach(SettingsCategory.allCases) { category in
                 Label(category.label, systemImage: category.symbol).tag(category)
             }
@@ -186,19 +186,19 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var generalSettings: some View {
-        if matches("general launch login startup") {
-            section("App")
-            EmblemRow(icon: "power", tint: .gray, title: "Launch at login",
-                      caption: "Start FlowShelf automatically when you sign in") {
+        if matches(L10n.text("general launch login startup")) {
+            section(L10n.text("App"))
+            EmblemRow(icon: "power", tint: .gray, title: L10n.text("Launch at login"),
+                      caption: L10n.text("Start FlowShelf automatically when you sign in")) {
                 Toggle("", isOn: $settings.launchAtLogin).labelsHidden()
                     .toggleStyle(.switch).controlSize(.small)
                     .onChange(of: settings.launchAtLogin) { _, on in LoginItem.setEnabled(on) }
             }
         }
-        if matches("floating shelf shake summon cursor mouse wiggle") {
-            section("Floating shelf")
-            EmblemRow(icon: "cursorarrow.motionlines", tint: .cyan, title: "Shake to summon",
-                      caption: "Quickly wiggle the pointer left-right to pop the shelf open at the cursor") {
+        if matches(L10n.text("floating shelf shake summon cursor mouse wiggle")) {
+            section(L10n.text("Floating shelf"))
+            EmblemRow(icon: "cursorarrow.motionlines", tint: .cyan, title: L10n.text("Shake to summon"),
+                      caption: L10n.text("Quickly wiggle the pointer left-right to pop the shelf open at the cursor")) {
                 Toggle("", isOn: $settings.shakeToSummon).labelsHidden()
                     .toggleStyle(.switch).controlSize(.small)
                     .onChange(of: settings.shakeToSummon) { _, on in
@@ -206,10 +206,10 @@ struct SettingsView: View {
                     }
             }
         }
-        if matches("peek dock hover previews thumbnails accessibility screen recording size delay") {
-            section("Peek — Dock previews")
-            EmblemRow(icon: "rectangle.on.rectangle", tint: .blue, title: "Dock hover previews",
-                      caption: "Live window thumbnails when you hover Dock icons — needs Accessibility and Screen Recording") {
+        if matches(L10n.text("peek dock hover previews thumbnails accessibility screen recording size delay")) {
+            section(L10n.text("Peek — Dock previews"))
+            EmblemRow(icon: "rectangle.on.rectangle", tint: .blue, title: L10n.text("Dock hover previews"),
+                      caption: L10n.text("Live window thumbnails when you hover Dock icons — needs Accessibility and Screen Recording")) {
                 Toggle("", isOn: $settings.dockPreviewsEnabled).labelsHidden()
                     .toggleStyle(.switch).controlSize(.small)
                     .onChange(of: settings.dockPreviewsEnabled) { _, on in
@@ -217,7 +217,7 @@ struct SettingsView: View {
                     }
             }
             EmblemRow(icon: "arrow.up.left.and.arrow.down.right", tint: .blue,
-                      title: "Preview size", caption: "How big the hover thumbnails appear") {
+                      title: L10n.text("Preview size"), caption: L10n.text("How big the hover thumbnails appear")) {
                 Picker("", selection: $settings.dockPreviewSize) {
                     ForEach(DockPreviewSize.allCases) { Text($0.label).tag($0) }
                 }
@@ -225,8 +225,8 @@ struct SettingsView: View {
             }
             .disabled(!settings.dockPreviewsEnabled)
             .opacity(settings.dockPreviewsEnabled ? 1 : 0.55)
-            EmblemRow(icon: "timer", tint: .blue, title: "Hover delay",
-                      caption: String(format: "%.2fs before a preview appears", settings.dockPreviewHoverDelay)) {
+            EmblemRow(icon: "timer", tint: .blue, title: L10n.text("Hover delay"),
+                      caption: String(format: L10n.text("%.2fs before a preview appears"), settings.dockPreviewHoverDelay)) {
                 Slider(value: $settings.dockPreviewHoverDelay, in: 0.05...0.8)
                     .controlSize(.small).frame(width: 170)
             }
@@ -236,13 +236,13 @@ struct SettingsView: View {
     }
 
     @ViewBuilder private var shelfSettings: some View {
-        if matches("clipboard capture history active paused private mode disabled retention keep items") {
-            section("Clipboard")
+        if matches(L10n.text("clipboard capture history active paused private mode disabled retention keep items")) {
+            section(L10n.text("Clipboard"))
             clipboardCaptureRow
-            EmblemRow(icon: "clock.arrow.circlepath", tint: .yellow, title: "Keep items for",
+            EmblemRow(icon: "clock.arrow.circlepath", tint: .yellow, title: L10n.text("Keep items for"),
                       caption: settings.clipboardRetention.isForever
-                        ? "Permanent keeps everything forever — storage use can grow over time"
-                        : "Items clear automatically after 24 hours unless pinned") {
+                        ? L10n.text("Permanent keeps everything forever — storage use can grow over time")
+                        : L10n.text("Items clear automatically after 24 hours unless pinned")) {
                 Picker("", selection: $settings.clipboardRetention) {
                     ForEach(ClipboardRetention.allCases) { Text($0.label).tag($0) }
                 }
@@ -250,37 +250,37 @@ struct SettingsView: View {
                 .onChange(of: settings.clipboardRetention) { _, _ in store.applyRetentionChange() }
             }
         }
-        if matches("storage items shelf clear all pinned disk") {
-            section("Storage")
+        if matches(L10n.text("storage items shelf clear all pinned disk")) {
+            section(L10n.text("Storage"))
             EmblemRow(icon: "internaldrive", tint: .brown,
-                      title: "\(store.visibleItems.count) items on shelf",
-                      caption: "Everything currently stored, pinned items included") {
-                Button("Clear…") { showClearConfirmation = true }
+                      title: L10n.text("\(store.visibleItems.count) items on shelf"),
+                      caption: L10n.text("Everything currently stored, pinned items included")) {
+                Button(L10n.text("Clear…")) { showClearConfirmation = true }
                     .controlSize(.small)
             }
             .confirmationDialog(
-                "Clear shelf items?",
+                L10n.text("Clear shelf items?"),
                 isPresented: $showClearConfirmation,
                 titleVisibility: .visible
             ) {
-                Button("Clear Unpinned Items") {
+                Button(L10n.text("Clear Unpinned Items")) {
                     store.clearAll(includingPinned: false)
                 }
-                Button("Clear Everything, Including Pinned", role: .destructive) {
+                Button(L10n.text("Clear Everything, Including Pinned"), role: .destructive) {
                     store.clearAll(includingPinned: true)
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(L10n.text("Cancel"), role: .cancel) {}
             } message: {
-                Text("This removes stored images and files from FlowShelf. Clearing everything cannot be undone.")
+                Text(L10n.text("This removes stored images and files from FlowShelf. Clearing everything cannot be undone."))
             }
         }
     }
 
     @ViewBuilder private var shortcutSettings: some View {
-        if matches("window switcher alt option tab shortcut keyboard modifiers thumbnails list accessibility") {
-            section("Window switcher")
-            EmblemRow(icon: "rectangle.stack", tint: .indigo, title: "Window switcher",
-                      caption: "Press the shortcut to advance, release its modifiers to switch, or press Esc to cancel") {
+        if matches(L10n.text("window switcher alt option tab shortcut keyboard modifiers thumbnails list accessibility")) {
+            section(L10n.text("Window switcher"))
+            EmblemRow(icon: "rectangle.stack", tint: .indigo, title: L10n.text("Window switcher"),
+                      caption: L10n.text("Press the shortcut to advance, release its modifiers to switch, or press Esc to cancel")) {
                 Toggle("", isOn: $settings.altTabEnabled).labelsHidden()
                     .toggleStyle(.switch).controlSize(.small)
                     .onChange(of: settings.altTabEnabled) { _, on in
@@ -290,10 +290,10 @@ struct SettingsView: View {
                         } else { AltTabController.shared.stop() }
                     }
             }
-            EmblemRow(icon: "keyboard", tint: .indigo, title: "Switcher shortcut",
-                      caption: "Choose any modifier-and-key combination") { AltTabShortcutRecorder() }
-            EmblemRow(icon: "rectangle.grid.2x2", tint: .indigo, title: "Switcher layout",
-                      caption: "Big window thumbnails, or a compact list") {
+            EmblemRow(icon: "keyboard", tint: .indigo, title: L10n.text("Switcher shortcut"),
+                      caption: L10n.text("Choose any modifier-and-key combination")) { AltTabShortcutRecorder() }
+            EmblemRow(icon: "rectangle.grid.2x2", tint: .indigo, title: L10n.text("Switcher layout"),
+                      caption: L10n.text("Big window thumbnails, or a compact list")) {
                 Picker("", selection: $settings.altTabLayout) {
                     ForEach(AltTabLayout.allCases) { Text($0.label).tag($0) }
                 }
@@ -302,10 +302,10 @@ struct SettingsView: View {
             .disabled(!settings.altTabEnabled)
             .opacity(settings.altTabEnabled ? 1 : 0.55)
         }
-        if matches("window snapping snap shortcuts halves quarters maximize center accessibility") {
-            section("Window snapping")
-            EmblemRow(icon: "rectangle.split.2x2", tint: .teal, title: "Window snapping",
-                      caption: "Move the focused window into halves, quarters, maximize or center") {
+        if matches(L10n.text("window snapping snap shortcuts halves quarters maximize center accessibility")) {
+            section(L10n.text("Window snapping"))
+            EmblemRow(icon: "rectangle.split.2x2", tint: .teal, title: L10n.text("Window snapping"),
+                      caption: L10n.text("Move the focused window into halves, quarters, maximize or center")) {
                 Toggle("", isOn: $settings.windowSnapEnabled).labelsHidden()
                     .toggleStyle(.switch).controlSize(.small)
                     .onChange(of: settings.windowSnapEnabled) { _, on in
@@ -317,74 +317,74 @@ struct SettingsView: View {
             }
             WindowSnapShortcutsEditor()
         }
-        if matches("shortcuts hotkeys keyboard floating shelf search screenshot ocr dashboard conflicts") {
-            section("FlowShelf shortcuts")
+        if matches(L10n.text("shortcuts hotkeys keyboard floating shelf search screenshot ocr dashboard conflicts")) {
+            section(L10n.text("FlowShelf shortcuts"))
             ShortcutsEditor()
         }
     }
 
     @ViewBuilder private var captureAISettings: some View {
-        if matches("screenshots screenshot capture annotate annotation arrows boxes highlight blur text editor") {
-            section("Screenshots")
-            EmblemRow(icon: "camera.viewfinder", tint: .pink, title: "Annotate after screenshot",
-                      caption: "Open the editor after capture — arrows, boxes, highlight, blur and text") {
+        if matches(L10n.text("screenshots screenshot capture annotate annotation arrows boxes highlight blur text editor")) {
+            section(L10n.text("Screenshots"))
+            EmblemRow(icon: "camera.viewfinder", tint: .pink, title: L10n.text("Annotate after screenshot"),
+                      caption: L10n.text("Open the editor after capture — arrows, boxes, highlight, blur and text")) {
                 Toggle("", isOn: $settings.annotateAfterScreenshot).labelsHidden()
                     .toggleStyle(.switch).controlSize(.small)
             }
         }
-        if matches("image screenshot text search ocr index scan recognize local privacy") {
-            section("Image text search")
+        if matches(L10n.text("image screenshot text search ocr index scan recognize local privacy")) {
+            section(L10n.text("Image text search"))
             ImageTextSearchSettings()
         }
-        if matches("on device ai apple intelligence summarize clean ask smart search auto title") {
-            section("On-device AI")
+        if matches(L10n.text("on device ai apple intelligence summarize clean ask smart search auto title")) {
+            section(L10n.text("On-device AI"))
             aiRows
         }
     }
 
     @ViewBuilder private var privacySettings: some View {
-        if matches("privacy excluded apps bundle password clipboard") {
-            section("Clipboard privacy")
+        if matches(L10n.text("privacy excluded apps bundle password clipboard")) {
+            section(L10n.text("Clipboard privacy"))
             excludedCard
         }
-        if matches("privacy ignored clipboard types rules confidential transient generated markers") {
-            section("Ignored clipboard types")
+        if matches(L10n.text("privacy ignored clipboard types rules confidential transient generated markers")) {
+            section(L10n.text("Ignored clipboard types"))
             ClipboardPrivacySettings()
         }
-        if matches("permissions accessibility screen recording input monitoring full disk access health required optional") {
-            section("Permission health")
+        if matches(L10n.text("permissions accessibility screen recording input monitoring full disk access health required optional")) {
+            section(L10n.text("Permission health"))
             permissionOverviewCard
         }
     }
 
     @ViewBuilder private var aboutSettings: some View {
-        if matches("software updates version welcome onboarding setup tour") {
+        if matches(L10n.text("software updates version welcome onboarding setup tour")) {
             section("FlowShelf")
             EmblemRow(icon: "arrow.triangle.2.circlepath", tint: .gray,
-                      title: "Software updates", caption: "You're on \(Self.appVersion)") {
-                Button("Check for Updates…") { UpdaterManager.shared.checkForUpdates() }
+                      title: L10n.text("Software updates"), caption: L10n.text("You're on \(Self.appVersion)")) {
+                Button(L10n.text("Check for Updates…")) { UpdaterManager.shared.checkForUpdates() }
                     .controlSize(.small)
             }
             EmblemRow(icon: "sparkles.rectangle.stack", tint: .orange,
-                      title: "Welcome & setup", caption: "Replay the visual tour at any time") {
-                Button("Show Welcome…") { OnboardingController.shared.show() }
+                      title: L10n.text("Welcome & setup"), caption: L10n.text("Replay the visual tour at any time")) {
+                Button(L10n.text("Show Welcome…")) { OnboardingController.shared.show() }
                     .controlSize(.small)
             }
         }
-        if matches("support coffee donate developer about") {
-            section("Support")
+        if matches(L10n.text("support coffee donate developer about")) {
+            section(L10n.text("Support"))
             supportCard
         }
-        if matches("credits artwork airpods attribution license jed falcone") {
-            section("Artwork credits")
+        if matches(L10n.text("credits artwork airpods attribution license jed falcone")) {
+            section(L10n.text("Artwork credits"))
             VStack(alignment: .leading, spacing: 6) {
-                Text("AirPods Pro 3D model by Jed Falcone")
+                Text(L10n.text("AirPods Pro 3D model by Jed Falcone"))
                     .font(.system(size: 12, weight: .medium))
-                Text("Adapted into a short rendered animation for FlowShelf. Licensed under CC BY 4.0. No Apple endorsement implied.")
+                Text(L10n.text("Adapted into a short rendered animation for FlowShelf. Licensed under CC BY 4.0. No Apple endorsement implied."))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                 HStack(spacing: 14) {
-                    Link("Original model", destination: URL(string: "https://sketchfab.com/3d-models/airpods-pro-3f84ddc3d87a4ec0a5e5f379abfecd9c")!)
-                    Link("CC BY 4.0 license", destination: URL(string: "https://creativecommons.org/licenses/by/4.0/")!)
+                    Link(L10n.text("Original model"), destination: URL(string: "https://sketchfab.com/3d-models/airpods-pro-3f84ddc3d87a4ec0a5e5f379abfecd9c")!)
+                    Link(L10n.text("CC BY 4.0 license"), destination: URL(string: "https://creativecommons.org/licenses/by/4.0/")!)
                 }
                 .font(.system(size: 11))
             }
@@ -392,7 +392,7 @@ struct SettingsView: View {
             .raisedCard()
         }
         if settingsQuery.isEmpty {
-            Text("FlowShelf \(Self.appVersion) — a smarter temporary shelf for your Mac.")
+            Text(L10n.text("FlowShelf \(Self.appVersion) — a smarter temporary shelf for your Mac."))
                 .font(.system(size: 10)).foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.top, 8)
@@ -406,7 +406,7 @@ struct SettingsView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
-            TextField("Search settings…", text: $settingsQuery)
+            TextField(L10n.text("Search settings…"), text: $settingsQuery)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12.5))
             if !settingsQuery.isEmpty {
@@ -415,14 +415,14 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Clear search")
+                .help(L10n.text("Clear search"))
             }
         }
         .padding(.horizontal, 11)
         .padding(.vertical, 8)
         .raisedCard(cornerRadius: 10)
         .padding(.horizontal, 18)
-        .accessibilityLabel("Search settings")
+        .accessibilityLabel(L10n.text("Search settings"))
     }
 
     private func matches(_ searchableText: String) -> Bool {
@@ -443,9 +443,9 @@ struct SettingsView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 24, weight: .medium))
                 .foregroundStyle(.secondary)
-            Text("No settings found in \(selectedCategory.label)")
+            Text(L10n.text("No settings found in \(selectedCategory.label)"))
                 .font(.system(size: 13, weight: .semibold))
-            Text("Try another term or choose a different category.")
+            Text(L10n.text("Try another term or choose a different category."))
                 .font(.system(size: 11.5))
                 .foregroundStyle(.secondary)
         }
@@ -463,11 +463,11 @@ struct SettingsView: View {
     private var clipboardCaptureCaption: String {
         switch settings.clipboardCaptureState {
         case .active:
-            return clipboard.accessWarning ?? "New copies are automatically added to your shelf"
+            return clipboard.accessWarning ?? L10n.text("New copies are automatically added to your shelf")
         case .paused:
-            return "Temporarily paused — nothing is recorded until you resume"
+            return L10n.text("Temporarily paused — nothing is recorded until you resume")
         case .disabled:
-            return "Clipboard monitoring is completely turned off"
+            return L10n.text("Clipboard monitoring is completely turned off")
         }
     }
 
@@ -481,8 +481,8 @@ struct SettingsView: View {
 
     private var clipboardCaptureRow: some View {
         EmblemRow(icon: settings.clipboardCaptureState.symbol, tint: clipboardCaptureTint,
-                  title: "Clipboard capture", caption: clipboardCaptureCaption) {
-            Picker("Clipboard capture", selection: clipboardCaptureBinding) {
+                  title: L10n.text("Clipboard capture"), caption: clipboardCaptureCaption) {
+            Picker(L10n.text("Clipboard capture"), selection: clipboardCaptureBinding) {
                 ForEach(ClipboardCaptureState.allCases) { state in
                     Text(state.label).tag(state)
                 }
@@ -513,26 +513,26 @@ struct SettingsView: View {
             HStack(spacing: 11) {
                 EmblemChip(icon: "checkmark.shield", tint: .teal)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Required access")
+                    Text(L10n.text("Required access"))
                         .font(.system(size: 13, weight: .semibold))
-                    Text("\(requiredPermissionStates.filter { $0 }.count) of \(requiredPermissionStates.count) permissions required by your enabled features are ready")
+                    Text(L10n.text("\(requiredPermissionStates.filter { $0 }.count) of \(requiredPermissionStates.count) permissions required by your enabled features are ready"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
             }
 
-            permissionStatusLine("Screen Recording", required: true,
+            permissionStatusLine(L10n.text("Screen Recording"), required: true,
                                  granted: Permissions.hasScreenRecording)
-            permissionStatusLine("Accessibility", required: accessibilityRequired,
+            permissionStatusLine(L10n.text("Accessibility"), required: accessibilityRequired,
                                  granted: Permissions.hasAccessibility)
-            permissionStatusLine("Input Monitoring", required: inputMonitoringRequired,
+            permissionStatusLine(L10n.text("Input Monitoring"), required: inputMonitoringRequired,
                                  granted: Permissions.hasInputMonitoring)
 
             Button {
                 DashboardWindowController.shared.show(section: .permissions)
             } label: {
-                Label("Open Permission Health", systemImage: "arrow.right.circle")
+                Label(L10n.text("Open Permission Health"), systemImage: "arrow.right.circle")
             }
             .controlSize(.small)
         }
@@ -544,7 +544,7 @@ struct SettingsView: View {
         HStack {
             Text(title).font(.system(size: 11.5, weight: .medium))
             Spacer()
-            Text(granted ? "Granted" : (required ? "Required" : "Optional"))
+            Text(granted ? L10n.text("Granted") : (required ? L10n.text("Required") : L10n.text("Optional")))
                 .font(.system(size: 9.5, weight: .semibold))
                 .foregroundStyle(granted ? Color.green : (required ? Color.orange : Color.secondary))
                 .padding(.horizontal, 7).padding(.vertical, 3)
@@ -569,23 +569,23 @@ struct SettingsView: View {
     @ViewBuilder private var aiRows: some View {
         if AIService.isSupported {
             EmblemRow(icon: "sparkles", tint: .purple,
-                      title: "AI actions",
-                      caption: "Summarize · clean up · ask · smart search — Apple Intelligence, fully on your Mac, runs only when you ask") {
+                      title: L10n.text("AI actions"),
+                      caption: L10n.text("Summarize · clean up · ask · smart search — Apple Intelligence, fully on your Mac, runs only when you ask")) {
                 Toggle("", isOn: $settings.aiEnabled).labelsHidden()
                     .toggleStyle(.switch).controlSize(.small)
             }
             EmblemRow(icon: "character.cursor.ibeam", tint: .purple,
-                      title: "Auto-title new text items",
-                      caption: "Names items as you copy them — off by default to save battery/RAM") {
+                      title: L10n.text("Auto-title new text items"),
+                      caption: L10n.text("Names items as you copy them — off by default to save battery/RAM")) {
                 Toggle("", isOn: $settings.aiAutoTitle).labelsHidden()
                     .toggleStyle(.switch).controlSize(.small)
                     .disabled(!settings.aiEnabled)
             }
         } else {
             EmblemRow(icon: "sparkles", tint: .orange,
-                      title: "On-device AI not available yet",
+                      title: L10n.text("On-device AI not available yet"),
                       caption: AIService.statusMessage) {
-                Button("Open settings") {
+                Button(L10n.text("Open settings")) {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.preferences.intelligence") {
                         NSWorkspace.shared.open(url)
                     }
@@ -600,8 +600,8 @@ struct SettingsView: View {
             HStack(spacing: 11) {
                 EmblemChip(icon: "hand.raised.fill", tint: .mint)
                 VStack(alignment: .leading, spacing: 1.5) {
-                    Text("Excluded apps").font(.system(size: 13, weight: .semibold))
-                    Text("Copies from these apps are never recorded")
+                    Text(L10n.text("Excluded apps")).font(.system(size: 13, weight: .semibold))
+                    Text(L10n.text("Copies from these apps are never recorded"))
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -625,7 +625,7 @@ struct SettingsView: View {
                     .padding(.horizontal, 9).padding(.vertical, 6)
                     .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(Color.primary.opacity(0.06)))
-                Button("Add") {
+                Button(L10n.text("Add")) {
                     let id = newExclude.trimmingCharacters(in: .whitespaces)
                     guard !id.isEmpty, !settings.excludedBundleIDs.contains(id) else { return }
                     settings.excludedBundleIDs.append(id); newExclude = ""
@@ -642,8 +642,8 @@ struct SettingsView: View {
             HStack(spacing: 11) {
                 EmblemChip(icon: "heart.fill", tint: .red)
                 VStack(alignment: .leading, spacing: 1.5) {
-                    Text("Support FlowShelf").font(.system(size: 13, weight: .semibold))
-                    Text("FlowShelf is free — if it saves you time, you can buy me a coffee ☕️")
+                    Text(L10n.text("Support FlowShelf")).font(.system(size: 13, weight: .semibold))
+                    Text(L10n.text("FlowShelf is free — if it saves you time, you can buy me a coffee ☕️"))
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -658,7 +658,7 @@ struct SettingsView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 84)
                 } else {
-                    Label("Buy Me a Coffee", systemImage: "cup.and.saucer.fill")
+                    Label(L10n.text("Buy Me a Coffee"), systemImage: "cup.and.saucer.fill")
                         .font(.system(size: 15, weight: .semibold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)

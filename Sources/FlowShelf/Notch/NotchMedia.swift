@@ -333,7 +333,7 @@ struct MediaStrip: View {
             MediaArtwork(image: media.now.artwork, side: 42, corner: 10)
 
             VStack(alignment: .leading, spacing: 3) {
-                MarqueeText(text: media.now.title.isEmpty ? "Not playing" : media.now.title,
+                MarqueeText(text: media.now.title.isEmpty ? L10n.text("Not playing") : media.now.title,
                             active: mediaVisible && media.now.isPlaying && !presentation.reduceMotion)
                     .frame(height: 15)
                     .id(media.now.title)             // restart the scroll per track

@@ -54,11 +54,11 @@ struct DockPreviewView: View {
 
             if model.loading && model.windows.isEmpty {
                 HStack(spacing: 7) { ProgressView().controlSize(.small)
-                    Text("Capturing…").font(.system(size: 12)).foregroundStyle(.secondary) }
+                    Text(L10n.text("Capturing…")).font(.system(size: 12)).foregroundStyle(.secondary) }
                     .frame(height: thumbH).frame(maxWidth: .infinity)
             } else if model.windows.isEmpty {
-                Text(PrivateWindowSymbols.shared.supportsWindowIDs ? "No open windows"
-                     : "Window listing is unavailable on this macOS version")
+                Text(PrivateWindowSymbols.shared.supportsWindowIDs ? L10n.text("No open windows")
+                     : L10n.text("Window listing is unavailable on this macOS version"))
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .frame(height: thumbH).frame(maxWidth: .infinity)
             } else {
@@ -81,8 +81,8 @@ struct DockPreviewView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "exclamationmark.circle").font(.system(size: 10))
                         Text(PrivateWindowSymbols.shared.supportsCapture
-                             ? "Can’t capture previews — enable Screen Recording for FlowShelf, then quit & reopen."
-                             : "Window previews are unavailable on this macOS version.")
+                             ? L10n.text("Can’t capture previews — enable Screen Recording for FlowShelf, then quit & reopen.")
+                             : L10n.text("Window previews are unavailable on this macOS version."))
                             .font(.system(size: 10))
                     }
                     .foregroundStyle(.orange)
@@ -147,7 +147,7 @@ private struct WindowThumb: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .topTrailing)))
                 }
             }
-            Text(window.title.isEmpty ? "Untitled window" : window.title)
+            Text(window.title.isEmpty ? L10n.text("Untitled window") : window.title)
                 .font(.system(size: 11, weight: hovering ? .medium : .regular))
                 .foregroundStyle(hovering ? Color.primary : Color.secondary)
                 .lineLimit(1)

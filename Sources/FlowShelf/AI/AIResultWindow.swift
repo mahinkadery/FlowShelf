@@ -98,7 +98,7 @@ private struct AIResultView: View {
                 case .loading:
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text("Thinking…").font(.system(size: 12)).foregroundStyle(.secondary)
+                        Text(L10n.text("Thinking…")).font(.system(size: 12)).foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 case .text(let t):
@@ -110,7 +110,7 @@ private struct AIResultView: View {
                 case .failed:
                     VStack(spacing: 6) {
                         Image(systemName: "exclamationmark.circle").font(.system(size: 22)).foregroundStyle(.secondary)
-                        Text("Couldn't get a result.\nMake sure Apple Intelligence is enabled.")
+                        Text(L10n.text("Couldn't get a result.\nMake sure Apple Intelligence is enabled."))
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                     }
@@ -121,7 +121,7 @@ private struct AIResultView: View {
 
             Divider()
             if !model.sources.isEmpty {
-                Text("Sources provided to AI · click to inspect")
+                Text(L10n.text("Sources provided to AI · click to inspect"))
                     .font(.caption).foregroundStyle(.secondary)
                 ScrollView(.horizontal) {
                     HStack {
@@ -135,14 +135,14 @@ private struct AIResultView: View {
             HStack(spacing: 8) {
                 if case .text(let t) = model.state {
                     Button { copy(t) } label: {
-                        Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
+                        Label(copied ? L10n.text("Copied") : L10n.text("Copy"), systemImage: copied ? "checkmark" : "doc.on.doc")
                     }
                     Button { addToShelf(t) } label: {
-                        Label("Add to Shelf", systemImage: "tray.and.arrow.down")
+                        Label(L10n.text("Add to Shelf"), systemImage: "tray.and.arrow.down")
                     }
                 }
                 Spacer()
-                Button("Close") { onClose() }.keyboardShortcut(.cancelAction)
+                Button(L10n.text("Close")) { onClose() }.keyboardShortcut(.cancelAction)
             }
         }
         .padding(14)
@@ -155,7 +155,7 @@ private struct AIResultView: View {
                     Text(sourceText(source)).textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Button("Done") { selectedSource = nil }.keyboardShortcut(.cancelAction)
+                Button(L10n.text("Done")) { selectedSource = nil }.keyboardShortcut(.cancelAction)
             }
             .padding(18).frame(width: 420, height: 300)
         }
@@ -165,12 +165,12 @@ private struct AIResultView: View {
         switch source.kind {
         case .shelf:
             guard let item = ShelfStore.shared.visibleItems.first(where: { $0.id == source.id }) else {
-                return "This source has expired or was removed from your shelf."
+                return L10n.text("This source has expired or was removed from your shelf.")
             }
             return item.text ?? item.preview
         case .snippet:
             return SnippetStore.shared.snippets.first(where: { $0.id == source.id })?.content
-                ?? "This snippet was removed."
+                ?? L10n.text("This snippet was removed.")
         }
     }
 

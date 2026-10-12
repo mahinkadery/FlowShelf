@@ -74,21 +74,21 @@ struct PeekView: View {
             Divider()
             if !Permissions.hasAccessibility {
                 permissionBanner(
-                    "Accessibility required",
-                    "Peek needs this to list each app’s windows and switch to them. ① Open FlowShelf.app first from your Applications folder (not the disk image). ② Turn FlowShelf ON in the list. ③ Quit & Reopen — the grant only applies on the next launch.",
+                    L10n.text("Accessibility required"),
+                    L10n.text("Peek needs this to list each app’s windows and switch to them. ① Open FlowShelf.app first from your Applications folder (not the disk image). ② Turn FlowShelf ON in the list. ③ Quit & Reopen — the grant only applies on the next launch."),
                     pane: .accessibility,
                     showRelaunch: true)
             }
             // Drive this banner off an ACTUAL capture attempt, not the unreliable
             // CGPreflightScreenCaptureAccess flag.
             if !PrivateWindowSymbols.shared.supportsWindowIDs || !PrivateWindowSymbols.shared.supportsCapture {
-                Label("This macOS version is missing a window-preview component. Changing permissions will not restore it.",
+                Label(L10n.text("This macOS version is missing a window-preview component. Changing permissions will not restore it."),
                       systemImage: "exclamationmark.triangle")
                     .font(.callout).foregroundStyle(.orange).padding(12)
             } else if Permissions.hasAccessibility && model.captureWorks == false {
                 permissionBanner(
-                    "Turn on Screen Recording, then Quit & Reopen",
-                    "① Make sure you’re running FlowShelf from your Applications folder — not the disk image or Downloads (that’s the usual cause). ② Turn FlowShelf ON under Screen Recording. ③ Quit & Reopen — the grant only applies on the next launch. Only if it still won’t capture, remove FlowShelf with “–”, then restart your Mac and turn it on again (removing without a restart can stop the prompt from reappearing).",
+                    L10n.text("Turn on Screen Recording, then Quit & Reopen"),
+                    L10n.text("① Make sure you’re running FlowShelf from your Applications folder — not the disk image or Downloads (that’s the usual cause). ② Turn FlowShelf ON under Screen Recording. ③ Quit & Reopen — the grant only applies on the next launch. Only if it still won’t capture, remove FlowShelf with “–”, then restart your Mac and turn it on again (removing without a restart can stop the prompt from reappearing)."),
                     pane: .screenRecording,
                     showRelaunch: true)
             }
@@ -111,22 +111,22 @@ struct PeekView: View {
                 HStack(spacing: 6) {
                     if works && model.live {
                         PulseDot()
-                        Text("Live previews")
+                        Text(L10n.text("Live previews"))
                     } else {
                         Image(systemName: works ? "checkmark.circle.fill" : "xmark.circle")
-                        Text(works ? "Capture working" : "No capture")
+                        Text(works ? L10n.text("Capture working") : L10n.text("No capture"))
                     }
                 }
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(works ? .green : .orange)
                 .padding(.horizontal, 9).padding(.vertical, 5)
                 .background(Capsule().fill((works ? Color.green : Color.orange).opacity(0.12)))
-                .help(works ? "Window previews refresh automatically while this tab is open."
-                      : "FlowShelf can't capture yet — see the banner below.")
+                .help(works ? L10n.text("Window previews refresh automatically while this tab is open.")
+                      : L10n.text("FlowShelf can't capture yet — see the banner below."))
             }
             Spacer()
             Toggle(isOn: $settings.dockPreviewsEnabled) {
-                Text("Dock hover previews").font(.system(size: 11.5))
+                Text(L10n.text("Dock hover previews")).font(.system(size: 11.5))
             }
             .toggleStyle(.switch).controlSize(.small)
             .onChange(of: settings.dockPreviewsEnabled) { _, on in
@@ -139,21 +139,21 @@ struct PeekView: View {
                                ? .linear(duration: 0.9).repeatForever(autoreverses: false)
                                : .default,
                                value: model.refreshing)
-            }.help("Refresh now")
+            }.help(L10n.text("Refresh now"))
         }
         .padding(.horizontal, 18).padding(.vertical, 12)
     }
 
     @ViewBuilder private var content: some View {
         if model.loading && model.apps.isEmpty {
-            VStack { Spacer(); ProgressView("Capturing windows…").controlSize(.small); Spacer() }
+            VStack { Spacer(); ProgressView(L10n.text("Capturing windows…")).controlSize(.small); Spacer() }
                 .frame(maxWidth: .infinity)
         } else if model.apps.isEmpty {
             VStack(spacing: 10) {
                 Spacer()
                 GlassCircleBadge(icon: "macwindow.on.rectangle")
-                Text(Permissions.hasAccessibility ? "No open windows found"
-                     : "Grant Accessibility above to see open windows")
+                Text(Permissions.hasAccessibility ? L10n.text("No open windows found")
+                     : L10n.text("Grant Accessibility above to see open windows"))
                     .font(.system(size: 12.5)).foregroundStyle(.secondary)
                 Spacer()
             }.frame(maxWidth: .infinity)
@@ -211,13 +211,13 @@ struct PeekView: View {
             }
             Spacer(minLength: 10)
             VStack(spacing: 4) {
-                Button("Open Settings") {
+                Button(L10n.text("Open Settings")) {
                     if pane == .accessibility { Permissions.requestAccessibility() }
                     else { Permissions.requestScreenRecording() }
                     Permissions.openSettings(pane)
                 }.controlSize(.small)
                 if showRelaunch {
-                    Button("Quit & Reopen") { AppRelaunch.relaunch() }
+                    Button(L10n.text("Quit & Reopen")) { AppRelaunch.relaunch() }
                         .controlSize(.small)
                 }
             }
@@ -262,14 +262,14 @@ private struct PeekTile: View {
 
                 if hovering {
                     HStack(spacing: 4) {
-                        tileBtn("minus", help: "Minimize") { AX.minimizeWindow(pid: window.pid, windowID: window.id) }
-                        tileBtn("xmark", help: "Close") { AX.closeWindow(pid: window.pid, windowID: window.id) }
+                        tileBtn("minus", help: L10n.text("Minimize")) { AX.minimizeWindow(pid: window.pid, windowID: window.id) }
+                        tileBtn("xmark", help: L10n.text("Close")) { AX.closeWindow(pid: window.pid, windowID: window.id) }
                     }
                     .padding(5)
                     .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .topTrailing)))
                 }
             }
-            Text(window.title.isEmpty ? "Untitled window" : window.title)
+            Text(window.title.isEmpty ? L10n.text("Untitled window") : window.title)
                 .font(.system(size: 11, weight: hovering ? .medium : .regular))
                 .foregroundStyle(hovering ? Color.primary : Color.secondary)
                 .lineLimit(1)
@@ -291,7 +291,7 @@ private struct PeekTile: View {
                     AX.raiseWindow(pid: window.pid, windowID: window.id)
                 }
         )
-        .help("Click to bring this window to front")
+        .help(L10n.text("Click to bring this window to front"))
     }
 
     private func tileBtn(_ symbol: String, help: String, _ action: @escaping () -> Void) -> some View {

@@ -42,9 +42,9 @@ final class ClipboardMonitor: ObservableObject {
         if #available(macOS 15.4, *) {
             switch pb.accessBehavior {
             case .alwaysDeny:
-                warning = "Clipboard access is blocked by macOS. Allow FlowShelf in System Settings to resume automatic capture."
+                warning = L10n.text("Clipboard access is blocked by macOS. Allow FlowShelf in System Settings to resume automatic capture.")
             case .ask:
-                warning = "Automatic capture is paused to avoid repeated permission prompts. Set FlowShelf’s clipboard access to Always Allow in System Settings."
+                warning = L10n.text("Automatic capture is paused to avoid repeated permission prompts. Set FlowShelf’s clipboard access to Always Allow in System Settings.")
             default:
                 break
             }
@@ -96,8 +96,8 @@ final class ClipboardMonitor: ObservableObject {
                 guard let self, let (rel, thumb) = result else { return }
                 store.add(ShelfItem(
                     kind: .image,
-                    title: "Image",
-                    preview: "Copied image",
+                    title: L10n.text("Image"),
+                    preview: L10n.text("Copied image"),
                     sourceApp: sourceApp,
                     imageRelPath: rel,
                     thumbRelPath: thumb
@@ -111,7 +111,7 @@ final class ClipboardMonitor: ObservableObject {
             let isLink = text.looksLikeURL
             store.add(ShelfItem(
                 kind: isLink ? .link : .text,
-                title: isLink ? (URL(string: text)?.host ?? "Link") : text.firstLine(),
+                title: isLink ? (URL(string: text)?.host ?? L10n.text("Link")) : text.firstLine(),
                 preview: text.firstLine(max: 140),
                 text: text,
                 richTextRTF: ClipboardPayload.boundedRTF(pb.data(forType: .rtf)),

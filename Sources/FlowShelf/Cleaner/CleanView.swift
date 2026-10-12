@@ -55,20 +55,20 @@ final class CleanViewModel: ObservableObject {
             // Drop a cleanup report onto the Shelf for 24h — including any files we
             // couldn't remove, so the user can find and delete them later.
             var reportText = outcome.trashed > 0
-                ? "Trashed:\n" + urls.filter { !outcome.failed.contains($0) }.map(\.path).joined(separator: "\n")
+                ? L10n.text("Trashed:\n") + urls.filter { !outcome.failed.contains($0) }.map(\.path).joined(separator: "\n")
                 : ""
             if !outcome.failed.isEmpty {
-                reportText += "\n\nCouldn’t remove (\(outcome.failed.count)):\n"
+                reportText += L10n.text("\n\nCouldn’t remove (\(outcome.failed.count)):\n")
                     + outcome.failed.map(\.path).joined(separator: "\n")
             }
             ShelfStore.shared.add(ShelfItem(
                 kind: .cleanReport,
-                title: "Cleaned \(r.appName)",
-                preview: "\(outcome.trashed) item(s) → Trash"
-                    + (outcome.failed.isEmpty ? "" : " · \(outcome.failed.count) left")
+                title: L10n.text("Cleaned \(r.appName)"),
+                preview: L10n.text("\(outcome.trashed) item(s) → Trash")
+                    + (outcome.failed.isEmpty ? "" : L10n.text(" · \(outcome.failed.count) left"))
                     + " · \(formatBytes(r.selectedSize))",
                 text: reportText.trimmingCharacters(in: .whitespacesAndNewlines),
-                sourceApp: "Cleaner"))
+                sourceApp: L10n.text("Cleaner")))
             phase = .finished(trashed: outcome.trashed, failed: outcome.failed)
         }
     }
@@ -110,13 +110,13 @@ struct CleanView: View {
                         GlassCircleBadge(icon: "trash",
                                          tint: dropTargeted ? .accentColor : .secondary,
                                          size: 60)
-                        Text("Drop an app here to uninstall")
+                        Text(L10n.text("Drop an app here to uninstall"))
                             .font(.system(size: 13, weight: .semibold))
-                        Text("or").font(.system(size: 11)).foregroundStyle(.secondary)
-                        Button("Choose App…") { chooseApp() }
+                        Text(L10n.text("or")).font(.system(size: 11)).foregroundStyle(.secondary)
+                        Button(L10n.text("Choose App…")) { chooseApp() }
                     }
                 )
-            Text("FlowShelf finds related files and moves them to the Trash —\nnothing is deleted permanently, and you can Put Back any time.")
+            Text(L10n.text("FlowShelf finds related files and moves them to the Trash —\nnothing is deleted permanently, and you can Put Back any time."))
                 .font(.system(size: 11)).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
             Spacer()
@@ -131,7 +131,7 @@ struct CleanView: View {
         VStack(spacing: 12) {
             Spacer()
             ProgressView().controlSize(.large)
-            Text("Scanning for \(name) leftovers…").font(.system(size: 12)).foregroundStyle(.secondary)
+            Text(L10n.text("Scanning for \(name) leftovers…")).font(.system(size: 12)).foregroundStyle(.secondary)
             Spacer()
         }.frame(maxWidth: .infinity)
     }
@@ -140,7 +140,7 @@ struct CleanView: View {
         VStack(spacing: 12) {
             Spacer()
             ProgressView().controlSize(.large)
-            Text("Quitting the app and moving items to Trash…")
+            Text(L10n.text("Quitting the app and moving items to Trash…"))
                 .font(.system(size: 12)).foregroundStyle(.secondary)
             Spacer()
         }.frame(maxWidth: .infinity)
@@ -155,7 +155,7 @@ struct CleanView: View {
                 if CleanerEngine.isProtected(r.appURL) {
                     HStack(spacing: 11) {
                         EmblemChip(icon: "lock.shield.fill", tint: .purple)
-                        Text("\(r.appName) is a built-in macOS app. Built-in apps live on the protected system volume and can’t be uninstalled — only their leftover files (if any) can be removed.")
+                        Text(L10n.text("\(r.appName) is a built-in macOS app. Built-in apps live on the protected system volume and can’t be uninstalled — only their leftover files (if any) can be removed."))
                             .font(.system(size: 11)).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 0)
@@ -173,7 +173,7 @@ struct CleanView: View {
                     VStack(spacing: 10) {
                         Spacer()
                         GlassCircleBadge(icon: "checkmark.seal", tint: .green)
-                        Text("No leftover files found for \(r.appName).")
+                        Text(L10n.text("No leftover files found for \(r.appName)."))
                             .font(.system(size: 12.5)).foregroundStyle(.secondary)
                         Spacer()
                     }.frame(maxWidth: .infinity)
@@ -183,7 +183,7 @@ struct CleanView: View {
                             ForEach(r.grouped(), id: \.0) { category, files in
                                 categorySection(category, files)
                             }
-                            Text("Tip: low-confidence matches are unchecked by default — review before trashing.")
+                            Text(L10n.text("Tip: low-confidence matches are unchecked by default — review before trashing."))
                                 .font(.system(size: 10)).foregroundStyle(.tertiary)
                                 .padding(.top, 4)
                         }
@@ -202,14 +202,14 @@ struct CleanView: View {
                 .resizable().frame(width: 38, height: 38)
             VStack(alignment: .leading, spacing: 1.5) {
                 Text(r.appName).font(.system(size: 13, weight: .semibold))
-                Text("\(r.items.count) related items · \(formatBytes(r.totalSize)) total")
+                Text(L10n.text("\(r.items.count) related items · \(formatBytes(r.totalSize)) total"))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Spacer()
             HStack(spacing: 6) {
-                Button("All") { model.setAll(true) }
-                Button("None") { model.setAll(false) }
-                Button("Start over") { model.reset() }
+                Button(L10n.text("All")) { model.setAll(true) }
+                Button(L10n.text("None")) { model.setAll(false) }
+                Button(L10n.text("Start over")) { model.reset() }
             }.controlSize(.small)
         }
         .padding(.horizontal, 13).padding(.vertical, 10)
@@ -250,12 +250,12 @@ struct CleanView: View {
             }
             Spacer()
             if locked {
-                Text("Protected")
+                Text(L10n.text("Protected"))
                     .font(.system(size: 9, weight: .medium))
                     .padding(.horizontal, 6).padding(.vertical, 2)
                     .background(Capsule().fill(Color.secondary.opacity(0.18)))
                     .foregroundStyle(.secondary)
-                    .help("Built-in macOS item on the protected system volume — can't be removed by any app.")
+                    .help(L10n.text("Built-in macOS item on the protected system volume — can't be removed by any app."))
             } else {
                 Text(file.confidence.label)
                     .font(.system(size: 9, weight: .medium))
@@ -268,7 +268,7 @@ struct CleanView: View {
                 .frame(width: 60, alignment: .trailing)
             Button { NSWorkspace.shared.activateFileViewerSelecting([file.url]) } label: {
                 Image(systemName: "magnifyingglass").font(.system(size: 10))
-            }.buttonStyle(.plain).foregroundStyle(.secondary).help("Reveal in Finder")
+            }.buttonStyle(.plain).foregroundStyle(.secondary).help(L10n.text("Reveal in Finder"))
         }
         .padding(.vertical, 2)
         .opacity(locked ? 0.55 : 1)
@@ -276,13 +276,13 @@ struct CleanView: View {
 
     private func actionBar(_ r: AppScanResult) -> some View {
         HStack {
-            Text("\(r.selectedCount) selected · \(formatBytes(r.selectedSize))")
+            Text(L10n.text("\(r.selectedCount) selected · \(formatBytes(r.selectedSize))"))
                 .font(.system(size: 12)).foregroundStyle(.secondary)
             Spacer()
             Button {
                 model.trashSelected()
             } label: {
-                Label("Move to Trash", systemImage: "trash")
+                Label(L10n.text("Move to Trash"), systemImage: "trash")
             }
             .keyboardShortcut(.defaultAction)
             .disabled(r.selectedCount == 0)
@@ -295,9 +295,9 @@ struct CleanView: View {
             VStack(spacing: 10) {
                 GlassCircleBadge(icon: failed.isEmpty ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
                                  tint: failed.isEmpty ? .green : .orange)
-                Text("Moved \(trashed) item(s) to Trash")
+                Text(L10n.text("Moved \(trashed) item(s) to Trash"))
                     .font(.system(size: 14, weight: .semibold))
-                Text("Trashed items can be restored with “Put Back”. A cleanup report was added to your Shelf.")
+                Text(L10n.text("Trashed items can be restored with “Put Back”. A cleanup report was added to your Shelf."))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -310,11 +310,11 @@ struct CleanView: View {
 
             Divider()
             HStack {
-                Button("Open Trash") {
+                Button(L10n.text("Open Trash")) {
                     NSWorkspace.shared.open(URL(fileURLWithPath: NSHomeDirectory() + "/.Trash"))
                 }
                 Spacer()
-                Button("Clean another") { model.reset() }
+                Button(L10n.text("Clean another")) { model.reset() }
             }.padding(12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -327,9 +327,9 @@ struct CleanView: View {
         let needsFDA = failed.contains { $0.path.hasPrefix(homePath) }
         return VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(failed.count) couldn’t be removed")
+                Text(L10n.text("\(failed.count) couldn’t be removed"))
                     .font(.system(size: 12, weight: .semibold)).foregroundStyle(.orange)
-                Text("Reveal each one in Finder and delete it manually. Library items need Full Disk Access; system items need an admin. Built-in macOS items can’t be removed at all.")
+                Text(L10n.text("Reveal each one in Finder and delete it manually. Library items need Full Disk Access; system items need an admin. Built-in macOS items can’t be removed at all."))
                     .font(.system(size: 10)).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 14).padding(.vertical, 8)
@@ -345,17 +345,17 @@ struct CleanView: View {
             HStack(spacing: 8) {
                 if needsFDA {
                     Button { Permissions.openSettings(.fullDiskAccess) } label: {
-                        Label("Grant Full Disk Access", systemImage: "lock.open")
+                        Label(L10n.text("Grant Full Disk Access"), systemImage: "lock.open")
                     }
                 }
                 Button { NSWorkspace.shared.activateFileViewerSelecting(failed) } label: {
-                    Label("Reveal all", systemImage: "magnifyingglass")
+                    Label(L10n.text("Reveal all"), systemImage: "magnifyingglass")
                 }
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(failed.map(\.path).joined(separator: "\n"), forType: .string)
                 } label: {
-                    Label("Copy paths", systemImage: "doc.on.doc")
+                    Label(L10n.text("Copy paths"), systemImage: "doc.on.doc")
                 }
                 Spacer()
             }
@@ -382,7 +382,7 @@ struct CleanView: View {
                 .foregroundStyle(reason.color)
             Button { NSWorkspace.shared.activateFileViewerSelecting([url]) } label: {
                 Image(systemName: "magnifyingglass").font(.system(size: 10))
-            }.buttonStyle(.plain).foregroundStyle(.secondary).help("Reveal in Finder")
+            }.buttonStyle(.plain).foregroundStyle(.secondary).help(L10n.text("Reveal in Finder"))
         }
         .padding(.vertical, 2)
     }
@@ -390,10 +390,10 @@ struct CleanView: View {
     private var homePath: String { FileManager.default.homeDirectoryForCurrentUser.path }
 
     private func failReason(_ url: URL) -> (label: String, color: Color) {
-        if CleanerEngine.isProtected(url) { return ("Protected by macOS", .purple) }
+        if CleanerEngine.isProtected(url) { return (L10n.text("Protected by macOS"), .purple) }
         return url.path.hasPrefix(homePath)
-            ? ("Needs Full Disk Access", .orange)
-            : ("Needs admin", .red)
+            ? (L10n.text("Needs Full Disk Access"), .orange)
+            : (L10n.text("Needs admin"), .red)
     }
 
     // MARK: - Drop / choose

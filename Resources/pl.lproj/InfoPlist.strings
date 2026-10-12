@@ -1,0 +1,4 @@
+"NSAppleEventsUsageDescription" = "FlowShelf używa zdarzeń systemowych do obsługi globalnych skrótów.";
+"NSAudioCaptureUsageDescription" = "FlowShelf analizuje dźwięk odtwarzany na tym Macu, aby animować opcjonalne słupki muzyki w wycięciu. Dźwięk nie jest zapisywany ani wysyłany, a mikrofon nie jest używany.";
+"NSScreenCaptureUsageDescription" = "FlowShelf używa Nagrywania ekranu do zrzutów na Twoje żądanie, podglądów okien i opcjonalnych efektów w wycięciu.";
+"NSHumanReadableCopyright" = "FlowShelf — tymczasowa półka na Twojego Maca.";

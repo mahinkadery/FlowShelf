@@ -95,20 +95,20 @@ enum NotchHUD: Equatable {
     var title: String {
         switch self {
         case .audioRoute(let name, _, _): return name
-        case .lowPowerMode: return "Low Power Mode"
-        case .lowBattery: return "Low Battery"
-        case .charging(_, let charging, let full): return full ? "Fully charged" : (charging ? "Charging" : "Power connected")
-        case .volume: return "Volume"
-        case .brightness: return "Brightness"
+        case .lowPowerMode: return L10n.text("Low Power Mode")
+        case .lowBattery: return L10n.text("Low Battery")
+        case .charging(_, let charging, let full): return full ? L10n.text("Fully charged") : (charging ? L10n.text("Charging") : L10n.text("Power connected"))
+        case .volume: return L10n.text("Volume")
+        case .brightness: return L10n.text("Brightness")
         }
     }
 
     var detail: String {
         switch self {
-        case .audioRoute(_, _, let bluetooth): return bluetooth ? "Connected for audio" : "Audio output changed"
-        case .lowPowerMode(let enabled): return enabled ? "On · saving energy" : "Off · normal power"
-        case .lowBattery(let percent): return "\(max(0, min(100, percent)))% remaining"
-        case .charging(let percent, _, _): return "\(max(0, min(100, percent)))% battery"
+        case .audioRoute(_, _, let bluetooth): return bluetooth ? L10n.text("Connected for audio") : L10n.text("Audio output changed")
+        case .lowPowerMode(let enabled): return enabled ? L10n.text("On · saving energy") : L10n.text("Off · normal power")
+        case .lowBattery(let percent): return L10n.text("\(max(0, min(100, percent)))% remaining")
+        case .charging(let percent, _, _): return L10n.text("\(max(0, min(100, percent)))% battery")
         default: return ""
         }
     }
@@ -146,7 +146,7 @@ struct NotchHUDView: View {
                             .scaleEffect(compact ? 0.55 : 1)
                             .frame(width: compact ? 58 : 56, height: compact ? height : 56)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(bluetooth ? "Connected" : "Audio output")
+                            Text(bluetooth ? L10n.text("Connected") : L10n.text("Audio output"))
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.55))
                             Text(hud.title)
@@ -202,8 +202,8 @@ struct NotchHUDView: View {
 
     private var accessibilityDescription: String {
         switch hud {
-        case .volume(let level, let muted): return muted ? "Volume muted" : "Volume \(Int(level * 100)) percent"
-        case .brightness(let level): return "Brightness \(Int(level * 100)) percent"
+        case .volume(let level, let muted): return muted ? L10n.text("Volume muted") : L10n.text("Volume \(Int(level * 100)) percent")
+        case .brightness(let level): return L10n.text("Brightness \(Int(level * 100)) percent")
         default: return "\(hud.title), \(hud.detail)"
         }
     }
@@ -253,7 +253,7 @@ struct NotchHUDView: View {
             battery(percent: percent, charging: false)
         case .lowPowerMode(let enabled):
             HStack(spacing: 7) {
-                Text(enabled ? "On" : "Off")
+                Text(enabled ? L10n.text("On") : L10n.text("Off"))
                     .font(.system(size: 13, weight: .semibold))
                 HUDNativeSymbol(name: "battery.100percent", animate: motion && !exiting, trigger: resolved)
                     .font(.system(size: 21, weight: .regular))

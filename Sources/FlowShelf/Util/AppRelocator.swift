@@ -24,18 +24,11 @@ enum AppRelocator {
         let installed = URL(fileURLWithPath: "/Applications/FlowShelf.app")
 
         let alert = NSAlert()
-        alert.messageText = "Move FlowShelf to Applications?"
-        alert.informativeText = """
-        FlowShelf works best from your Applications folder. Running it from the \
-        disk image or your Downloads folder can make macOS forget Screen \
-        Recording and Accessibility permissions between launches — which is why \
-        window previews sometimes stop working until you re-grant them.
-
-        Move it now and FlowShelf will reopen from Applications.
-        """
+        alert.messageText = L10n.text("Move FlowShelf to Applications?")
+        alert.informativeText = L10n.text("FlowShelf works best from your Applications folder. Running it from the disk image or your Downloads folder can make macOS forget Screen Recording and Accessibility permissions between launches — which is why window previews sometimes stop working until you re-grant them.\n\nMove it now and FlowShelf will reopen from Applications.")
         alert.alertStyle = .informational
-        alert.addButton(withTitle: "Move to Applications")
-        alert.addButton(withTitle: "Not Now")
+        alert.addButton(withTitle: L10n.text("Move to Applications"))
+        alert.addButton(withTitle: L10n.text("Not Now"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
         move(to: installed)
@@ -57,10 +50,10 @@ enum AppRelocator {
             // Usually a write-permission error on /Applications. Fall back to
             // revealing the app so the user can drag it across by hand.
             let a = NSAlert()
-            a.messageText = "Couldn’t move FlowShelf automatically"
-            a.informativeText = "Please drag FlowShelf into your Applications folder, then open it from there."
-            a.addButton(withTitle: "Reveal in Finder")
-            a.addButton(withTitle: "Cancel")
+            a.messageText = L10n.text("Couldn’t move FlowShelf automatically")
+            a.informativeText = L10n.text("Please drag FlowShelf into your Applications folder, then open it from there.")
+            a.addButton(withTitle: L10n.text("Reveal in Finder"))
+            a.addButton(withTitle: L10n.text("Cancel"))
             if a.runModal() == .alertFirstButtonReturn {
                 NSWorkspace.shared.activateFileViewerSelecting([source])
             }

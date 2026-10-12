@@ -12,9 +12,9 @@ struct BatchDragHandle: NSViewRepresentable {
         view.count = count
         view.prepare = prepare
         view.report = report
-        view.toolTip = "Drag selected items. Originals stay in place; the receiving app decides which types it accepts."
+        view.toolTip = L10n.text("Drag selected items. Originals stay in place; the receiving app decides which types it accepts.")
         view.setAccessibilityElement(true)
-        view.setAccessibilityLabel("Drag \(count) selected items")
+        view.setAccessibilityLabel(L10n.text("Drag \(count) selected items"))
         view.needsDisplay = true
     }
 }
@@ -28,7 +28,7 @@ final class BatchDragView: NSView, NSDraggingSource {
     override func draw(_ dirtyRect: NSRect) {
         NSColor.controlAccentColor.withAlphaComponent(count > 0 ? 0.15 : 0.05).setFill()
         NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 7, yRadius: 7).fill()
-        let label = NSAttributedString(string: "⠿ Drag \(count) items", attributes: [
+        let label = NSAttributedString(string: L10n.text("⠿ Drag \(count) items"), attributes: [
             .font: NSFont.systemFont(ofSize: 12, weight: .medium),
             .foregroundColor: count > 0 ? NSColor.labelColor : NSColor.disabledControlTextColor
         ])
@@ -60,7 +60,7 @@ final class BatchDragView: NSView, NSDraggingSource {
             let session = beginDraggingSession(with: draggingItems, event: initialEvent, source: self)
             session.draggingFormation = .stack
             session.animatesToStartingPositionsOnCancelOrFail = true
-            report?("Dragging \(entries.count) items. Originals stay in place.")
+            report?(L10n.text("Dragging \(entries.count) items. Originals stay in place."))
         } catch {
             report?(error.localizedDescription)
         }
@@ -74,7 +74,7 @@ final class BatchDragView: NSView, NSDraggingSource {
 
     func draggingSession(_ session: NSDraggingSession, endedAt screenPoint: NSPoint, operation: NSDragOperation) {
         report?(operation.contains(.copy)
-                ? "Drop accepted by the destination. Check it there; originals stay in place."
-                : "Drag cancelled or not accepted. Originals stay in place.")
+                ? L10n.text("Drop accepted by the destination. Check it there; originals stay in place.")
+                : L10n.text("Drag cancelled or not accepted. Originals stay in place."))
     }
 }

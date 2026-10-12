@@ -7,16 +7,16 @@ struct PermissionHealthView: View {
 
     private var accessibilityReasons: [String] {
         var reasons: [String] = []
-        if settings.windowSnapEnabled { reasons.append("Window snapping") }
-        if settings.dockPreviewsEnabled { reasons.append("Dock previews") }
-        if settings.altTabEnabled { reasons.append("Window switcher") }
+        if settings.windowSnapEnabled { reasons.append(L10n.text("Window snapping")) }
+        if settings.dockPreviewsEnabled { reasons.append(L10n.text("Dock previews")) }
+        if settings.altTabEnabled { reasons.append(L10n.text("Window switcher")) }
         return reasons
     }
 
     private var screenRecordingReasons: [String] {
-        var reasons = ["Screenshots"]
-        if settings.dockPreviewsEnabled { reasons.append("Dock previews") }
-        if settings.notchEnabled { reasons.append("Notch lens") }
+        var reasons = [L10n.text("Screenshots")]
+        if settings.dockPreviewsEnabled { reasons.append(L10n.text("Dock previews")) }
+        if settings.notchEnabled { reasons.append(L10n.text("Notch lens")) }
         return reasons
     }
 
@@ -40,21 +40,21 @@ struct PermissionHealthView: View {
             PaneHeader(
                 icon: "checkmark.shield",
                 tint: .teal,
-                title: "Permissions",
-                subtitle: "See exactly what FlowShelf can access — and why"
+                title: L10n.text("Permissions"),
+                subtitle: L10n.text("See exactly what FlowShelf can access — and why")
             )
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     healthSummary
 
-                    permissionSectionLabel("Required for enabled features")
+                    permissionSectionLabel(L10n.text("Required for enabled features"))
 
                     PermissionRow(
                         icon: "rectangle.inset.filled.and.person.filled",
                         tint: .purple,
-                        title: "Screen Recording",
-                        detail: "Used by \(screenRecordingReasons.joined(separator: ", ")) to capture pixels from other apps.",
+                        title: L10n.text("Screen Recording"),
+                        detail: L10n.text("Used by \(screenRecordingReasons.joined(separator: ", ")) to capture pixels from other apps."),
                         isRequired: true,
                         isGranted: Permissions.hasScreenRecording,
                         request: { Permissions.requestScreenRecording() },
@@ -65,8 +65,8 @@ struct PermissionHealthView: View {
                         PermissionRow(
                             icon: "figure.wave",
                             tint: .blue,
-                            title: "Accessibility",
-                            detail: "Used by \(accessibilityReasons.joined(separator: ", ")) to read and move windows.",
+                            title: L10n.text("Accessibility"),
+                            detail: L10n.text("Used by \(accessibilityReasons.joined(separator: ", ")) to read and move windows."),
                             isRequired: true,
                             isGranted: Permissions.hasAccessibility,
                             request: { Permissions.requestAccessibility() },
@@ -78,8 +78,8 @@ struct PermissionHealthView: View {
                         PermissionRow(
                             icon: "keyboard.badge.eye",
                             tint: .orange,
-                            title: "Input Monitoring",
-                            detail: "Used by the enabled Notch volume and brightness HUDs to detect hardware keys.",
+                            title: L10n.text("Input Monitoring"),
+                            detail: L10n.text("Used by the enabled Notch volume and brightness HUDs to detect hardware keys."),
                             isRequired: true,
                             isGranted: Permissions.hasInputMonitoring,
                             request: { Permissions.requestInputMonitoring() },
@@ -87,14 +87,14 @@ struct PermissionHealthView: View {
                         )
                     }
 
-                    permissionSectionLabel("Optional enhancements")
+                    permissionSectionLabel(L10n.text("Optional enhancements"))
 
                     if accessibilityReasons.isEmpty {
                         PermissionRow(
                             icon: "figure.wave",
                             tint: .blue,
-                            title: "Accessibility",
-                            detail: "Not needed for your current setup. Enable a window feature if you want to use it.",
+                            title: L10n.text("Accessibility"),
+                            detail: L10n.text("Not needed for your current setup. Enable a window feature if you want to use it."),
                             isRequired: false,
                             isGranted: Permissions.hasAccessibility,
                             request: { Permissions.requestAccessibility() },
@@ -106,8 +106,8 @@ struct PermissionHealthView: View {
                         PermissionRow(
                             icon: "keyboard.badge.eye",
                             tint: .orange,
-                            title: "Input Monitoring",
-                            detail: "Optional unless Notch volume and brightness HUDs are enabled.",
+                            title: L10n.text("Input Monitoring"),
+                            detail: L10n.text("Optional unless Notch volume and brightness HUDs are enabled."),
                             isRequired: false,
                             isGranted: Permissions.hasInputMonitoring,
                             request: { Permissions.requestInputMonitoring() },
@@ -118,24 +118,24 @@ struct PermissionHealthView: View {
                     OptionalPermissionRow(
                         icon: "externaldrive.badge.checkmark",
                         tint: .green,
-                        title: "Full Disk Access",
-                        status: "Optional",
-                        detail: "Only useful for Cleaner when macOS protects leftover files in Library folders.",
-                        actionTitle: "Open Settings",
+                        title: L10n.text("Full Disk Access"),
+                        status: L10n.text("Optional"),
+                        detail: L10n.text("Only useful for Cleaner when macOS protects leftover files in Library folders."),
+                        actionTitle: L10n.text("Open Settings"),
                         action: { Permissions.openSettings(.fullDiskAccess) }
                     )
 
                     OptionalPermissionRow(
                         icon: "bell.slash",
                         tint: .gray,
-                        title: "Notifications",
-                        status: "Not required",
-                        detail: "FlowShelf currently does not send notifications, so it never asks for notification access.",
+                        title: L10n.text("Notifications"),
+                        status: L10n.text("Not required"),
+                        detail: L10n.text("FlowShelf currently does not send notifications, so it never asks for notification access."),
                         actionTitle: nil,
                         action: {}
                     )
 
-                    Text("FlowShelf asks only when a feature needs access. macOS may require restarting FlowShelf after you change a privacy permission.")
+                    Text(L10n.text("FlowShelf asks only when a feature needs access. macOS may require restarting FlowShelf after you change a privacy permission."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
@@ -164,9 +164,9 @@ struct PermissionHealthView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(grantedRequiredCount == requiredPermissionStates.count
-                     ? "Enabled features are ready" : "Enabled features need access")
+                     ? L10n.text("Enabled features are ready") : L10n.text("Enabled features need access"))
                     .font(.system(size: 15, weight: .semibold))
-                Text("Only permissions required by your current setup affect this score.")
+                Text(L10n.text("Only permissions required by your current setup affect this score."))
                     .font(.system(size: 11.5))
                     .foregroundStyle(.secondary)
             }
@@ -174,7 +174,7 @@ struct PermissionHealthView: View {
             Button {
                 refresh()
             } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
+                Label(L10n.text("Refresh"), systemImage: "arrow.clockwise")
             }
             .controlSize(.small)
         }
@@ -213,7 +213,7 @@ private struct PermissionRow: View {
                 HStack(spacing: 7) {
                     Text(title).font(.system(size: 13.5, weight: .semibold))
                     StatusBadge(
-                        label: isGranted ? "Granted" : (isRequired ? "Required" : "Optional"),
+                        label: isGranted ? L10n.text("Granted") : (isRequired ? L10n.text("Required") : L10n.text("Optional")),
                         tint: isGranted ? .green : (isRequired ? .orange : .secondary)
                     )
                 }
@@ -229,9 +229,9 @@ private struct PermissionRow: View {
                     .foregroundStyle(.green)
             } else {
                 HStack(spacing: 7) {
-                    Button("Ask macOS") { _ = request() }
+                    Button(L10n.text("Ask macOS")) { _ = request() }
                         .controlSize(.small)
-                    Button("Settings") { openSettings() }
+                    Button(L10n.text("Settings")) { openSettings() }
                         .controlSize(.small)
                 }
             }

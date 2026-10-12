@@ -4,7 +4,7 @@ import Combine
 @MainActor
 final class ImageTextIndexer: ObservableObject {
     static let shared = ImageTextIndexer()
-    @Published private(set) var summary = "Off — no images are being scanned."
+    @Published private(set) var summary = L10n.text("Off — no images are being scanned.")
     @Published private(set) var isIndexing = false
     @Published private(set) var failedCount = 0
     private let queue = DispatchQueue(label: "app.flowshelf.image-text-index", qos: .utility)
@@ -58,8 +58,8 @@ final class ImageTextIndexer: ObservableObject {
         guard settings.imageTextSearchEnabled, !settings.privateMode else {
             job?.cancel()
             isIndexing = false
-            summary = settings.imageTextSearchEnabled ? "Paused by Private Mode."
-                : "Off — existing indexed text stays searchable until cleared."
+            summary = settings.imageTextSearchEnabled ? L10n.text("Paused by Private Mode.")
+                : L10n.text("Off — existing indexed text stays searchable until cleared.")
             return
         }
         let images = store.visibleItems.filter(\.supportsImageTextSearch)
@@ -68,23 +68,23 @@ final class ImageTextIndexer: ObservableObject {
         let completed = images.filter { $0.imageSearchText != nil }.count
         if let currentID, !images.contains(where: { $0.id == currentID }) { job?.cancel() }
         guard job == nil else {
-            summary = "Scanning saved images: \(completed) of \(images.count) checked…"
+            summary = L10n.text("Scanning saved images: \(completed) of \(images.count) checked…")
             return
         }
         guard let item = images.first(where: { $0.imageSearchText == nil && !failedIDs.contains($0.id) }),
               let url = store.imageURL(for: item), let relativePath = item.imageRelPath else {
             isIndexing = false
             let searchable = images.filter { !($0.imageSearchText ?? "").isEmpty }.count
-            summary = images.isEmpty ? "Ready — new saved images will be scanned."
-                : "\(completed) of \(images.count) checked · \(searchable) contain searchable text."
-            if failedCount > 0 { summary += " \(failedCount) could not be read." }
+            summary = images.isEmpty ? L10n.text("Ready — new saved images will be scanned.")
+                : L10n.text("\(completed) of \(images.count) checked · \(searchable) contain searchable text.")
+            if failedCount > 0 { summary += L10n.text(" \(failedCount) could not be read.") }
             return
         }
         let request = ImageTextRecognition()
         job = request
         currentID = item.id
         isIndexing = true
-        summary = "Scanning saved images: \(completed) of \(images.count) checked…"
+        summary = L10n.text("Scanning saved images: \(completed) of \(images.count) checked…")
         queue.async { [weak self] in
             let result = Result { try request.recognize(at: url) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

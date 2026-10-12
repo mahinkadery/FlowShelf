@@ -14,9 +14,12 @@ INSTALL_DIR := /Applications
 # Create it once with `make cert-help`. Falls back to ad-hoc if it's missing.
 CODESIGN_ID ?= FlowShelf Self-Signed
 
-.PHONY: all build bundle embed-sparkle icon sign run clean install developer-id-bundle dist release release-check notary-setup dmg set-version cert-help
+.PHONY: check-localizations all build bundle embed-sparkle icon sign run clean install developer-id-bundle dist release release-check notary-setup dmg set-version cert-help
 
 all: bundle
+
+check-localizations:
+	@./scripts/check-localizations.sh
 
 # Universal build: compile each arch (full Xcode's multi-arch needs xcbuild, which
 # Command Line Tools lacks), then lipo the slices into one fat binary.
@@ -43,6 +46,10 @@ bundle: build icon
 	@mkdir -p $(MACOS_DIR) $(CONTENTS)/Resources
 	@cp $(BIN) $(MACOS_DIR)/$(APP)
 	@cp Resources/Info.plist $(CONTENTS)/Info.plist
+	@RESOURCE_BUNDLE=$$(swift build -c $(CONFIG) --arch arm64 --show-bin-path)/FlowShelf_FlowShelf.bundle; \
+		test -d "$$RESOURCE_BUNDLE"; \
+		ditto "$$RESOURCE_BUNDLE" "$(CONTENTS)/Resources/FlowShelf_FlowShelf.bundle"
+	@for language in en pl; do ditto "Resources/$$language.lproj" "$(CONTENTS)/Resources/$$language.lproj"; done
 	@ditto Resources/Notch3D $(CONTENTS)/Resources/Notch3D
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
 	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi
@@ -140,6 +147,10 @@ developer-id-bundle: build icon
 	@rm -rf $(BUNDLE) && mkdir -p $(MACOS_DIR) $(CONTENTS)/Resources
 	@cp $(BIN) $(MACOS_DIR)/$(APP)
 	@cp Resources/Info.plist $(CONTENTS)/Info.plist
+	@RESOURCE_BUNDLE=$$(swift build -c $(CONFIG) --arch arm64 --show-bin-path)/FlowShelf_FlowShelf.bundle; \
+		test -d "$$RESOURCE_BUNDLE"; \
+		ditto "$$RESOURCE_BUNDLE" "$(CONTENTS)/Resources/FlowShelf_FlowShelf.bundle"
+	@for language in en pl; do ditto "Resources/$$language.lproj" "$(CONTENTS)/Resources/$$language.lproj"; done
 	@ditto Resources/Notch3D $(CONTENTS)/Resources/Notch3D
 	@if [ -f Resources/AppIcon.icns ]; then cp Resources/AppIcon.icns $(CONTENTS)/Resources/AppIcon.icns; fi
 	@if [ -f Resources/buymeacoffee.png ]; then cp Resources/buymeacoffee.png $(CONTENTS)/Resources/buymeacoffee.png; fi

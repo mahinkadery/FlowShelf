@@ -214,38 +214,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return menu
         }
         let app = submenu("FlowShelf")
-        app.addItem(withTitle: "About FlowShelf", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(withTitle: L10n.text("About FlowShelf"), action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         app.addItem(.separator())
-        let settings = app.addItem(withTitle: "Settings…", action: #selector(menuOpenSettings), keyEquivalent: ",")
+        let settings = app.addItem(withTitle: L10n.text("Settings…"), action: #selector(menuOpenSettings), keyEquivalent: ",")
         settings.target = self
         app.addItem(.separator())
-        let services = NSMenu(title: "Services")
-        app.addItem(withTitle: "Services", action: nil, keyEquivalent: "").submenu = services
+        let services = NSMenu(title: L10n.text("Services"))
+        app.addItem(withTitle: L10n.text("Services"), action: nil, keyEquivalent: "").submenu = services
         NSApp.servicesMenu = services
         app.addItem(.separator())
-        app.addItem(withTitle: "Hide FlowShelf", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        let hideOthers = app.addItem(withTitle: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+        app.addItem(withTitle: L10n.text("Hide FlowShelf"), action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
+        let hideOthers = app.addItem(withTitle: L10n.text("Hide Others"), action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
         hideOthers.keyEquivalentModifierMask = [.command, .option]
-        app.addItem(withTitle: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
+        app.addItem(withTitle: L10n.text("Show All"), action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: "")
         app.addItem(.separator())
-        app.addItem(withTitle: "Quit FlowShelf", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        app.addItem(withTitle: L10n.text("Quit FlowShelf"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
 
-        let edit = submenu("Edit")
-        edit.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
-        let redo = edit.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+        let edit = submenu(L10n.text("Edit"))
+        edit.addItem(withTitle: L10n.text("Undo"), action: Selector(("undo:")), keyEquivalent: "z")
+        let redo = edit.addItem(withTitle: L10n.text("Redo"), action: Selector(("redo:")), keyEquivalent: "z")
         redo.keyEquivalentModifierMask = [.command, .shift]
         edit.addItem(.separator())
-        edit.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        edit.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        edit.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        edit.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+        edit.addItem(withTitle: L10n.text("Cut"), action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        edit.addItem(withTitle: L10n.text("Copy"), action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        edit.addItem(withTitle: L10n.text("Paste"), action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        edit.addItem(withTitle: L10n.text("Select All"), action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
 
-        let windows = submenu("Window")
-        windows.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        windows.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
-        windows.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        let windows = submenu(L10n.text("Window"))
+        windows.addItem(withTitle: L10n.text("Close"), action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+        windows.addItem(withTitle: L10n.text("Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+        windows.addItem(withTitle: L10n.text("Zoom"), action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
         windows.addItem(.separator())
-        windows.addItem(withTitle: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
+        windows.addItem(withTitle: L10n.text("Bring All to Front"), action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
         NSApp.windowsMenu = windows
         NSApp.mainMenu = main
     }
@@ -278,14 +278,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let i = NSMenuItem(title: title, action: action, keyEquivalent: key)
             i.target = self; return i
         }
-        menu.addItem(item("Open App (Dashboard)", #selector(menuOpenDashboard)))
-        menu.addItem(item("Open Shelf", #selector(menuOpenShelf)))
-        menu.addItem(item("Show Welcome…", #selector(menuShowWelcome)))
+        menu.addItem(item(L10n.text("Open App (Dashboard)"), #selector(menuOpenDashboard)))
+        menu.addItem(item(L10n.text("Open Shelf"), #selector(menuOpenShelf)))
+        menu.addItem(item(L10n.text("Show Welcome…"), #selector(menuShowWelcome)))
 
         // Quick "Copy Snippet ▸" submenu — paste-ready text without opening the app.
         let snippets = SnippetStore.shared.snippets
         if !snippets.isEmpty {
-            let parent = NSMenuItem(title: "Copy Snippet", action: nil, keyEquivalent: "")
+            let parent = NSMenuItem(title: L10n.text("Copy Snippet"), action: nil, keyEquivalent: "")
             let sub = NSMenu()
             for s in snippets.prefix(20) {
                 let mi = NSMenuItem(title: s.title, action: #selector(menuCopySnippet(_:)), keyEquivalent: "")
@@ -298,7 +298,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         menu.addItem(.separator())
-        menu.addItem(item("Quit FlowShelf", #selector(menuQuit), key: "q"))
+        menu.addItem(item(L10n.text("Quit FlowShelf"), #selector(menuQuit), key: "q"))
 
         statusItem.menu = menu
         statusItem.button?.performClick(nil)

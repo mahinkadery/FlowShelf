@@ -32,3 +32,8 @@ license terms. You confirm you have the right to grant this.
 
 ## Project layout
 See the architecture section in [README.md](README.md).
+
+## Localization
+
+See [LOCALIZATION.md](LOCALIZATION.md) for the catalogs, interpolation rules,
+macOS language selection and `make check-localizations` verification.

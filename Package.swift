@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "FlowShelf",
+    defaultLocalization: "en",
     platforms: [
         .macOS(.v14)
     ],
@@ -15,7 +16,8 @@ let package = Package(
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle")
             ],
-            path: "Sources/FlowShelf"
+            path: "Sources/FlowShelf",
+            resources: [.process("Resources")]
         )
     ]
 )

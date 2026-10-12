@@ -13,8 +13,8 @@ enum AppRelaunch {
             DispatchQueue.main.async {
                 guard application != nil, error == nil else {
                     let alert = NSAlert()
-                    alert.messageText = "FlowShelf couldn’t reopen"
-                    alert.informativeText = "Your current session is still running. Try opening FlowShelf again from Applications."
+                    alert.messageText = L10n.text("FlowShelf couldn’t reopen")
+                    alert.informativeText = L10n.text("Your current session is still running. Try opening FlowShelf again from Applications.")
                     alert.runModal()
                     return
                 }

@@ -28,7 +28,7 @@ enum AIService {
         #if canImport(FoundationModels)
         if #available(macOS 26.0, *) { return statusMessage26() }
         #endif
-        return "On-device AI needs macOS 26 or later."
+        return L10n.text("On-device AI needs macOS 26 or later.")
     }
 
     static func title(for text: String) async -> String? {
@@ -55,7 +55,7 @@ enum AIService {
         guard !Task.isCancelled else { return nil }
         let sources = matches.compactMap { match in shelf.first { $0.id.uuidString == match.id } }
         guard !sources.isEmpty else {
-            return ShelfAnswer(text: "I couldn’t find matching text in your shelf or snippets. Try a specific word, filename, or phrase. Images need OCR text before I can search their contents.", sources: [])
+            return ShelfAnswer(text: L10n.text("I couldn’t find matching text in your shelf or snippets. Try a specific word, filename, or phrase. Images need OCR text before I can search their contents."), sources: [])
         }
         let ctx = sources.enumerated().map { position, item in
             "[\(position + 1)] \(ShelfRetrieval.excerpt(item.title + "\n" + item.text, query: question, limit: 850))"
@@ -127,20 +127,20 @@ enum AIService {
     private static func statusMessage26() -> String {
         switch SystemLanguageModel.default.availability {
         case .available:
-            return "Ready — runs entirely on your Mac."
+            return L10n.text("Ready — runs entirely on your Mac.")
         case .unavailable(let reason):
             switch reason {
             case .appleIntelligenceNotEnabled:
-                return "Turn on Apple Intelligence in System Settings ▸ Apple Intelligence & Siri, then reopen FlowShelf."
+                return L10n.text("Turn on Apple Intelligence in System Settings ▸ Apple Intelligence & Siri, then reopen FlowShelf.")
             case .modelNotReady:
-                return "Apple Intelligence is still downloading its model. Try again in a few minutes."
+                return L10n.text("Apple Intelligence is still downloading its model. Try again in a few minutes.")
             case .deviceNotEligible:
-                return "This Mac isn’t eligible for Apple Intelligence."
+                return L10n.text("This Mac isn’t eligible for Apple Intelligence.")
             @unknown default:
-                return "On-device AI is unavailable right now."
+                return L10n.text("On-device AI is unavailable right now.")
             }
         @unknown default:
-            return "On-device AI is unavailable right now."
+            return L10n.text("On-device AI is unavailable right now.")
         }
     }
 

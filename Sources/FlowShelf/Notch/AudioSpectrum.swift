@@ -12,7 +12,7 @@ final class AudioSpectrum: ObservableObject {
     @Published private(set) var level: Float = 0
     @Published private(set) var bands: [Float] = Array(repeating: 0, count: 6)
     @Published private(set) var active = false
-    @Published private(set) var statusMessage = "Compatibility capture. Process taps are optional and experimental."
+    @Published private(set) var statusMessage = L10n.text("Compatibility capture. Process taps are optional and experimental.")
     @Published private(set) var isStarting = false
 
     private var stream: SCStream?
@@ -54,17 +54,17 @@ final class AudioSpectrum: ObservableObject {
 
     func setScreenLocked(_ locked: Bool) {
         screenLocked = locked
-        if locked { stopCapture(message: "Audio capture paused while locked.") }
+        if locked { stopCapture(message: L10n.text("Audio capture paused while locked.")) }
         else { start() }
     }
 
     func setSleeping(_ asleep: Bool) {
         sleeping = asleep
-        if asleep { stopCapture(message: "Audio capture paused while sleeping.") }
+        if asleep { stopCapture(message: L10n.text("Audio capture paused while sleeping.")) }
         else { start() }
     }
 
-    private func stopCapture(message: String = "Audio capture is idle.") {
+    private func stopCapture(message: String = L10n.text("Audio capture is idle.")) {
         generation = UUID()
         attempted = false
         isStarting = false
@@ -114,10 +114,10 @@ final class AudioSpectrum: ObservableObject {
         }
         guard Permissions.hasScreenRecording else {
             isStarting = false
-            statusMessage = "Compatibility capture needs Screen Recording permission. Grant it, then Retry."
+            statusMessage = L10n.text("Compatibility capture needs Screen Recording permission. Grant it, then Retry.")
             return
         }
-        statusMessage = "Starting compatibility audio capture…"
+        statusMessage = L10n.text("Starting compatibility audio capture…")
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -126,7 +126,7 @@ final class AudioSpectrum: ObservableObject {
                 guard self.generation == session, self.wantActive, !self.screenLocked, !self.sleeping else { return }
                 guard let display = content.displays.first else {
                     self.isStarting = false
-                    self.statusMessage = "No display is available for compatibility capture. Retry when a display is connected."
+                    self.statusMessage = L10n.text("No display is available for compatibility capture. Retry when a display is connected.")
                     return
                 }
                 let filter = SCContentFilter(display: display, excludingWindows: [])
@@ -146,7 +146,7 @@ final class AudioSpectrum: ObservableObject {
                 } onFailure: { [weak self] in
                     Task { @MainActor in
                         guard let self, self.generation == session else { return }
-                        self.stopCapture(message: "Compatibility audio capture stopped. Retry to reconnect.")
+                        self.stopCapture(message: L10n.text("Compatibility audio capture stopped. Retry to reconnect."))
                         self.attempted = true
                     }
                 }
@@ -162,11 +162,11 @@ final class AudioSpectrum: ObservableObject {
                 self.stream = stream
                 self.output = out
                 self.active = true
-                self.statusMessage = "Compatibility capture connected (system mix)."
+                self.statusMessage = L10n.text("Compatibility capture connected (system mix).")
             } catch {
                 guard self.generation == session else { return }
                 self.isStarting = false
-                self.statusMessage = "Compatibility capture unavailable. Check Screen Recording permission, then Retry."
+                self.statusMessage = L10n.text("Compatibility capture unavailable. Check Screen Recording permission, then Retry.")
             }
         }
     }
@@ -174,10 +174,10 @@ final class AudioSpectrum: ObservableObject {
     private func startProcessTap(session: UUID) {
         guard #available(macOS 14.4, *) else {
             isStarting = false
-            statusMessage = "Process taps require macOS 14.4 or later. Choose Compatibility."
+            statusMessage = L10n.text("Process taps require macOS 14.4 or later. Choose Compatibility.")
             return
         }
-        statusMessage = "Starting process tap… macOS may ask for audio-recording permission."
+        statusMessage = L10n.text("Starting process tap… macOS may ask for audio-recording permission.")
         let tap = processTapFactory?() ?? ProcessAudioTap()
         processTap = tap
         tap.start(playerBundleID: mode == .playerTap ? playerBundleID : nil) { [weak self] failure in
@@ -189,7 +189,7 @@ final class AudioSpectrum: ObservableObject {
                     self.attempted = true
                     return
                 }
-                self.statusMessage = "Process tap connected; waiting for audio buffers…"
+                self.statusMessage = L10n.text("Process tap connected; waiting for audio buffers…")
                 let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] _ in
                     MainActor.assumeIsolated {
                         guard let self, self.generation == session else { return }
@@ -212,8 +212,8 @@ final class AudioSpectrum: ObservableObject {
             if !active { active = true }
             ingest(rms, bands: bands)
             let message = rms > 0.00001
-                ? "Process tap receiving audio (\(mode == .playerTap ? playerBundleID : "system mix"))."
-                : "Process tap connected, but no audible signal. Check the player and audio-recording permission if this persists."
+                ? L10n.text("Process tap receiving audio (\(mode == .playerTap ? playerBundleID : L10n.text("system mix"))).")
+                : L10n.text("Process tap connected, but no audible signal. Check the player and audio-recording permission if this persists.")
             if statusMessage != message { statusMessage = message }
         } else if active, Date().timeIntervalSince(lastSpectrumAt) > 0.15 {
             ingest(0, bands: Array(repeating: 0, count: 6))

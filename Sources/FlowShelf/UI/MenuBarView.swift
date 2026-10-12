@@ -6,12 +6,12 @@ enum ShelfFilter: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .today: return "Today"
-        case .pinned: return "Pinned"
-        case .screenshots: return "Shots"
-        case .files: return "Files"
-        case .links: return "Links"
-        case .text: return "Text"
+        case .today: return L10n.text("Today")
+        case .pinned: return L10n.text("Pinned")
+        case .screenshots: return L10n.text("Shots")
+        case .files: return L10n.text("Files")
+        case .links: return L10n.text("Links")
+        case .text: return L10n.text("Text")
         }
     }
     var symbol: String {
@@ -140,7 +140,7 @@ struct MenuBarView: View {
             Text("FlowShelf").font(.system(size: 13, weight: .semibold))
 
             if !hasOpenedDashboard {
-                Text("full app →")
+                Text(L10n.text("full app →"))
                     .font(.system(size: 10.5, weight: .medium))
                     .foregroundStyle(Color.accentColor)
                     .transition(.opacity)
@@ -148,7 +148,7 @@ struct MenuBarView: View {
             Spacer()
 
             Button(action: openDashboard) {
-                Label("Open App", systemImage: "square.grid.2x2.fill")
+                Label(L10n.text("Open App"), systemImage: "square.grid.2x2.fill")
                     .font(.system(size: 11.5, weight: .semibold))
                     .padding(.horizontal, 11).padding(.vertical, 4.5)
                     .background(Capsule().fill(Color.accentColor))
@@ -157,7 +157,7 @@ struct MenuBarView: View {
                             radius: hasOpenedDashboard ? 0 : 6)
             }
             .buttonStyle(.plain)
-            .help("Open the full FlowShelf app — shelf, snippets, notch, peek, clean & settings · ⌘⇧D")
+            .help(L10n.text("Open the full FlowShelf app — shelf, snippets, notch, peek, clean & settings · ⌘⇧D"))
         }
         .padding(.horizontal, 12).padding(.top, 9).padding(.bottom, 7)
         .animation(FlowMotion.state, value: hasOpenedDashboard)
@@ -168,7 +168,7 @@ struct MenuBarView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundStyle(.secondary)
                 .font(.system(size: 12))
-            TextField("Search today’s shelf…", text: $query)
+            TextField(L10n.text("Search today’s shelf…"), text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .onSubmit { if canSmartSearch { runAISearch() } }
@@ -179,22 +179,22 @@ struct MenuBarView: View {
                 Button { aiResultIDs = nil } label: {
                     Image(systemName: "sparkles").foregroundStyle(Color.accentColor)
                 }
-                .buttonStyle(.plain).help("Clear AI results")
+                .buttonStyle(.plain).help(L10n.text("Clear AI results"))
             } else if canSmartSearch {
                 Button { runAISearch() } label: {
                     Image(systemName: "sparkles").foregroundStyle(.secondary)
                 }
-                .buttonStyle(.plain).help("Smart search with AI · ⏎")
+                .buttonStyle(.plain).help(L10n.text("Smart search with AI · ⏎"))
             }
             if settings.clipboardEnabled, !settings.privateMode, let warning = clipboard.accessWarning {
                 Image(systemName: "exclamationmark.triangle")
                     .foregroundStyle(.orange).help(warning)
             }
             if settings.privateMode {
-                Label("Private", systemImage: "eye.slash")
+                Label(L10n.text("Private"), systemImage: "eye.slash")
                     .labelStyle(.iconOnly)
                     .foregroundStyle(.orange)
-                    .help("Clipboard capture paused")
+                    .help(L10n.text("Clipboard capture paused"))
             }
         }
         .padding(.horizontal, 12)
@@ -235,10 +235,10 @@ struct MenuBarView: View {
                 Image(systemName: "tray")
                     .font(.system(size: 28))
                     .foregroundStyle(.tertiary)
-                Text(query.isEmpty ? "Nothing on the shelf yet" : "No matches")
+                Text(query.isEmpty ? L10n.text("Nothing on the shelf yet") : L10n.text("No matches"))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
-                Text("Copy something, take a screenshot (⌘⇧7),\nor drop a file here.")
+                Text(L10n.text("Copy something, take a screenshot (⌘⇧7),\nor drop a file here."))
                     .font(.system(size: 11))
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.tertiary)
@@ -263,16 +263,16 @@ struct MenuBarView: View {
     private var footer: some View {
         HStack(spacing: 14) {
             Menu {
-                Button("Capture Region", systemImage: "camera.viewfinder") {
+                Button(L10n.text("Capture Region"), systemImage: "camera.viewfinder") {
                     ScreenshotService.shared.captureRegion(runOCR: false)
                 }
                 .keyboardShortcut("7", modifiers: [.command, .shift])
-                Button("Capture Region + OCR", systemImage: "text.viewfinder") {
+                Button(L10n.text("Capture Region + OCR"), systemImage: "text.viewfinder") {
                     ScreenshotService.shared.captureRegion(runOCR: true)
                 }
                 .keyboardShortcut("o", modifiers: [.command, .shift])
                 Divider()
-                Button("Capture Window", systemImage: "macwindow.and.cursorarrow") {
+                Button(L10n.text("Capture Window"), systemImage: "macwindow.and.cursorarrow") {
                     ScreenshotService.shared.captureWindow()
                 }
             } label: {
@@ -281,7 +281,7 @@ struct MenuBarView: View {
             .menuStyle(.borderlessButton)
             .fixedSize()
             .foregroundStyle(.secondary)
-            .help("Capture")
+            .help(L10n.text("Capture"))
 
             Menu {
                 ForEach(ClipboardCaptureState.allCases) { state in
@@ -299,14 +299,14 @@ struct MenuBarView: View {
             .menuStyle(.borderlessButton)
             .fixedSize()
             .foregroundStyle(settings.clipboardCaptureState == .paused ? .orange : .secondary)
-            .help("Clipboard capture: \(settings.clipboardCaptureState.label)")
+            .help(L10n.text("Clipboard capture: \(settings.clipboardCaptureState.label)"))
 
             Spacer()
-            footerButton("trash", "Clear unpinned") {
+            footerButton("trash", L10n.text("Clear unpinned")) {
                 store.clearAll(includingPinned: false)
             }
-            footerButton("gearshape", "Settings") { showSettings = true }
-            footerButton("power", "Quit FlowShelf") { NSApp.terminate(nil) }
+            footerButton("gearshape", L10n.text("Settings")) { showSettings = true }
+            footerButton("power", L10n.text("Quit FlowShelf")) { NSApp.terminate(nil) }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

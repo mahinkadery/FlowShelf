@@ -71,7 +71,7 @@ struct ShelfItemRow: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(Color.accentColor.opacity(0.16))
                     .overlay(
-                        Label("Copied", systemImage: "checkmark.circle.fill")
+                        Label(L10n.text("Copied"), systemImage: "checkmark.circle.fill")
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.green)
                     )
@@ -124,8 +124,8 @@ struct ShelfItemRow: View {
     /// In Permanent mode items never expire, so show "Saved" rather than a
     /// misleading countdown.
     private var expiryText: String {
-        if item.pinned { return "Pinned" }
-        return keepForever ? "Saved" : item.expiryLabel
+        if item.pinned { return L10n.text("Pinned") }
+        return keepForever ? L10n.text("Saved") : item.expiryLabel
     }
     private var expiryColor: Color {
         if item.pinned { return .orange }
@@ -133,9 +133,9 @@ struct ShelfItemRow: View {
         return item.expiringSoon ? .red : .secondary.opacity(0.7)
     }
     private var expiryHelp: String {
-        if item.pinned { return "Pinned — won’t auto-delete" }
-        if keepForever { return "Saved — permanent retention is on" }
-        return "Auto-deletes \(item.expiresAt.shortTime)"
+        if item.pinned { return L10n.text("Pinned — won’t auto-delete") }
+        if keepForever { return L10n.text("Saved — permanent retention is on") }
+        return L10n.text("Auto-deletes \(item.expiresAt.shortTime)")
     }
 
     private var subtitle: String {
@@ -149,11 +149,11 @@ struct ShelfItemRow: View {
 
     private var rowActions: some View {
         HStack(spacing: 8) {
-            iconButton("doc.on.doc", "Copy") { ItemActions.copyToPasteboard(item) }
-            iconButton(item.pinned ? "pin.slash" : "pin", item.pinned ? "Unpin" : "Pin") {
+            iconButton("doc.on.doc", L10n.text("Copy")) { ItemActions.copyToPasteboard(item) }
+            iconButton(item.pinned ? "pin.slash" : "pin", item.pinned ? L10n.text("Unpin") : L10n.text("Pin")) {
                 store.togglePin(item.id)
             }
-            iconButton("xmark", "Remove") { store.remove(item.id) }
+            iconButton("xmark", L10n.text("Remove")) { store.remove(item.id) }
         }
     }
 
@@ -167,50 +167,50 @@ struct ShelfItemRow: View {
     }
 
     @ViewBuilder private var contextMenu: some View {
-        Button("Copy") { ItemActions.copyToPasteboard(item) }
+        Button(L10n.text("Copy")) { ItemActions.copyToPasteboard(item) }
         if item.richTextRTF != nil {
-            Button("Copy as Plain Text") { ItemActions.copyToPasteboard(item, plainText: true) }
+            Button(L10n.text("Copy as Plain Text")) { ItemActions.copyToPasteboard(item, plainText: true) }
         }
         if ItemActions.isShareable(item) {
-            Button("Share…") { ItemActions.share(item) }
+            Button(L10n.text("Share…")) { ItemActions.share(item) }
         }
         if item.hasImage {
-            Button("Save Image…") { ItemActions.saveImage(item) }
+            Button(L10n.text("Save Image…")) { ItemActions.saveImage(item) }
         }
         if item.kind == .link || item.kind == .file || item.hasImage {
-            Button("Open") { ItemActions.open(item) }
+            Button(L10n.text("Open")) { ItemActions.open(item) }
         }
         if item.kind == .file || item.hasImage {
-            Button("Reveal in Finder") { ItemActions.reveal(item) }
+            Button(L10n.text("Reveal in Finder")) { ItemActions.reveal(item) }
         }
         if item.hasImage {
-            Button("Annotate…") { ItemActions.annotate(item) }
-            Button("Pin to Screen") { ItemActions.pin(item) }
-            Button("Run OCR") { ItemActions.runOCR(item) }
-            Button("Scan QR Code") { ItemActions.scanQR(item) }
-            Menu("Image Tools") {
-                Button("Combine with…") { ItemActions.combine(item) }
-                Button("Before / After GIF…") { ItemActions.beforeAfterGIF(item) }
+            Button(L10n.text("Annotate…")) { ItemActions.annotate(item) }
+            Button(L10n.text("Pin to Screen")) { ItemActions.pin(item) }
+            Button(L10n.text("Run OCR")) { ItemActions.runOCR(item) }
+            Button(L10n.text("Scan QR Code")) { ItemActions.scanQR(item) }
+            Menu(L10n.text("Image Tools")) {
+                Button(L10n.text("Combine with…")) { ItemActions.combine(item) }
+                Button(L10n.text("Before / After GIF…")) { ItemActions.beforeAfterGIF(item) }
             }
         }
         if showsAI {
             Divider()
-            Button("Summarize (AI)") { ItemActions.aiSummarize(item) }
-            Button("Clean up (AI)") { ItemActions.aiCleanUp(item) }
-            Button("Smart title (AI)") { ItemActions.aiTitle(item) }
-            Menu("Ask AI") {
-                Button("Reply") { ItemActions.aiTransform(item, instruction: "Write a concise reply to the following message. Reply with only the reply.", title: "AI reply") }
-                Button("Explain") { ItemActions.aiTransform(item, instruction: "Explain the following clearly and simply. Reply with only the explanation.", title: "Explanation") }
-                Button("Make formal") { ItemActions.aiTransform(item, instruction: "Rewrite the following in a formal, professional tone. Reply with only the rewrite.", title: "Formal") }
-                Button("Make casual") { ItemActions.aiTransform(item, instruction: "Rewrite the following in a casual, friendly tone. Reply with only the rewrite.", title: "Casual") }
-                Button("Bullet points") { ItemActions.aiTransform(item, instruction: "Turn the following into concise bullet points. Reply with only the bullet points.", title: "Bullets") }
-                Button("Translate…") { ItemActions.aiTranslate(item) }
+            Button(L10n.text("Summarize (AI)")) { ItemActions.aiSummarize(item) }
+            Button(L10n.text("Clean up (AI)")) { ItemActions.aiCleanUp(item) }
+            Button(L10n.text("Smart title (AI)")) { ItemActions.aiTitle(item) }
+            Menu(L10n.text("Ask AI")) {
+                Button(L10n.text("Reply")) { ItemActions.aiTransform(item, instruction: "Write a concise reply to the following message. Reply with only the reply.", title: L10n.text("AI reply")) }
+                Button(L10n.text("Explain")) { ItemActions.aiTransform(item, instruction: "Explain the following clearly and simply. Reply with only the explanation.", title: L10n.text("Explanation")) }
+                Button(L10n.text("Make formal")) { ItemActions.aiTransform(item, instruction: "Rewrite the following in a formal, professional tone. Reply with only the rewrite.", title: L10n.text("Formal")) }
+                Button(L10n.text("Make casual")) { ItemActions.aiTransform(item, instruction: "Rewrite the following in a casual, friendly tone. Reply with only the rewrite.", title: L10n.text("Casual")) }
+                Button(L10n.text("Bullet points")) { ItemActions.aiTransform(item, instruction: "Turn the following into concise bullet points. Reply with only the bullet points.", title: L10n.text("Bullets")) }
+                Button(L10n.text("Translate…")) { ItemActions.aiTranslate(item) }
                 Divider()
-                Button("Custom…") { ItemActions.aiAsk(item) }
+                Button(L10n.text("Custom…")) { ItemActions.aiAsk(item) }
             }
         }
         Divider()
-        Button(item.pinned ? "Unpin" : "Pin") { store.togglePin(item.id) }
-        Button("Remove", role: .destructive) { store.remove(item.id) }
+        Button(item.pinned ? L10n.text("Unpin") : L10n.text("Pin")) { store.togglePin(item.id) }
+        Button(L10n.text("Remove"), role: .destructive) { store.remove(item.id) }
     }
 }

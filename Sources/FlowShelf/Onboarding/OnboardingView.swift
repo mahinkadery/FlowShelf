@@ -57,10 +57,10 @@ struct OnboardingView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: 27, height: 27)
-            Text("Welcome to FlowShelf")
+            Text(L10n.text("Welcome to FlowShelf"))
                 .font(.system(size: 14, weight: .semibold))
             Spacer()
-            Text("\(page + 1) OF \(pages.count)")
+            Text(L10n.text("\(page + 1) OF \(pages.count)"))
                 .font(.system(size: 9.5, weight: .bold, design: .rounded))
                 .kerning(1.1)
                 .foregroundStyle(.secondary)
@@ -103,7 +103,7 @@ struct OnboardingView: View {
                 }
 
                 if item == .privacy {
-                    Button("Review permission health") {
+                    Button(L10n.text("Review permission health")) {
                         onFinish(.permissions)
                     }
                     .buttonStyle(.bordered)
@@ -133,7 +133,7 @@ struct OnboardingView: View {
                     }
                     .buttonStyle(.plain)
                     .help(pages[index].shortLabel)
-                    .accessibilityLabel("Go to \(pages[index].shortLabel)")
+                    .accessibilityLabel(L10n.text("Go to \(pages[index].shortLabel)"))
                     .animation(FlowMotion.state, value: page)
                 }
             }
@@ -147,16 +147,16 @@ struct OnboardingView: View {
             Spacer()
 
             if page > 0 {
-                Button("Back") { move(to: page - 1) }
+                Button(L10n.text("Back")) { move(to: page - 1) }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
             } else {
-                Button("Skip") { onFinish(.none) }
+                Button(L10n.text("Skip")) { onFinish(.none) }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
             }
 
-            Button(page == pages.count - 1 ? "Open FlowShelf" : "Continue") {
+            Button(page == pages.count - 1 ? L10n.text("Open FlowShelf") : L10n.text("Continue")) {
                 if page == pages.count - 1 {
                     onFinish(.shelf)
                 } else {
@@ -201,68 +201,68 @@ private enum OnboardingPage: Int, CaseIterable, Identifiable {
 
     var shortLabel: String {
         switch self {
-        case .welcome: return "Welcome"
-        case .shelf: return "Shelf"
-        case .notch: return "Notch"
-        case .capture: return "Capture"
-        case .windows: return "Window tools"
-        case .intelligence: return "Snippets & AI"
-        case .privacy: return "Privacy & Cleaner"
+        case .welcome: return L10n.text("Welcome")
+        case .shelf: return L10n.text("Shelf")
+        case .notch: return L10n.text("Notch")
+        case .capture: return L10n.text("Capture")
+        case .windows: return L10n.text("Window tools")
+        case .intelligence: return L10n.text("Snippets & AI")
+        case .privacy: return L10n.text("Privacy & Cleaner")
         }
     }
 
     var eyebrow: String {
         switch self {
-        case .welcome: return "Welcome to FlowShelf"
-        case .shelf: return "Collect anything"
-        case .notch: return "Stay in flow"
-        case .capture: return "Capture and explain"
-        case .windows: return "Own your workspace"
-        case .intelligence: return "Reuse and understand"
-        case .privacy: return "Private by design"
+        case .welcome: return L10n.text("Welcome to FlowShelf")
+        case .shelf: return L10n.text("Collect anything")
+        case .notch: return L10n.text("Stay in flow")
+        case .capture: return L10n.text("Capture and explain")
+        case .windows: return L10n.text("Own your workspace")
+        case .intelligence: return L10n.text("Reuse and understand")
+        case .privacy: return L10n.text("Private by design")
         }
     }
 
     var title: String {
         switch self {
-        case .welcome: return "Everything temporary finally has a home."
-        case .shelf: return "One shelf for everything."
-        case .notch: return "Your notch becomes useful."
-        case .capture: return "Screenshots that do more."
-        case .windows: return "Every window, exactly where you want it."
-        case .intelligence: return "Write less. Find more."
-        case .privacy: return "Powerful without giving up control."
+        case .welcome: return L10n.text("Everything temporary finally has a home.")
+        case .shelf: return L10n.text("One shelf for everything.")
+        case .notch: return L10n.text("Your notch becomes useful.")
+        case .capture: return L10n.text("Screenshots that do more.")
+        case .windows: return L10n.text("Every window, exactly where you want it.")
+        case .intelligence: return L10n.text("Write less. Find more.")
+        case .privacy: return L10n.text("Powerful without giving up control.")
         }
     }
 
     var detail: String {
         switch self {
         case .welcome:
-            return "FlowShelf catches what you copy, drop, and capture — and keeps it ready until you need it. This short tour shows the highlights; everything runs free and fully on your Mac."
+            return L10n.text("FlowShelf catches what you copy, drop, and capture — and keeps it ready until you need it. This short tour shows the highlights; everything runs free and fully on your Mac.")
         case .shelf:
-            return "Copies, files, links, images, and screenshots arrive in one temporary shelf. Search instantly, pin the important things, and let the rest clear itself."
+            return L10n.text("Copies, files, links, images, and screenshots arrive in one temporary shelf. Search instantly, pin the important things, and let the rest clear itself.")
         case .notch:
-            return "Drop items into the notch, control media, and see quiet volume, brightness, charging, and battery HUDs without leaving your current app."
+            return L10n.text("Drop items into the notch, control media, and see quiet volume, brightness, charging, and battery HUDs without leaving your current app.")
         case .capture:
-            return "Capture a region or window, extract text with OCR, scan QR codes, pin images, and annotate with arrows, highlights, blur, crop, text, and numbered steps."
+            return L10n.text("Capture a region or window, extract text with OCR, scan QR codes, pin images, and annotate with arrows, highlights, blur, crop, text, and numbered steps.")
         case .windows:
-            return "Preview windows from the Dock, switch with thumbnails, and snap focused windows into halves, quarters, maximize, or center using your own shortcuts."
+            return L10n.text("Preview windows from the Dock, switch with thumbnails, and snap focused windows into halves, quarters, maximize, or center using your own shortcuts.")
         case .intelligence:
-            return "Save reusable snippets and use Apple Intelligence on-device to title, search, summarize, clean up, and answer questions from your shelf."
+            return L10n.text("Save reusable snippets and use Apple Intelligence on-device to title, search, summarize, clean up, and answer questions from your shelf.")
         case .privacy:
-            return "Clipboard history stays on your Mac. Private Mode pauses capture instantly, permissions follow enabled features, and Cleaner reveals app leftovers before removal."
+            return L10n.text("Clipboard history stays on your Mac. Private Mode pauses capture instantly, permissions follow enabled features, and Cleaner reveals app leftovers before removal.")
         }
     }
 
     var highlights: [String] {
         switch self {
-        case .welcome: return ["Free, notarized, no account", "100% on-device — nothing leaves your Mac", "Two-minute tour, skip any time"]
-        case .shelf: return ["24-hour or permanent history", "Search, pin, drag and paste", "Floating shelf at your cursor"]
-        case .notch: return ["Drop shelf on every display", "Now-playing media controls", "Optional system HUDs"]
-        case .capture: return ["Region, window and OCR capture", "Professional annotation tools", "Pin, QR scan and image tools"]
-        case .windows: return ["Dock hover previews", "Thumbnail window switcher", "Customizable snap shortcuts"]
-        case .intelligence: return ["Reusable text snippets", "Smart search and auto-titles", "Fully on-device AI actions"]
-        case .privacy: return ["Private Mode and excluded apps", "Feature-aware permissions", "App cleaner with leftover review"]
+        case .welcome: return [L10n.text("Free, notarized, no account"), L10n.text("100% on-device — nothing leaves your Mac"), L10n.text("Two-minute tour, skip any time")]
+        case .shelf: return [L10n.text("24-hour or permanent history"), L10n.text("Search, pin, drag and paste"), L10n.text("Floating shelf at your cursor")]
+        case .notch: return [L10n.text("Drop shelf on every display"), L10n.text("Now-playing media controls"), L10n.text("Optional system HUDs")]
+        case .capture: return [L10n.text("Region, window and OCR capture"), L10n.text("Professional annotation tools"), L10n.text("Pin, QR scan and image tools")]
+        case .windows: return [L10n.text("Dock hover previews"), L10n.text("Thumbnail window switcher"), L10n.text("Customizable snap shortcuts")]
+        case .intelligence: return [L10n.text("Reusable text snippets"), L10n.text("Smart search and auto-titles"), L10n.text("Fully on-device AI actions")]
+        case .privacy: return [L10n.text("Private Mode and excluded apps"), L10n.text("Feature-aware permissions"), L10n.text("App cleaner with leftover review")]
         }
     }
 
@@ -599,22 +599,22 @@ private struct ShelfDemo: View {
     let reduceMotion: Bool
 
     private let items: [(String, Color, String, String)] = [
-        ("doc.text.fill", .orange, "Launch notes", "Copied from Notes"),
-        ("photo.fill", .purple, "Screenshot", "Captured just now"),
-        ("link", .blue, "flowshelf.app", "Link from Safari"),
+        ("doc.text.fill", .orange, L10n.text("Launch notes"), L10n.text("Copied from Notes")),
+        ("photo.fill", .purple, L10n.text("Screenshot"), L10n.text("Captured just now")),
+        ("link", .blue, "flowshelf.app", L10n.text("Link from Safari")),
     ]
 
     var body: some View {
         ZStack {
-            DemoWindow(title: "Today’s Shelf", tint: .orange) {
+            DemoWindow(title: L10n.text("Today’s Shelf"), tint: .orange) {
                 VStack(spacing: 9) {
                     HStack(spacing: 7) {
                         Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                        Text("Search today’s shelf…")
+                        Text(L10n.text("Search today’s shelf…"))
                             .font(.system(size: 10.5))
                             .foregroundStyle(.secondary)
                         Spacer()
-                        Text("3 items")
+                        Text(L10n.text("3 items"))
                             .font(.system(size: 9.5, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
@@ -654,7 +654,7 @@ private struct ShelfDemo: View {
                 .padding(12)
             }
 
-            DemoCursor(tint: .orange, label: "Pin")
+            DemoCursor(tint: .orange, label: L10n.text("Pin"))
                 .offset(x: phase >= 4 ? 119 : 154, y: phase >= 4 ? -54 : 118)
                 .opacity(phase >= 3 && phase < 5 ? 1 : 0)
                 .animation(reduceMotion ? nil : .spring(response: 0.62, dampingFraction: 0.82), value: phase)
@@ -716,8 +716,8 @@ private struct NotchDemo: View {
                         .overlay { Image(systemName: "music.note").foregroundStyle(.white) }
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Now Playing").font(.system(size: 11.5, weight: .semibold))
-                        Text("On-device media controls")
+                        Text(L10n.text("Now Playing")).font(.system(size: 11.5, weight: .semibold))
+                        Text(L10n.text("On-device media controls"))
                             .font(.system(size: 9.3)).foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -759,7 +759,7 @@ private struct NotchDemo: View {
             HStack(spacing: 7) {
                 Image(systemName: "doc.fill")
                     .foregroundStyle(.pink)
-                Text("Launch notes.pdf")
+                Text(L10n.text("Launch notes.pdf"))
                     .font(.system(size: 9.5, weight: .semibold))
             }
             .padding(.horizontal, 10)
@@ -771,7 +771,7 @@ private struct NotchDemo: View {
             .opacity(phase >= 3 && phase < 5 ? 1 : 0)
             .shadow(color: .pink.opacity(0.25), radius: 10, y: 5)
 
-            Label("Drop to Shelf", systemImage: "arrow.up")
+            Label(L10n.text("Drop to Shelf"), systemImage: "arrow.up")
                 .font(.system(size: 10.5, weight: .semibold))
                 .padding(.horizontal, 11)
                 .frame(height: 31)
@@ -793,7 +793,7 @@ private struct CaptureDemo: View {
                          "textformat", "crop"]
 
     var body: some View {
-        DemoWindow(title: "Screenshot Editor", tint: .purple) {
+        DemoWindow(title: L10n.text("Screenshot Editor"), tint: .purple) {
             ZStack {
                 LinearGradient(
                     colors: [Color.blue.opacity(0.25), Color.purple.opacity(0.18),
@@ -896,7 +896,7 @@ private struct WindowsDemo: View {
                 .offset(x: phase >= 4 ? -82 : -25, y: phase >= 4 ? -17 : -28)
                 .rotationEffect(.degrees(phase >= 4 ? 0 : -5))
 
-            WindowCard(title: "Notes", color: .yellow, symbol: "note.text")
+            WindowCard(title: L10n.text("Notes"), color: .yellow, symbol: "note.text")
                 .frame(width: phase >= 4 ? 150 : 215, height: phase >= 4 ? 180 : 150)
                 .offset(x: phase >= 4 ? 82 : 28, y: phase >= 4 ? -17 : 20)
                 .rotationEffect(.degrees(phase >= 4 ? 0 : 4))
@@ -915,7 +915,7 @@ private struct WindowsDemo: View {
             .opacity(phase >= 5 ? 1 : 0)
             .shadow(color: .blue.opacity(0.2), radius: 12, y: 7)
 
-            Label("Dock preview", systemImage: "rectangle.on.rectangle")
+            Label(L10n.text("Dock preview"), systemImage: "rectangle.on.rectangle")
                 .font(.system(size: 9.5, weight: .semibold))
                 .padding(.horizontal, 9)
                 .frame(height: 27)
@@ -967,12 +967,12 @@ private struct IntelligenceDemo: View {
     let reduceMotion: Bool
 
     var body: some View {
-        DemoWindow(title: "Snippets & AI", tint: .indigo) {
+        DemoWindow(title: L10n.text("Snippets & AI"), tint: .indigo) {
             HStack(spacing: 0) {
                 VStack(spacing: 7) {
-                    snippet("Customer reply", icon: "text.bubble.fill", selected: phase >= 2)
-                    snippet("Meeting link", icon: "video.fill", selected: false)
-                    snippet("Shipping update", icon: "shippingbox.fill", selected: false)
+                    snippet(L10n.text("Customer reply"), icon: "text.bubble.fill", selected: phase >= 2)
+                    snippet(L10n.text("Meeting link"), icon: "video.fill", selected: false)
+                    snippet(L10n.text("Shipping update"), icon: "shippingbox.fill", selected: false)
                     Spacer()
                 }
                 .padding(10)
@@ -982,12 +982,12 @@ private struct IntelligenceDemo: View {
                 Divider().opacity(0.35)
 
                 VStack(alignment: .leading, spacing: 9) {
-                    Label("On-device answer", systemImage: "sparkles")
+                    Label(L10n.text("On-device answer"), systemImage: "sparkles")
                         .font(.system(size: 11.5, weight: .semibold))
                         .foregroundStyle(.indigo)
                         .symbolEffect(.pulse, value: phase)
                         .symbolEffectsRemoved(reduceMotion)
-                    Text("Here’s a polished reply using your saved context:")
+                    Text(L10n.text("Here’s a polished reply using your saved context:"))
                         .font(.system(size: 10.5))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1003,7 +1003,7 @@ private struct IntelligenceDemo: View {
                     .offset(y: phase >= 5 ? 0 : 12)
                     Spacer()
                     HStack {
-                        Label("Private", systemImage: "lock.fill")
+                        Label(L10n.text("Private"), systemImage: "lock.fill")
                         Spacer()
                         Text("Apple Intelligence")
                     }
@@ -1042,15 +1042,15 @@ private struct PrivacyDemo: View {
     let reduceMotion: Bool
 
     private let permissions: [(String, String, Color)] = [
-        ("Screen Recording", "Required", .purple),
-        ("Accessibility", "Optional", .blue),
-        ("Input Monitoring", "Optional", .orange),
+        (L10n.text("Screen Recording"), L10n.text("Required"), .purple),
+        (L10n.text("Accessibility"), L10n.text("Optional"), .blue),
+        (L10n.text("Input Monitoring"), L10n.text("Optional"), .orange),
     ]
 
     var body: some View {
         HStack(spacing: 12) {
             VStack(spacing: 8) {
-                Label("Permission Health", systemImage: "checkmark.shield.fill")
+                Label(L10n.text("Permission Health"), systemImage: "checkmark.shield.fill")
                     .font(.system(size: 11.5, weight: .semibold))
                     .foregroundStyle(.teal)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1065,7 +1065,7 @@ private struct PrivacyDemo: View {
                         Spacer()
                         Text(permission.1)
                             .font(.system(size: 8.5, weight: .semibold))
-                            .foregroundStyle(permission.1 == "Required" ? .orange : .secondary)
+                            .foregroundStyle(permission.1 == L10n.text("Required") ? .orange : .secondary)
                     }
                     .padding(.horizontal, 9)
                     .frame(height: 36)
@@ -1080,7 +1080,7 @@ private struct PrivacyDemo: View {
                     )
                 }
 
-                Label("Everything stays on this Mac", systemImage: "lock.fill")
+                Label(L10n.text("Everything stays on this Mac"), systemImage: "lock.fill")
                     .font(.system(size: 9.2, weight: .medium))
                     .foregroundStyle(.secondary)
                     .padding(.top, 2)
@@ -1103,7 +1103,7 @@ private struct PrivacyDemo: View {
                         Text(phase >= 5 ? "12" : "0")
                             .font(.system(size: 24, weight: .bold, design: .rounded))
                             .contentTransition(.numericText())
-                        Text("leftovers")
+                        Text(L10n.text("leftovers"))
                             .font(.system(size: 8.5, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
@@ -1111,15 +1111,15 @@ private struct PrivacyDemo: View {
                 .frame(width: 105, height: 105)
 
                 VStack(spacing: 4) {
-                    Label("App Cleaner", systemImage: "trash.fill")
+                    Label(L10n.text("App Cleaner"), systemImage: "trash.fill")
                         .font(.system(size: 11.5, weight: .semibold))
-                    Text("Review every file before removal")
+                    Text(L10n.text("Review every file before removal"))
                         .font(.system(size: 9.2))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
 
-                Label("Private Mode", systemImage: "eye.slash.fill")
+                Label(L10n.text("Private Mode"), systemImage: "eye.slash.fill")
                     .font(.system(size: 9.5, weight: .semibold))
                     .padding(.horizontal, 10)
                     .frame(height: 27)

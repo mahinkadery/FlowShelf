@@ -17,7 +17,7 @@ struct FloatingShelfView: View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 FlowShelfGlyph(size: 13, color: .secondary)
-                Text("Shelf")
+                Text(L10n.text("Shelf"))
                     .font(.system(size: 12, weight: .semibold))
                 Text("\(store.visibleItems.count)")
                     .font(.system(size: 11))
@@ -72,9 +72,9 @@ struct FloatingShelfView: View {
                     .frame(width: 58, height: 58)
                     .shadow(color: .black.opacity(0.18), radius: 5, y: 2)
 
-                    Text("Your shelf is empty")
+                    Text(L10n.text("Your shelf is empty"))
                         .font(.system(size: 12, weight: .semibold))
-                    Text("Drop anything here — it keeps itself tidy.")
+                    Text(L10n.text("Drop anything here — it keeps itself tidy."))
                         .font(.system(size: 10.5))
                         .foregroundStyle(.secondary)
                 }
@@ -141,11 +141,11 @@ private struct ShelfTile: View {
                 if hovering && !copied {
                     VStack { Spacer()
                         HStack(spacing: 5) {
-                            tileButton("doc.on.doc", "Copy") { copy() }
-                            tileButton(item.pinned ? "pin.slash" : "pin", item.pinned ? "Unpin" : "Pin") {
+                            tileButton("doc.on.doc", L10n.text("Copy")) { copy() }
+                            tileButton(item.pinned ? "pin.slash" : "pin", item.pinned ? L10n.text("Unpin") : L10n.text("Pin")) {
                                 store.togglePin(item.id)
                             }
-                            tileButton("xmark", "Remove") { store.remove(item.id) }
+                            tileButton("xmark", L10n.text("Remove")) { store.remove(item.id) }
                         }
                         .padding(4)
                         .background(.ultraThinMaterial, in: Capsule())
@@ -221,17 +221,17 @@ private struct ShelfTile: View {
     }
 
     @ViewBuilder private var menu: some View {
-        Button("Copy") { copy() }
+        Button(L10n.text("Copy")) { copy() }
         if item.kind == .link || item.kind == .file || item.hasImage {
-            Button("Open") { ItemActions.open(item) }
+            Button(L10n.text("Open")) { ItemActions.open(item) }
         }
         if item.kind == .file || item.hasImage {
-            Button("Reveal in Finder") { ItemActions.reveal(item) }
+            Button(L10n.text("Reveal in Finder")) { ItemActions.reveal(item) }
         }
-        if item.hasImage { Button("Run OCR") { ItemActions.runOCR(item) } }
+        if item.hasImage { Button(L10n.text("Run OCR")) { ItemActions.runOCR(item) } }
         Divider()
-        Button(item.pinned ? "Unpin" : "Pin") { store.togglePin(item.id) }
-        Button("Remove", role: .destructive) { store.remove(item.id) }
+        Button(item.pinned ? L10n.text("Unpin") : L10n.text("Pin")) { store.togglePin(item.id) }
+        Button(L10n.text("Remove"), role: .destructive) { store.remove(item.id) }
     }
 
     private func tileButton(_ symbol: String, _ help: String, _ action: @escaping () -> Void) -> some View {

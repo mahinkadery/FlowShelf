@@ -74,8 +74,8 @@ final class ScreenshotService {
                 guard let self, let (rel, thumb) = result else { return }
                 store.add(ShelfItem(
                     kind: .screenshot,
-                    title: "Screenshot",
-                    preview: "Captured \(Date().shortTime)",
+                    title: L10n.text("Screenshot"),
+                    preview: L10n.text("Captured \(Date().shortTime)"),
                     sourceApp: "FlowShelf",
                     imageRelPath: rel,
                     thumbRelPath: thumb
