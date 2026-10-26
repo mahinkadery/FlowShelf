@@ -13,9 +13,7 @@ private func dockSelectionCallback(_ observer: AXObserver, _ element: AXUIElemen
 ///
 /// Instead of polling the mouse and hit-testing icon rectangles (fragile), we
 /// subscribe to the Dock's `kAXSelectedChildrenChangedNotification`: macOS itself
-/// marks the hovered Dock item as the list's "selected child". A light timer
-/// handles dismissal with hysteresis so the preview survives the gap between the
-/// icon and the popover.
+/// marks the hovered Dock item as the list's "selected child".
 @MainActor
 final class DockObserver {
     static let shared = DockObserver()
@@ -23,19 +21,18 @@ final class DockObserver {
     private var dockPID: pid_t?
     private var axObserver: AXObserver?
     private var subscribedList: AXUIElement?
-    private var hideTimer: Timer?
+    private var mouseGlobal: Any?
+    private var mouseLocal: Any?
 
     private let preview = DockPreviewController()
     private var currentPID: pid_t?
     private var currentIconFrameCG: CGRect?         // CoreGraphics top-left
-    private var leftRegionSince: Date?
     private var showTimer: Timer?
+    private var hoverToken = UUID()
 
     /// The Settings "hover delay" is the APPEAR delay — how long you must rest
     /// on an icon before the preview shows (skimming the Dock stays quiet).
     private var appearDelay: TimeInterval { AppSettings.shared.dockPreviewHoverDelay }
-    /// Fixed grace period before hiding — long enough to travel icon → panel.
-    private let hideGrace: TimeInterval = 0.40
 
     private(set) var isRunning = false
     private init() {}
@@ -49,14 +46,23 @@ final class DockObserver {
         dockPID = dock.processIdentifier
         guard setupObserver() else { return }
         isRunning = true
-        hideTimer = Timer.scheduledTimer(withTimeInterval: 0.12, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.tickHide() }
+        let events: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged]
+        mouseGlobal = NSEvent.addGlobalMonitorForEvents(matching: events) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkPointer() }
+        }
+        mouseLocal = NSEvent.addLocalMonitorForEvents(matching: events) { [weak self] event in
+            MainActor.assumeIsolated { self?.checkPointer() }
+            return event
         }
     }
 
     func stop() {
         isRunning = false
-        hideTimer?.invalidate(); hideTimer = nil
+        if let mouseGlobal { NSEvent.removeMonitor(mouseGlobal) }
+        if let mouseLocal { NSEvent.removeMonitor(mouseLocal) }
+        mouseGlobal = nil
+        mouseLocal = nil
+        hoverToken = UUID()
         showTimer?.invalidate(); showTimer = nil
         if let axObserver {
             CFRunLoopRemoveSource(CFRunLoopGetCurrent(),
@@ -93,26 +99,34 @@ final class DockObserver {
         guard isRunning, let dockPID,
               let item = AX.selectedDockItem(dockPID: dockPID),
               AX.subrole(of: item) == "AXApplicationDockItem" else {
-            // Hovered off any app icon — cancel a pending show and let the
-            // hide timer take the visible panel down after the grace period.
-            showTimer?.invalidate(); showTimer = nil
-            leftRegionSince = leftRegionSince ?? Date()
+            if !pointerWithinPreviewRoute { dismiss() }
             return
         }
 
-        guard let app = runningApp(for: item) else { return }
-        let frame = AX.frame(of: item)
+        guard let app = runningApp(for: item), let frame = AX.frame(of: item),
+              let mouse = CGEvent(source: nil)?.location, frame.contains(mouse) else {
+            if !pointerWithinPreviewRoute { dismiss() }
+            return
+        }
+        if currentPID == app.processIdentifier {
+            currentIconFrameCG = frame
+            return
+        }
         currentPID = app.processIdentifier
         currentIconFrameCG = frame
-        leftRegionSince = nil
         showTimer?.invalidate(); showTimer = nil
+        let token = UUID()
+        hoverToken = token
 
         let show = { [weak self] in
-            self?.preview.present(pid: app.processIdentifier,
+            guard let self, self.isRunning, self.hoverToken == token,
+                  let mouse = CGEvent(source: nil)?.location,
+                  self.currentIconFrameCG?.contains(mouse) == true else { return }
+            self.preview.present(pid: app.processIdentifier,
                                   appName: app.localizedName ?? "App",
                                   icon: app.icon,
                                   bundleID: app.bundleIdentifier,
-                                  iconFrameCG: frame ?? .zero,
+                                  iconFrameCG: self.currentIconFrameCG ?? frame,
                                   dockPosition: DockPosition.current)
         }
 
@@ -122,13 +136,14 @@ final class DockObserver {
         } else {
             // First appearance: rest on the icon for the configured delay so
             // skimming across the Dock doesn't flash panels.
-            showTimer = Timer.scheduledTimer(withTimeInterval: max(appearDelay, 0.05),
+            let timer = Timer(timeInterval: max(appearDelay, 0.05),
                                              repeats: false) { _ in
-                Task { @MainActor in
-                    guard self.isRunning, self.currentPID == app.processIdentifier else { return }
+                MainActor.assumeIsolated {
                     show()
                 }
             }
+            showTimer = timer
+            RunLoop.main.add(timer, forMode: .common)
         }
     }
 
@@ -148,27 +163,30 @@ final class DockObserver {
         return nil
     }
 
-    // MARK: - Dismissal (hysteresis)
-
-    private func tickHide() {
-        guard preview.isVisible else { return }
-        let mouse = CGEvent(source: nil)?.location ?? .zero   // CG top-left
-
-        let overIcon = (currentIconFrameCG?.insetBy(dx: -6, dy: -10).contains(mouse)) ?? false
-        let overPanel = preview.containsMouse
-
-        if overIcon || overPanel {
-            leftRegionSince = nil
-            return
+    private func checkPointer() {
+        guard isRunning, currentPID != nil else { return }
+        guard !pointerWithinPreviewRoute else { return }
+        if let mouse = CGEvent(source: nil)?.location {
+            if currentIconFrameCG?.contains(mouse) == true { return }
+            if let dockPID, let item = AX.selectedDockItem(dockPID: dockPID),
+               let frame = AX.frame(of: item), frame.contains(mouse),
+               runningApp(for: item)?.processIdentifier == currentPID {
+                currentIconFrameCG = frame
+                return
+            }
         }
-        // Outside both — start/continue the grace period, then hide.
-        let since = leftRegionSince ?? Date()
-        leftRegionSince = since
-        if Date().timeIntervalSince(since) >= hideGrace {
-            preview.hide()
-            currentPID = nil
-            currentIconFrameCG = nil
-            leftRegionSince = nil
-        }
+        dismiss()
+    }
+
+    private var pointerWithinPreviewRoute: Bool {
+        preview.keepsOpen(at: NSEvent.mouseLocation, currentIconFrameCG: currentIconFrameCG)
+    }
+
+    private func dismiss() {
+        hoverToken = UUID()
+        showTimer?.invalidate(); showTimer = nil
+        preview.hide()
+        currentPID = nil
+        currentIconFrameCG = nil
     }
 }

@@ -10,16 +10,7 @@ struct PaneHeader: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(LinearGradient(colors: [tint.opacity(0.95), tint.opacity(0.65)],
-                                         startPoint: .top, endPoint: .bottom))
-                Image(systemName: icon)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 36, height: 36)
-            .shadow(color: tint.opacity(0.4), radius: 4, y: 2)
+            EmblemChip(icon: icon, tint: tint, size: 36, iconSize: 17)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 20, weight: .bold))
@@ -44,15 +35,7 @@ struct EmblemRow<Control: View>: View {
 
     var body: some View {
         HStack(spacing: 11) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(LinearGradient(colors: [tint.opacity(0.9), tint.opacity(0.6)],
-                                         startPoint: .top, endPoint: .bottom))
-                Image(systemName: icon)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 27, height: 27)
+            EmblemChip(icon: icon, tint: tint)
 
             VStack(alignment: .leading, spacing: 1.5) {
                 Text(title).font(.system(size: 13, weight: .semibold))

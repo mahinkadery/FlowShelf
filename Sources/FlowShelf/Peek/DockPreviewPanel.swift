@@ -11,21 +11,36 @@ final class DockPreviewModel: ObservableObject {
     @Published var loading = false
 
     private var loadToken = UUID()
+    private var loadTask: Task<Void, Never>?
+    var onLoaded: (() -> Void)?
+    var scrollOffset: CGFloat = 0
+
+    func cancel() {
+        loadToken = UUID()
+        loadTask?.cancel()
+        loadTask = nil
+        windows = []
+        loading = false
+    }
 
     func load(pid: pid_t, appName: String, icon: NSImage?, bundleID: String?) {
         self.appName = appName
         self.icon = icon
         self.windows = []
         self.loading = true
+        scrollOffset = 0
         let token = UUID(); loadToken = token
-        Task {
+        loadTask?.cancel()
+        loadTask = Task {
+            guard !Task.isCancelled else { return }
             let result = await WindowService.shared.loadWindows(
                 pid: pid, appName: appName, bundleID: bundleID, thumbnails: true)
-            guard token == loadToken else { return }
+            guard !Task.isCancelled, token == loadToken else { return }
             withAnimation(FlowMotion.listChange) {
                 self.windows = result
                 self.loading = false
             }
+            self.onLoaded?()
         }
     }
 }
@@ -36,6 +51,7 @@ struct DockPreviewView: View {
     var onActivate: (WindowInfo) -> Void
     var onClose: (WindowInfo) -> Void
     var onMinimize: (WindowInfo) -> Void
+    var rendersForTransition = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -53,7 +69,12 @@ struct DockPreviewView: View {
             }
 
             if model.loading && model.windows.isEmpty {
-                HStack(spacing: 7) { ProgressView().controlSize(.small)
+                HStack(spacing: 7) {
+                    if rendersForTransition {
+                        Image(systemName: "rectangle.on.rectangle").foregroundStyle(.secondary)
+                    } else {
+                        ProgressView().controlSize(.small)
+                    }
                     Text("Capturing…").font(.system(size: 12)).foregroundStyle(.secondary) }
                     .frame(height: thumbH).frame(maxWidth: .infinity)
             } else if model.windows.isEmpty {
@@ -62,19 +83,22 @@ struct DockPreviewView: View {
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .frame(height: thumbH).frame(maxWidth: .infinity)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(model.windows) { w in
-                            WindowThumb(window: w, appIcon: model.icon,
-                                        width: thumbW, height: thumbH,
-                                        onActivate: { onActivate(w) },
-                                        onClose: { onClose(w) },
-                                        onMinimize: { onMinimize(w) })
-                                .transition(.opacity.combined(with: .scale(scale: 0.92)))
-                        }
+                if rendersForTransition {
+                    windowStrip
+                        .fixedSize(horizontal: true, vertical: false)
+                        .offset(x: -model.scrollOffset)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .clipped()
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        windowStrip
+                            .background(GeometryReader { geometry in
+                                Color.clear.preference(key: DockPreviewScrollOffset.self,
+                                    value: geometry.frame(in: .named("peekViewport")).minX)
+                            })
                     }
-                    .padding(.bottom, 2)
-                    .animation(FlowMotion.listChange, value: model.windows)
+                    .coordinateSpace(name: "peekViewport")
+                    .onPreferenceChange(DockPreviewScrollOffset.self) { model.scrollOffset = max(0, -$0) }
                 }
 
                 if !model.loading && model.windows.allSatisfy({ $0.thumbnail == nil }) {
@@ -91,9 +115,7 @@ struct DockPreviewView: View {
         }
         .padding(16)
         .frame(maxWidth: 1040)
-        // FlowShelf's own glass — the same dark Control-Centre surface as the
-        // notch card and output picker, not a generic system material.
-        .liquidGlassSurface(cornerRadius: 20, tint: .black.opacity(0.42))
+        .modifier(DockPreviewSurface(rasterized: rendersForTransition))
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous)
             .strokeBorder(LinearGradient(
                 colors: [.white.opacity(0.30), .white.opacity(0.06), .white.opacity(0.12)],
@@ -102,6 +124,41 @@ struct DockPreviewView: View {
 
     private var thumbW: CGFloat { AppSettings.shared.dockPreviewSize.thumb.width }
     private var thumbH: CGFloat { AppSettings.shared.dockPreviewSize.thumb.height }
+
+    private var windowStrip: some View {
+        HStack(spacing: 12) {
+            ForEach(model.windows) { window in
+                WindowThumb(window: window, appIcon: model.icon,
+                            width: thumbW, height: thumbH,
+                            onActivate: { onActivate(window) },
+                            onClose: { onClose(window) },
+                            onMinimize: { onMinimize(window) })
+                    .transition(FlowMotion.reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.92)))
+            }
+        }
+        .padding(.bottom, 2)
+        .animation(rendersForTransition ? nil : FlowMotion.listChange, value: model.windows)
+    }
+}
+
+private struct DockPreviewScrollOffset: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+private struct DockPreviewSurface: ViewModifier {
+    var rasterized: Bool
+
+    func body(content: Content) -> some View {
+        if rasterized {
+            content.background(RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(nsColor: .windowBackgroundColor)))
+        } else {
+            content.liquidGlassSurface(cornerRadius: 20, tint: .black.opacity(0.42))
+        }
+    }
 }
 
 private struct WindowThumb: View {
@@ -144,7 +201,7 @@ private struct WindowThumb: View {
                         circleButton("xmark") { onClose() }
                     }
                     .padding(6)
-                    .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .topTrailing)))
+                    .transition(FlowMotion.reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.6, anchor: .topTrailing)))
                 }
             }
             Text(window.title.isEmpty ? "Untitled window" : window.title)
@@ -154,8 +211,8 @@ private struct WindowThumb: View {
                 .frame(width: width, alignment: .leading)
         }
         .contentShape(Rectangle())
-        .scaleEffect(pressing ? 0.96 : (hovering ? 1.035 : 1.0))
-        .offset(y: hovering && !pressing ? -2 : 0)
+        .scaleEffect(FlowMotion.reduceMotion ? 1 : pressing ? 0.96 : (hovering ? 1.035 : 1.0))
+        .offset(y: !FlowMotion.reduceMotion && hovering && !pressing ? -2 : 0)
         .shadow(color: .black.opacity(hovering ? 0.4 : 0), radius: hovering ? 9 : 0, y: 4)
         .zIndex(hovering ? 1 : 0)
         .animation(FlowMotion.hoverScale, value: hovering)
@@ -200,19 +257,38 @@ final class DockPreviewController {
     private let model = DockPreviewModel()
     private var currentPID: pid_t?
     private var hiding = false
-    private let gap: CGFloat = 10
+    private var presentationToken = UUID()
+    private var iconFrameCG: CGRect = .zero
+    private var dockPosition: DockPosition = .bottom
+    private let genie = DockGenieTransition()
+    private let gap: CGFloat = 0
 
     var isVisible: Bool { (panel?.isVisible ?? false) && !hiding }
 
     var containsMouse: Bool {
-        guard let panel, panel.isVisible else { return false }
-        return panel.frame.insetBy(dx: -8, dy: -8).contains(NSEvent.mouseLocation)
+        guard let panel, isVisible else { return false }
+        return panel.frame.contains(NSEvent.mouseLocation)
+    }
+
+    func keepsOpen(at point: CGPoint, currentIconFrameCG: CGRect?) -> Bool {
+        guard let panel, isVisible else { return false }
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? iconFrameCG.maxY
+        let currentIcon = currentIconFrameCG.map {
+            CGRect(x: $0.minX, y: primaryHeight - $0.maxY, width: $0.width, height: $0.height)
+        } ?? iconFrameCocoa
+        return DockPreviewHoverRegion.contains(point, icon: iconFrameCocoa.union(currentIcon),
+                                              panel: panel.frame, edge: dockPosition)
     }
 
     func present(pid: pid_t, appName: String, icon: NSImage?, bundleID: String?,
                  iconFrameCG: CGRect, dockPosition: DockPosition) {
         if panel == nil { makePanel() }
+        let token = UUID()
+        presentationToken = token
+        genie.cancel()
         hiding = false
+        self.iconFrameCG = iconFrameCG
+        self.dockPosition = dockPosition
         // Same app already shown — just refresh content, keep position.
         if currentPID != pid {
             currentPID = pid
@@ -221,82 +297,78 @@ final class DockPreviewController {
 
         // Let SwiftUI size itself, then anchor to the icon.
         DispatchQueue.main.async { [weak self] in
-            guard let self, let panel = self.panel, !self.hiding else { return }
-            panel.layoutIfNeeded()
-            let fitting = panel.contentView?.fittingSize ?? NSSize(width: 420, height: 260)
-            let w = min(max(fitting.width, 260), 1040)
-            let h = min(max(fitting.height, 240), 520)
-            let origin = self.anchorOrigin(iconFrameCG: iconFrameCG, panel: NSSize(width: w, height: h),
-                                           dockPosition: dockPosition)
-            let final = NSRect(origin: origin, size: NSSize(width: w, height: h))
-            let reduce = FlowMotion.reduceMotion
-
-            if panel.isVisible {
-                // Gliding along the Dock — smoothly follow the hovered icon.
-                // (Also restores alpha if a fade-out was cancelled mid-flight.)
-                if reduce {
-                    panel.alphaValue = 1
-                    panel.setFrame(final, display: true)
-                } else {
-                    NSAnimationContext.runAnimationGroup { ctx in
-                        ctx.duration = 0.22
-                        ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                        panel.animator().alphaValue = 1
-                        panel.animator().setFrame(final, display: true)
-                    }
-                }
-            } else {
-                // First appearance: rise from the Dock edge while fading in.
-                var start = final
-                if !reduce {
-                    switch dockPosition {
-                    case .left:   start.origin.x -= 10
-                    case .right:  start.origin.x += 10
-                    case .top:    start.origin.y += 10
-                    case .bottom, .unknown: start.origin.y -= 10
-                    }
-                }
-                panel.alphaValue = 0
-                panel.setFrame(start, display: false)
-                panel.orderFrontRegardless()
-                NSAnimationContext.runAnimationGroup { ctx in
-                    ctx.duration = reduce ? 0.15 : 0.26
-                    ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                    panel.animator().alphaValue = 1
-                    panel.animator().setFrame(final, display: true)
-                }
+            guard let self, let panel = self.panel,
+                  self.presentationToken == token, !self.hiding else { return }
+            let wasVisible = panel.isVisible
+            self.layoutPanel()
+            panel.alphaValue = 0
+            panel.orderFrontRegardless()
+            if wasVisible || !self.genie.animate(panel: panel, image: self.transitionImage(), icon: self.iconFrameCocoa,
+                                                edge: dockPosition, appearing: true, completion: { [weak self] in
+                guard let self, self.presentationToken == token, !self.hiding else { return }
+                self.layoutPanel()
+                panel.alphaValue = 1
+            }) {
+                panel.alphaValue = 1
             }
         }
     }
 
     func hide(animated: Bool = true) {
-        guard let panel, panel.isVisible, !hiding else {
-            currentPID = nil
-            return
-        }
+        if hiding && animated { return }
+        presentationToken = UUID()
+        let token = presentationToken
         currentPID = nil
-        if !animated || FlowMotion.reduceMotion {
-            panel.orderOut(nil)
-            model.windows = []
+        let interrupted = genie.isAnimating
+        genie.cancel()
+        guard let panel, panel.isVisible else {
+            model.cancel()
             return
         }
         hiding = true
-        var down = panel.frame
-        down.origin.y -= 8
-        NSAnimationContext.runAnimationGroup({ ctx in
-            ctx.duration = 0.18
-            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
-            panel.animator().alphaValue = 0
-            panel.animator().setFrame(down, display: true)
-        }, completionHandler: {
-            Task { @MainActor in
-                guard self.hiding else { return }      // a new present() cancelled the hide
-                self.hiding = false
-                panel.orderOut(nil)
-                panel.alphaValue = 1
-                self.model.windows = []                // release thumbnails from memory
-            }
-        })
+        let finish = { [weak self] in
+            guard let self, self.presentationToken == token else { return }
+            panel.orderOut(nil)
+            panel.alphaValue = 1
+            self.hiding = false
+        }
+        let animating = animated && !interrupted && genie.animate(
+            panel: panel, image: transitionImage(), icon: iconFrameCocoa, edge: dockPosition, appearing: false, completion: finish)
+        model.cancel()
+        if !animating { finish() }
+    }
+
+    private var iconFrameCocoa: CGRect {
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? iconFrameCG.maxY
+        return CGRect(x: iconFrameCG.minX, y: primaryHeight - iconFrameCG.maxY,
+                      width: iconFrameCG.width, height: iconFrameCG.height)
+    }
+
+    private func transitionImage() -> CGImage? {
+        guard !FlowMotion.reduceMotion, let panel else { return nil }
+        let dark = panel.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let view = DockPreviewView(model: model, onActivate: { _ in }, onClose: { _ in },
+                                   onMinimize: { _ in }, rendersForTransition: true)
+            .frame(width: panel.frame.width, height: panel.frame.height)
+            .environment(\.colorScheme, dark ? .dark : .light)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = panel.backingScaleFactor
+        return renderer.cgImage
+    }
+
+    private func layoutPanel() {
+        guard let panel else { return }
+        let screen = NSScreen.screens.first { $0.frame.intersects(iconFrameCocoa) } ?? NSScreen.main
+        let available = screen?.visibleFrame.size ?? NSSize(width: 1280, height: 800)
+        let thumb = AppSettings.shared.dockPreviewSize.thumb
+        let count = CGFloat(max(1, min(model.windows.count, 3)))
+        let width = min(thumb.width * count + (count - 1) * 12 + 32, 1040, available.width - 12)
+        let height = min(thumb.height + 104, available.height - 12)
+        let size = NSSize(width: width, height: height)
+        panel.setFrame(NSRect(origin: anchorOrigin(iconFrameCG: iconFrameCG, panel: size,
+                                                  dockPosition: dockPosition), size: size), display: true)
+        panel.layoutIfNeeded()
+        panel.contentView?.layoutSubtreeIfNeeded()
     }
 
     /// Convert the icon's CoreGraphics (top-left) frame to a Cocoa origin for the
@@ -330,9 +402,17 @@ final class DockPreviewController {
         // Clamp to the screen the icon sits on.
         let screen = NSScreen.screens.first { $0.frame.contains(NSPoint(x: iconCocoa.midX, y: iconCocoa.midY)) }
             ?? NSScreen.main
-        if let vf = screen?.visibleFrame {
-            x = min(max(x, vf.minX + 6), vf.maxX - size.width - 6)
-            y = min(max(y, vf.minY + 6), vf.maxY - size.height - 6)
+        if let screen {
+            let visible = screen.visibleFrame
+            let full = screen.frame
+            switch dockPosition {
+            case .left, .right:
+                x = min(max(x, full.minX), full.maxX - size.width)
+                y = min(max(y, visible.minY + 6), visible.maxY - size.height - 6)
+            case .bottom, .top, .unknown:
+                x = min(max(x, visible.minX + 6), visible.maxX - size.width - 6)
+                y = min(max(y, full.minY), full.maxY - size.height)
+            }
         }
         return NSPoint(x: x, y: y)
     }
@@ -354,9 +434,14 @@ final class DockPreviewController {
         p.backgroundColor = .clear
         p.isOpaque = false
         p.hasShadow = true
+        p.acceptsMouseMovedEvents = true
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         p.animationBehavior = .none        // we drive appear/dismiss ourselves
         p.contentView = host
         panel = p
+        model.onLoaded = { [weak self] in
+            guard let self, self.isVisible, !self.genie.isAnimating else { return }
+            self.layoutPanel()
+        }
     }
 }

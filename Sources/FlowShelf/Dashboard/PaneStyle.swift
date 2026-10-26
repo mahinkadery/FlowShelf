@@ -1,9 +1,21 @@
 import SwiftUI
 
+private struct DashboardMonochromeIconsKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var dashboardMonochromeIcons: Bool {
+        get { self[DashboardMonochromeIconsKey.self] }
+        set { self[DashboardMonochromeIconsKey.self] = newValue }
+    }
+}
+
 /// Shared visual building blocks for dashboard panes.
 
 /// A tinted gradient icon chip — the "emblem" that makes a row pop.
 struct EmblemChip: View {
+    @Environment(\.dashboardMonochromeIcons) private var monochrome
     var icon: String
     var tint: Color
     var size: CGFloat = 27
@@ -11,12 +23,17 @@ struct EmblemChip: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
-                .fill(LinearGradient(colors: [tint.opacity(0.9), tint.opacity(0.6)],
-                                     startPoint: .top, endPoint: .bottom))
+            if monochrome {
+                RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+                    .fill(Color.primary.opacity(0.055))
+            } else {
+                RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+                    .fill(LinearGradient(colors: [tint.opacity(0.9), tint.opacity(0.6)],
+                                         startPoint: .top, endPoint: .bottom))
+            }
             Image(systemName: icon)
                 .font(.system(size: iconSize, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(monochrome ? Color.primary.opacity(0.8) : .white)
         }
         .frame(width: size, height: size)
     }

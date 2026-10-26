@@ -219,7 +219,7 @@ final class AppSettings: ObservableObject {
         launchAtLogin = defaults.bool(forKey: "launchAtLogin")
         dockPreviewsEnabled = defaults.bool(forKey: "dockPreviewsEnabled")
         shakeToSummon = defaults.bool(forKey: "shakeToSummon")
-        dockPreviewHoverDelay = defaults.object(forKey: "dockPreviewHoverDelay") as? Double ?? 0.28
+        dockPreviewHoverDelay = defaults.object(forKey: "dockPreviewHoverDelay") as? Double ?? 0.10
         dockPreviewSize = DockPreviewSize(rawValue: defaults.string(forKey: "dockPreviewSize") ?? "")
             ?? .medium
         altTabEnabled = defaults.bool(forKey: "altTabEnabled")

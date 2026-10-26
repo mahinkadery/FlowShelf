@@ -7,6 +7,14 @@ until the owner approves it. Retain existing macOS 14 support.
 Owner follow-up: [review checklist](OWNER-REVIEW-CHECKLIST.md). Keep this updated
 after each local install; automated checks are not visual approval.
 
+## Build 90: Peek hover handoff — October 26, 2026
+
+Installed local build 90. Shared icon-to-preview corridor fixes premature dismissal
+on Dock deselection; opening delay reduced to 0.10 seconds on this Mac. Approved
+Genie animation unchanged. Baseline reproduction, fixed observer/geometry regressions,
+universal builds and installed signature/identity pass. Real Dock clicks still need
+owner verification. Scope and rollback: `PEEK-BUILD90.md`. No release or push.
+
 ## Build 87: finish Clear All protection for OCR, QR and captures
 
 Installed October 1, 2026. Shared content generation rejects late Vision results

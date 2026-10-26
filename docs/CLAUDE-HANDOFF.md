@@ -1,5 +1,25 @@
 # FlowShelf handoff for Claude and Codex
 
+## Latest checkpoint — October 26, 2026
+
+FlowShelf 1.7.0 local build 90 is installed and running. Owner approved the Genie
+animation, which remains unchanged. Fixed premature dismissal while crossing from
+Dock icon to Peek with a shared hover corridor in both event paths; reduced this
+Mac's opening delay from 0.28 to 0.10 seconds. Baseline reproduction and fixed-code
+regressions passed. See `docs/PEEK-BUILD90.md` for evidence, remaining real-device
+checks and build-89 rollback. No public release. Older sections are historical.
+
+## Latest checkpoint — October 25, 2026
+
+FlowShelf 1.7.0 local build 89 is installed for owner review. Peek now dismisses
+on pointer exit without the old grace timer, uses a custom Genie-inspired funnel,
+rejects stale show/capture completions and sizes to its windows. Dashboard icons
+are monochrome; onboarding, status colors and Notch glass remain unchanged.
+Full scope, verification, outstanding live checks and build-88 rollback are in
+`docs/PEEK-BUILD89.md`. No release or push. Earlier checkpoint details below are
+historical, not the current installed version. The October 22 audit remains
+unmodified; do not imply its unrelated findings were fixed by this Peek update.
+
 Updated October 1, 2026 (Australia/Sydney). This file is a local handoff, not a
 message sent to another model or an upload to an external service.
 

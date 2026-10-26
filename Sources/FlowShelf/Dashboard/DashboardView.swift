@@ -84,17 +84,10 @@ struct DashboardView: View {
                         ForEach(group.items) { item in
                             NavigationLink(value: item) {
                                 HStack(spacing: 9) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 6.5, style: .continuous)
-                                            .fill(LinearGradient(
-                                                colors: [item.tint.opacity(0.95), item.tint.opacity(0.7)],
-                                                startPoint: .top, endPoint: .bottom))
-                                        Image(systemName: item.symbol)
-                                            .font(.system(size: 12, weight: .semibold))
-                                            .foregroundStyle(.white)
-                                    }
-                                    .frame(width: 24, height: 24)
-                                    .shadow(color: item.tint.opacity(0.35), radius: 2, y: 1)
+                                    Image(systemName: item.symbol)
+                                        .font(.system(size: 15, weight: .medium))
+                                        .symbolRenderingMode(.monochrome)
+                                        .frame(width: 24, height: 24)
 
                                     Text(item.label).font(.system(size: 13, weight: .medium))
                                 }
@@ -139,6 +132,7 @@ struct DashboardView: View {
             }
         }
         .frame(minWidth: 820, minHeight: 540)
+        .environment(\.dashboardMonochromeIcons, true)
         .onChange(of: section) { _, newSection in
             UserDefaults.standard.set(newSection.rawValue, forKey: "dashboardLastSection")
         }

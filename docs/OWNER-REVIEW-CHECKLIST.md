@@ -1,5 +1,36 @@
 # Owner review checklist
 
+## Latest — build 90, October 26, 2026
+
+Installed 1.7.0 build 90. The owner approved the previous animation; it is unchanged.
+Baseline premature-dismissal reproduction and fixed hover/cancellation tests pass.
+Live checks still needed, using the normal Dock rather than test fixtures:
+
+- [ ] Peek opens sooner (saved appearance delay now 0.10 seconds).
+- [ ] Move straight or diagonally from the app icon into Peek; it stays open.
+- [ ] Click a preview or its close/minimize control without premature dismissal.
+- [ ] Moving away from both the icon and preview still dismisses promptly.
+- [ ] Try Dock magnification/auto-hide, side Dock and secondary displays if used.
+
+Details, test boundaries and rollback: `PEEK-BUILD90.md`. No release authorized.
+
+## Latest — build 89, October 25, 2026
+
+Installed FlowShelf 1.7.0 build 89. Details and rollback: `PEEK-BUILD89.md`.
+These are live checks awaiting owner review, not failed automated checks:
+
+- [ ] Hover a Dock app, then move elsewhere: withdrawal begins immediately.
+- [ ] Move directly from the icon into its preview; window actions remain usable.
+- [ ] Rapidly skim icons or leave before the hover delay: no late/ghost preview.
+- [ ] Review the Genie-style funnel with bottom/side Dock, magnification and auto-hide.
+- [ ] Check several windows, horizontal scrolling and a second display.
+- [ ] With Reduce Motion enabled, verify immediate static reveal/dismissal.
+- [ ] Review monochrome dashboard/sidebar icons in light and dark appearances.
+
+Universal builds, signature/binary checks, isolated cancellation/geometry tests and
+offscreen synthetic renders passed. No live visual approval is claimed. No release.
+Older checklists below retain their original dates/builds for historical context.
+
 Updated October 1, 2026. Current review target: FlowShelf 1.6.2, local build 87.
 Installation/automated verification is recorded in [the roadmap](UPGRADE-ROADMAP.md).
 Unchecked means awaiting your review, not a confirmed failure. No UI automation
